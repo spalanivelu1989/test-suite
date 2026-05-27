@@ -102,9 +102,13 @@ export function createRunStore(): RunStore {
   };
 }
 
-/** Process-wide singleton so API routes and the orchestrator share run state. */
-let singleton: RunStore | undefined;
+/**
+ * Process-wide singleton so API routes and the orchestrator share run state.
+ * Stored on globalThis because Next.js can duplicate module instances across
+ * route files and HMR reloads — a plain module-level variable is not shared.
+ */
+const globalForStore = globalThis as unknown as { __runStore?: RunStore };
 export function getRunStore(): RunStore {
-  if (!singleton) singleton = createRunStore();
-  return singleton;
+  if (!globalForStore.__runStore) globalForStore.__runStore = createRunStore();
+  return globalForStore.__runStore;
 }

@@ -45,6 +45,18 @@ No `ANTHROPIC_API_KEY` is set. The Claude client reads the key from env /
 Claude-dependent verification (AC5, real flow/test/heal generation) is deferred
 until the user supplies a key. Code must fail clearly if the key is absent at run time.
 
+### [2026-05-27] Run store must live on globalThis, not a module variable
+
+**Type:** Change
+**Task:** T17 (found while browser/API testing)
+
+The Plan's in-memory run store (D6) used a module-level singleton. Testing the
+live SSE stream showed "run not found": Next.js duplicates module instances
+across separate route files (and HMR), so the POST route and the stream route
+held different store instances. Fixed by stashing the singleton on globalThis —
+the standard Next.js pattern for shared in-memory state. Verified end-to-end:
+crawl→identify events streamed, then a clean no-API-key failure (no false pass).
+
 ### [2026-05-27] Curated tarento.com flow list defined without live browsing
 
 **Type:** Assumption

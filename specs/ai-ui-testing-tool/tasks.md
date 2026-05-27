@@ -161,28 +161,28 @@ tasks at the same dependency level.
 - **Parallel:** yes
 - **Done-when:** each format can be fetched for a completed run.
 
-### T19 — UI: URL input form with validation + optional scope config
+### T19 — UI: URL input form with validation + optional scope config [x]
 
 - **Covers:** R1, R8
 - **Depends on:** T16
 - **Parallel:** no
 - **Done-when:** submitting the form starts a run and navigates to its progress view.
 
-### T20 — UI: live progress view consuming SSE
+### T20 — UI: live progress view consuming SSE [x]
 
 - **Covers:** R8
 - **Depends on:** T17, T19
 - **Parallel:** no
 - **Done-when:** the page shows live crawl/generate/run/heal progress as it streams.
 
-### T21 — UI: report viewer + downloads; label flaky/healed results [P]
+### T21 — UI: report viewer + downloads; label flaky/healed results [P] [x]
 
 - **Covers:** R5, R7, R11, R8
 - **Depends on:** T18, T20
 - **Parallel:** yes
 - **Done-when:** a completed run shows the report with pass/fail, coverage, flaky+healed labels, and working downloads.
 
-### T22 — UI: error states for invalid/unreachable URL (no false "passed") [P]
+### T22 — UI: error states for invalid/unreachable URL (no false "passed") [P] [x]
 
 - **Covers:** R1, R8
 - **Depends on:** T19
