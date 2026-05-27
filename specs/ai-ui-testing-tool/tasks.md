@@ -77,7 +77,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** generated tests that don't parse/compile are rejected and regenerated (capped retries) before any run (D8).
 
-### T8 — Test runner: execute generated tests, capture pass/fail + failure detail
+### T8 — Test runner: execute generated tests, capture pass/fail + failure detail [x]
 
 - **Covers:** R4
 - **Depends on:** T2, T7b
