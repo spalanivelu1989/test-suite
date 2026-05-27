@@ -189,7 +189,7 @@ tasks at the same dependency level.
 - **Parallel:** yes
 - **Done-when:** an invalid/unreachable URL shows a clear error and no success report is presented.
 
-### T23 — CI entry: headless run writes JSON and sets exit code
+### T23 — CI entry: headless run writes JSON and sets exit code [x]
 
 - **Covers:** R10, R11
 - **Depends on:** T13, T15a
