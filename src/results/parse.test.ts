@@ -4,6 +4,7 @@ import {
   assessSuiteFlakiness,
   captureResults,
   parsePlaywrightResults,
+  reconcileHealing,
   type PlaywrightJsonReport,
 } from "./parse";
 
@@ -65,6 +66,23 @@ test("captureResults runs the suite via the injected executor", async () => {
     async () => report,
   );
   assert.equal(results.length, 3);
+});
+
+test("reconcileHealing marks failed→passed as healed and computes M3", () => {
+  const before = [
+    { flowId: "a", fileName: "a.spec.ts", outcome: "failed" as const },
+    { flowId: "b", fileName: "b.spec.ts", outcome: "failed" as const },
+    { flowId: "c", fileName: "c.spec.ts", outcome: "passed" as const },
+  ];
+  const after = [
+    { flowId: "a", fileName: "a.spec.ts", outcome: "passed" as const },
+    { flowId: "b", fileName: "b.spec.ts", outcome: "failed" as const },
+    { flowId: "c", fileName: "c.spec.ts", outcome: "passed" as const },
+  ];
+  const { results, healSuccessRate } = reconcileHealing(before, after);
+  assert.equal(results.find((r) => r.flowId === "a")?.outcome, "healed");
+  assert.equal(results.find((r) => r.flowId === "b")?.outcome, "failed");
+  assert.equal(healSuccessRate, 0.5); // 1 of 2 initially-failed now pass
 });
 
 test("assessSuiteFlakiness flags a test whose result diverges across re-runs", async () => {

@@ -14,8 +14,7 @@ export interface RunConfig {
 /** Pipeline stages, in order. Drives progress events (R8) and SSE (T17). */
 export type RunStage =
   | "queued"
-  | "crawling"
-  | "identifying"
+  | "planning"
   | "generating"
   | "running"
   | "flake-check"

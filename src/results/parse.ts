@@ -107,6 +107,30 @@ export async function captureResults(
 }
 
 /**
+ * Mark tests that failed before healing but pass after as "healed", and compute
+ * the heal success rate (M3). Flaky tests are left as flaky, not healed.
+ */
+export function reconcileHealing(
+  before: TestResult[],
+  after: TestResult[],
+): { results: TestResult[]; healSuccessRate: number } {
+  const beforeFailed = new Set(
+    before.filter((r) => r.outcome === "failed").map((r) => r.flowId),
+  );
+  let healed = 0;
+  const results = after.map((r): TestResult => {
+    if (r.outcome === "passed" && beforeFailed.has(r.flowId)) {
+      healed += 1;
+      return { ...r, outcome: "healed", healed: true };
+    }
+    return r;
+  });
+  const healSuccessRate =
+    beforeFailed.size === 0 ? 0 : healed / beforeFailed.size;
+  return { results, healSuccessRate };
+}
+
+/**
  * T10: re-run the healed suite N times on the unchanged app, flag divergent
  * tests, and compute the flake rate (M2). Reuses detectFlakes.
  */

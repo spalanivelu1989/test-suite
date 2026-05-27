@@ -33,10 +33,10 @@ test("create assigns an id and queued/pending state", () => {
 test("addEvent appends and advances the stage to running", () => {
   const store = createRunStore();
   const run = store.create({ url: "https://example.com" });
-  store.addEvent(run.id, { stage: "crawling", message: "started crawl" });
+  store.addEvent(run.id, { stage: "planning", message: "started planning" });
   const updated = store.get(run.id)!;
   assert.equal(updated.events.length, 1);
-  assert.equal(updated.stage, "crawling");
+  assert.equal(updated.stage, "planning");
   assert.equal(updated.status, "running");
   assert.ok(updated.events[0].at);
 });

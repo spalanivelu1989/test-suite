@@ -1,35 +1,43 @@
 import type { ClaudeClient } from "../claude/client";
 import type { NamedFlow } from "../coverage/coverage";
-import { computeCoverage } from "../coverage/coverage";
-import type { PageFetcher } from "../crawler/crawl";
-import { crawl } from "../crawler/crawl";
-import { assessFlakiness } from "../flake/flake";
-import { identifyFlows } from "../flows/identify";
-import { generateValidTest } from "../generator/validate";
-import { healFailures } from "../healer/heal";
+import { coverageFromResults } from "../coverage/coverage";
+import {
+  readGeneratedSpecs,
+  readPlan,
+  type Workspace,
+} from "../agents/workspace";
+import { createWorkspace } from "../agents/workspace";
+import {
+  assessSuiteFlakiness,
+  captureResults,
+  reconcileHealing,
+  type SuiteExecutor,
+} from "../results/parse";
 import { buildReport } from "../reporter/report";
-import type {
-  GeneratedTest,
-  ProgressEvent,
-  RunConfig,
-  RunReport,
-  TestResult,
-} from "../types";
+import { generateNarrative } from "../reporter/narrative";
+import type { ProgressEvent, RunConfig, RunReport } from "../types";
+import { generateTests, healTests, planTests, type StageDeps } from "./stages";
 
 export interface OrchestratorDeps {
+  /** Powers the Reporter narrative (the agents are driven by the Agent SDK). */
   claude: ClaudeClient;
-  /** Opens a page fetcher (Playwright in prod). Closed after crawl if closable. */
-  openFetcher: () => Promise<PageFetcher & { close?: () => Promise<void> }>;
-  /** Executes generated tests (the runner). Injected for testability. */
-  runTests: (tests: GeneratedTest[]) => Promise<TestResult[]>;
   curatedFlows: NamedFlow[];
-  /** T15b: receives an ordered progress event per stage. */
   emit?: (event: Omit<ProgressEvent, "at">) => void;
-  /** Re-runs for flake assessment (M2 uses 3). */
+  /** Injected stage runner/agent loader (tests stub these). */
+  stageDeps?: StageDeps;
+  /** Injected suite executor for results/flake (tests stub this). */
+  suiteExec?: SuiteExecutor;
   reruns?: number;
+  /** Override workspace creation in tests. */
+  makeWorkspace?: (runId: string) => Promise<Workspace>;
 }
 
-/** T15a + T15b: run the full pipeline for one URL, emitting progress per stage. */
+class StageError extends Error {}
+
+/**
+ * T17: run the four-agent pipeline (Planner → Generator → Healer → Reporter) for
+ * one URL, emitting per-stage progress, and produce the rich RunReport (R12).
+ */
 export async function runPipeline(
   runId: string,
   config: RunConfig,
@@ -40,59 +48,69 @@ export async function runPipeline(
     message: string,
     data?: Record<string, unknown>,
   ) => deps.emit?.({ stage, message, data });
+  const onAgent = (label: string) => (e: { kind: string; tool?: string }) => {
+    if (e.kind === "tool" && e.tool) emit("running", `${label}: ${e.tool}`);
+  };
 
-  emit("crawling", `Crawling ${config.url}`);
-  const fetcher = await deps.openFetcher();
-  let crawlResult;
-  try {
-    crawlResult = await crawl(config, fetcher);
-  } finally {
-    await fetcher.close?.();
-  }
-  emit("crawling", `Discovered ${crawlResult.pages.length} pages`, {
-    pages: crawlResult.pages.length,
-  });
+  const ws = await (deps.makeWorkspace ?? createWorkspace)(runId);
+  const exec = deps.suiteExec;
+  let agentRuns = 0;
 
-  emit("identifying", "Identifying user flows");
-  const flows = await identifyFlows(crawlResult, deps.claude);
-  emit("identifying", `Identified ${flows.length} flows`, {
-    flows: flows.length,
-  });
-
-  emit("generating", "Generating Playwright tests");
-  const tests = await Promise.all(
-    flows.map((f) => generateValidTest(f, crawlResult, deps.claude)),
+  // 1. Planner → Markdown plan
+  emit("planning", "Planner: exploring the app and writing a test plan");
+  const plan = await planTests(
+    ws,
+    config.url,
+    onAgent("planner"),
+    deps.stageDeps,
   );
+  agentRuns++;
+  if (plan.isError)
+    throw new StageError("Planner failed to produce a test plan");
 
-  emit("running", "Running tests");
-  emit("flake-check", "Checking for flaky tests");
-  const flake = await assessFlakiness(tests, deps.runTests, deps.reruns ?? 3);
+  // 2. Generator → Playwright specs
+  emit("generating", "Generator: writing Playwright tests from the plan");
+  const gen = await generateTests(ws, onAgent("generator"), deps.stageDeps);
+  agentRuns++;
+  if (gen.isError) throw new StageError("Generator produced no tests");
 
-  emit("healing", "Healing locator failures");
-  const heal = await healFailures(
-    tests,
-    flake.results,
-    deps.claude,
-    deps.runTests,
-  );
+  // 3. Initial run (pre-heal), then Healer, then re-run for flake + heal reconciliation
+  emit("running", "Running generated tests");
+  const initial = await captureResults(ws, exec);
 
-  emit("reporting", "Building report");
-  const coverage = computeCoverage(deps.curatedFlows, flows);
+  emit("healing", "Healer: repairing failures and quarantining the unfixable");
+  await healTests(ws, onAgent("healer"), deps.stageDeps);
+  agentRuns++;
+
+  emit("flake-check", "Re-running to check reliability");
+  const flake = await assessSuiteFlakiness(ws, deps.reruns ?? 3, exec);
+  const { results, healSuccessRate } = reconcileHealing(initial, flake.results);
+
+  // 4. Reporter
+  emit("reporting", "Reporter: aggregating results and recommendations");
+  const specs = await readGeneratedSpecs(ws);
+  const planMarkdown = await readPlan(ws);
+  const coverage = coverageFromResults(deps.curatedFlows, results);
+  const narrative = await generateNarrative(results, specs, deps.claude);
+
   const report = buildReport({
     runId,
     url: config.url,
-    flows,
-    results: heal.results,
+    results,
     coverage,
     flakeRate: flake.flakeRate,
-    healSuccessRate: heal.healSuccessRate,
-    claudeCallCount: deps.claude.calls.length,
-    fixPrompts: [],
-    issues: [],
-    recommendations: [],
-    planMarkdown: null,
-    generatedSpecs: [],
+    healSuccessRate,
+    // Agent stages run via the Agent SDK (not the narrative client); count both.
+    claudeCallCount: agentRuns + deps.claude.calls.length,
+    fixPrompts: narrative.fixPrompts,
+    issues: narrative.issues,
+    recommendations: narrative.recommendations,
+    planMarkdown,
+    generatedSpecs: specs,
   });
-  emit("done", "Run complete", { coverage: coverage.percent });
+  emit("done", "Run complete", {
+    successRate: Math.round(report.successRate.rate * 100),
+    coverage: coverage.percent,
+  });
   return report;
 }

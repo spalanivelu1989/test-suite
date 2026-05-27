@@ -129,7 +129,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** renderers output all R16 sections (summary, URL, success rate %, breakdown, fix prompts, issues, recommendations); HTML escaped; unit-tested.
 
-### T17 — Orchestrator rewrite (planner→generator→healer→reporter)
+### T17 — Orchestrator rewrite (planner→generator→healer→reporter) [x]
 
 - **Covers:** R8, R12
 - **Depends on:** T6, T7, T8, T9, T10, T11, T15

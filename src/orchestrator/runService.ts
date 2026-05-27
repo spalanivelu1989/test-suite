@@ -1,7 +1,5 @@
 import { createClaudeClient } from "../claude/client";
 import type { NamedFlow } from "../coverage/coverage";
-import { createPlaywrightFetcher } from "../crawler/playwrightFetcher";
-import { runTests } from "../runner/runner";
 import { getRunStore } from "../runStore/store";
 import type { RunConfig, RunReport } from "../types";
 import { runPipeline } from "./orchestrate";
@@ -35,10 +33,9 @@ export async function runToReport(
   emit?: Parameters<typeof runPipeline>[2]["emit"],
 ): Promise<RunReport> {
   const claude = createClaudeClient();
+  // stageDeps + suiteExec default to the real Agent SDK runtime + Playwright CLI.
   return runPipeline(runId, config, {
     claude,
-    openFetcher: () => createPlaywrightFetcher(),
-    runTests,
     curatedFlows: loadCuratedFlows(config.url),
     emit,
   });
