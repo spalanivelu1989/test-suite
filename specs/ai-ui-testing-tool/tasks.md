@@ -28,14 +28,14 @@ tasks at the same dependency level.
 - **Parallel:** yes
 - **Done-when:** a trivial Playwright test runs headless via the Playwright runner.
 
-### T3 — Add Anthropic SDK + Claude client wrapper with call logging [P]
+### T3 — Add Anthropic SDK + Claude client wrapper with call logging [P] [x]
 
 - **Covers:** R6
 - **Depends on:** T1
 - **Parallel:** yes
 - **Done-when:** a wrapper function calls Claude with an API key and logs each Anthropic request (verifiable for AC5).
 
-### T4 — Define run state model + in-memory run store + run ID lifecycle [P]
+### T4 — Define run state model + in-memory run store + run ID lifecycle [P] [x]
 
 - **Covers:** R8
 - **Depends on:** T1
@@ -105,7 +105,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** given tested flows and the curated list, it outputs coverage % matching M1's formula.
 
-### T12 — Curated primary-flow list for tarento.com (fixture) [P]
+### T12 — Curated primary-flow list for tarento.com (fixture) [P] [x]
 
 - **Covers:** R2
 - **Depends on:** —

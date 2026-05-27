@@ -45,6 +45,28 @@ No `ANTHROPIC_API_KEY` is set. The Claude client reads the key from env /
 Claude-dependent verification (AC5, real flow/test/heal generation) is deferred
 until the user supplies a key. Code must fail clearly if the key is absent at run time.
 
+### [2026-05-27] Curated tarento.com flow list defined without live browsing
+
+**Type:** Assumption
+**Task:** T12
+
+The 10 curated flows in `fixtures/tarento-flows.json` were derived from typical
+corporate-marketing-site structure (home, nav, services, industries, case
+studies, insights, about, careers, contact, footer), not a live crawl of
+tarento.com. The list is the M1 denominator and should be reconciled against the
+real site before measuring coverage in Stage 5.
+
+### [2026-05-27] Anchored shared domain types in src/types.ts up front
+
+**Type:** Decision
+**Task:** T4
+
+Defined the cross-cutting domain model (Run, RunConfig, ProgressEvent,
+CrawlResult, Flow, GeneratedTest, TestResult, CoverageSummary, RunReport) in one
+module during T4 rather than letting each later task invent its own shapes. The
+Plan implies these flow between modules; centralizing avoids rework churn.
+Producers are still implemented in their own tasks.
+
 ### [2026-05-27] Manual Next.js scaffold instead of create-next-app
 
 **Type:** Tradeoff

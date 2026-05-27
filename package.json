@@ -8,10 +8,11 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --test --experimental-strip-types \"src/**/*.test.ts\"",
+    "test:unit": "tsx --test \"src/**/*.test.ts\"",
     "ci": "tsx bin/run-ci.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
     "@chakra-ui/react": "^3.2.3",
     "@emotion/react": "^11.13.5",
     "framer-motion": "^11.13.1",

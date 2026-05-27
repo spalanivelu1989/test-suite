@@ -1,0 +1,87 @@
+{
+  "app": "tarento.com",
+  "note": "Curated primary user flows for the reference app (Q2 / DEP4). These form the denominator for M1 (≥80% coverage). Marketing/corporate site — no auth (auth deferred to v2). Adjust if the site structure changes.",
+  "flows": [
+    {
+      "id": "home",
+      "name": "Load home page",
+      "steps": [
+        "Navigate to https://www.tarento.com/",
+        "Verify the hero/landing content and primary navigation render"
+      ]
+    },
+    {
+      "id": "primary-nav",
+      "name": "Use primary navigation menu",
+      "steps": [
+        "From the home page, open the main navigation",
+        "Verify top-level menu items are present and clickable"
+      ]
+    },
+    {
+      "id": "services",
+      "name": "View services / what-we-do section",
+      "steps": [
+        "Navigate to the Services / What We Do area from the nav",
+        "Verify the services listing renders"
+      ]
+    },
+    {
+      "id": "industries",
+      "name": "View industries section",
+      "steps": [
+        "Navigate to the Industries area from the nav",
+        "Verify industry content renders"
+      ]
+    },
+    {
+      "id": "case-studies",
+      "name": "Browse case studies / work",
+      "steps": [
+        "Navigate to Case Studies / Work",
+        "Open an individual case study and verify its detail page renders"
+      ]
+    },
+    {
+      "id": "insights",
+      "name": "Browse insights / blog",
+      "steps": [
+        "Navigate to Insights / Blog",
+        "Open an article and verify the article page renders"
+      ]
+    },
+    {
+      "id": "about",
+      "name": "View About / Company page",
+      "steps": [
+        "Navigate to About / Company",
+        "Verify company information renders"
+      ]
+    },
+    {
+      "id": "careers",
+      "name": "View careers page",
+      "steps": [
+        "Navigate to Careers",
+        "Verify open roles or careers content renders"
+      ]
+    },
+    {
+      "id": "contact",
+      "name": "Open contact page and form",
+      "steps": [
+        "Navigate to Contact",
+        "Verify the contact form fields render",
+        "Validate the form rejects empty submission"
+      ]
+    },
+    {
+      "id": "footer-nav",
+      "name": "Use footer navigation links",
+      "steps": [
+        "Scroll to the footer on any page",
+        "Verify footer links are present and navigable"
+      ]
+    }
+  ]
+}
