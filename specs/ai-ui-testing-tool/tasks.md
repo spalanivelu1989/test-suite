@@ -84,21 +84,21 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** running generated tests yields per-test status and a failure reason for each failure.
 
-### T9 — Flake detector: re-run on unchanged app, flag divergence, compute rate [P]
+### T9 — Flake detector: re-run on unchanged app, flag divergence, compute rate [P] [x]
 
 - **Covers:** R7
 - **Depends on:** T8
 - **Parallel:** yes
 - **Done-when:** a test whose result differs across N identical re-runs is flagged and a flake rate is reported.
 
-### T10 — Auto-healer: detect locator failure, Claude repair + re-run, record outcome [P]
+### T10 — Auto-healer: detect locator failure, Claude repair + re-run, record outcome [P] [x]
 
 - **Covers:** R9, R6
 - **Depends on:** T3, T8
 - **Parallel:** yes
 - **Done-when:** a deliberately broken locator triggers a repair attempt and the heal outcome (healed/not) is recorded.
 
-### T11 — Coverage calculator: tested flows vs curated list → M1 %
+### T11 — Coverage calculator: tested flows vs curated list → M1 % [x]
 
 - **Covers:** R2
 - **Depends on:** T6, T8, T12
