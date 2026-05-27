@@ -45,7 +45,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** `runAgent({name, prompt, cwd, onEvent})` runs an agent against the MCP and streams typed progress events; unit-tested with a stubbed query.
 
-### T5 — Per-run workspace builder
+### T5 — Per-run workspace builder [x]
 
 - **Covers:** R12, R13, R14
 - **Depends on:** —
