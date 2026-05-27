@@ -9,7 +9,7 @@ import type {
   RunAgentResult,
 } from "../agents/runtime";
 import { createWorkspace } from "../agents/workspace";
-import { generateTests, planTests } from "./stages";
+import { generateTests, healTests, planTests } from "./stages";
 
 const fakeAgent: AgentDef = {
   name: "playwright-test-planner",
@@ -118,6 +118,33 @@ test("generateTests flags an error when no specs were written", async () => {
     });
     assert.equal(res.isError, true);
     assert.equal(res.specs.length, 0);
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("healTests runs the healer agent and reports tool usage", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      await writeFile(
+        join(ws.testsDir, "broken.spec.ts"),
+        "import {test} from '@playwright/test';\n// could not heal\ntest.fixme('broken', async () => {});",
+        "utf8",
+      );
+      opts.onEvent?.({ kind: "tool", tool: "mcp__playwright-test__test_run" });
+      return {
+        resultText: "healed",
+        toolCalls: ["test_run", "test_debug"],
+        isError: false,
+      };
+    };
+    const res = await healTests(ws, undefined, {
+      runner,
+      loadAgentFn: async () => fakeAgent,
+    });
+    assert.equal(res.isError, false);
+    assert.ok(res.toolCalls.includes("test_run"));
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }

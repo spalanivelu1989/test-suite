@@ -80,3 +80,29 @@ export async function generateTests(
     isError: res.isError || specs.length === 0,
   };
 }
+
+export interface HealResult {
+  toolCalls: string[];
+  isError: boolean;
+}
+
+/** T8: run the Healer → execute the suite, repair failures, quarantine the unfixable. */
+export async function healTests(
+  ws: Workspace,
+  onEvent?: (e: AgentEvent) => void,
+  deps: StageDeps = {},
+): Promise<HealResult> {
+  const load = deps.loadAgentFn ?? loadAgent;
+  const run = deps.runner ?? runAgent;
+  const agent = await load("playwright-test-healer");
+
+  const prompt = [
+    "Run the generated test suite with test_run. For each failing test, debug it with",
+    "test_debug, fix the spec (resilient locators, corrected assertions) and re-run until",
+    "it passes. If a test cannot be fixed and you are confident it is a genuine failure,",
+    "mark it test.fixme() with a comment explaining what is happening. Do not ask questions.",
+  ].join(" ");
+
+  const res = await run({ agent, prompt, cwd: ws.root, onEvent });
+  return { toolCalls: res.toolCalls, isError: res.isError };
+}

@@ -66,7 +66,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** running the generator emits one `.spec.ts` per planned scenario into the workspace.
 
-### T8 — Healer stage → run/repair + test.fixme()
+### T8 — Healer stage → run/repair + test.fixme() [x]
 
 - **Covers:** R4, R9, R15
 - **Depends on:** T7
