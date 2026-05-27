@@ -112,14 +112,14 @@ tasks at the same dependency level.
 - **Parallel:** yes
 - **Done-when:** `fixtures/tarento-flows.json` lists the agreed primary flows (resolves Q2/DEP4).
 
-### T13 — Reporter: assemble run results into a JSON report
+### T13 — Reporter: assemble run results into a JSON report [x]
 
 - **Covers:** R11
 - **Depends on:** T8, T9, T10, T11
 - **Parallel:** no
 - **Done-when:** a run produces a structured JSON report (flows, per-test results, coverage, flake, heal).
 
-### T14 — Reporter: render Markdown + HTML from the JSON report
+### T14 — Reporter: render Markdown + HTML from the JSON report [x]
 
 - **Covers:** R5
 - **Depends on:** T13
