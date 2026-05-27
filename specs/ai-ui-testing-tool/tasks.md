@@ -42,14 +42,14 @@ tasks at the same dependency level.
 - **Parallel:** yes
 - **Done-when:** a run can be created, fetched, and status-updated by ID in memory.
 
-### T5a — Crawler: Playwright navigation/traversal with scope+depth limits
+### T5a — Crawler: Playwright navigation/traversal with scope+depth limits [x]
 
 - **Covers:** R1 (config), R2
 - **Depends on:** T2
 - **Parallel:** no
 - **Done-when:** crawling a URL visits reachable pages within a configured depth/scope and returns the visited page set.
 
-### T5b — Crawler: extract interactive elements + links into a structured map
+### T5b — Crawler: extract interactive elements + links into a structured map [x]
 
 - **Covers:** R2
 - **Depends on:** T5a
