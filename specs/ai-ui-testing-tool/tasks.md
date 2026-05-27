@@ -56,7 +56,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** each visited page yields a structured record of links and interactive elements (role, selector hint, label).
 
-### T6 — Flow identifier: Claude turns crawl data into candidate primary flows
+### T6 — Flow identifier: Claude turns crawl data into candidate primary flows [x]
 
 - **Covers:** R2, R6
 - **Depends on:** T3, T5b
