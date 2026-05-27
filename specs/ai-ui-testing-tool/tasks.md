@@ -164,7 +164,7 @@ tasks at the same dependency level.
 - **Parallel:** yes
 - **Done-when:** a tab in the report displays the generated `.spec.ts` sources and the Markdown plan.
 
-### T22 — CI entry update
+### T22 — CI entry update [x]
 
 - **Covers:** R10, R11
 - **Depends on:** T17

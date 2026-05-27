@@ -50,12 +50,13 @@ async function main() {
   await writeFile(join(outDir, "report.md"), renderMarkdown(report), "utf8");
   await writeFile(join(outDir, "report.html"), renderHtml(report), "utf8");
 
-  const failed = report.results.filter((r) => r.outcome === "failed").length;
+  const { passed, total, rate } = report.successRate;
   console.error(
-    `\nCoverage ${report.coverage.percent}% · ${report.results.length} tests · ${failed} failed · report in ${outDir}`,
+    `\nSuccess rate ${Math.round(rate * 100)}% (${passed}/${total}) · ` +
+      `coverage ${report.coverage.percent}% · report in ${outDir}`,
   );
-  // Non-zero exit when any test failed, so CI gates on it (R10).
-  process.exit(failed > 0 ? 1 : 0);
+  // Non-zero exit unless every planned test passed (fixme/failed gate CI). (R10, D7)
+  process.exit(passed < total ? 1 : 0);
 }
 
 main().catch((err) => {
