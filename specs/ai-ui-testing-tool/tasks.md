@@ -38,7 +38,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** `npx playwright run-test-mcp-server` boots and its tool list (browser\_\*, planner_save_plan, generator_write_test, test_run) is confirmed reachable.
 
-### T4 — Agent runtime wrapper over the Agent SDK + MCP
+### T4 — Agent runtime wrapper over the Agent SDK + MCP [x]
 
 - **Covers:** R6, R12
 - **Depends on:** T1, T3
