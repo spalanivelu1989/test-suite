@@ -7,9 +7,10 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** 3 — Assemble complete; ready for Stage 4 (Forge)
+- **Stage:** 4 — Forge complete; ready for Stage 5 (Test & Tune)
 - **Last updated:** 2026-05-27
-- **Waiting on:** nothing — ready to run `/craft-framework:forge`
+- **Waiting on:** nothing — ready to run `/craft-framework:test-tune`. NOTE: a
+  full successful run (and AC5/AC11/M1 verification) needs an ANTHROPIC_API_KEY.
 
 ## Stage completion log
 
@@ -19,6 +20,7 @@ and after every task completed during Forge.
 | 2026-05-27 | 1 — Clarify  | Brief approved (specs/ai-ui-testing-tool/brief.md)      | ✅     |
 | 2026-05-27 | 2 — Record   | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md) | ✅     |
 | 2026-05-27 | 3 — Assemble | plan.md + tasks.md approved (26 tasks, Next.js stack)   | ✅     |
+| 2026-05-27 | 4 — Forge    | All 26 tasks built; 47 unit tests pass; build clean     | ✅     |
 
 ## Key decisions
 
