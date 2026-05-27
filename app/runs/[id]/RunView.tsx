@@ -68,9 +68,14 @@ export function RunView({ id }: { id: string }) {
       setStatus("completed");
     });
     es.onerror = () => {
-      es.close();
-      setStatus((cur) => (cur === "running" ? "failed" : cur));
-      setError((cur) => cur ?? "Lost connection to the run stream");
+      // A transient drop leaves the EventSource reconnecting (it resumes via
+      // Last-Event-ID, so no events are lost). Only treat a permanent close —
+      // e.g. the run's in-memory store is gone after a server restart — as a
+      // failure; otherwise let it reconnect.
+      if (es.readyState === EventSource.CLOSED) {
+        setStatus((cur) => (cur === "running" ? "failed" : cur));
+        setError((cur) => cur ?? "Lost connection to the run stream");
+      }
     };
     return () => es.close();
   }, [id]);

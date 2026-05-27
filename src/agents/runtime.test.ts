@@ -71,6 +71,46 @@ test("runAgent streams events, collects tool calls and result", async () => {
   assert.ok(events.some((e) => e.kind === "result" && !e.isError));
 });
 
+test("runAgent survives a thrown iterator (maxTurns), preserving partial work", async () => {
+  const events: AgentEvent[] = [];
+  // SDK yields tool calls, then rejects the iterator (subprocess exited
+  // non-zero on maxTurns) rather than emitting a clean result message.
+  const throwingQuery = (() => {
+    async function* gen() {
+      yield {
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "mcp__playwright-test__generator_write_test",
+            },
+          ],
+        },
+      };
+      throw new Error(
+        "Claude Code returned an error result: Reached maximum number of turns (150)",
+      );
+    }
+    return gen();
+  }) as never;
+
+  const out = await runAgent({
+    agent: parseAgentFile(SAMPLE),
+    prompt: "generate",
+    cwd: "/tmp/run",
+    onEvent: (e) => events.push(e),
+    queryFn: throwingQuery,
+  });
+
+  assert.equal(out.isError, true);
+  assert.match(out.resultText, /maximum number of turns/);
+  assert.deepEqual(out.toolCalls, [
+    "mcp__playwright-test__generator_write_test",
+  ]);
+  assert.ok(events.some((e) => e.kind === "result" && e.isError));
+});
+
 test("runAgent flags an error result", async () => {
   const out = await runAgent({
     agent: parseAgentFile(SAMPLE),

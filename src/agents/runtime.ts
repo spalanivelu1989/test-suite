@@ -100,22 +100,32 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     },
   });
 
-  for await (const msg of iterator) {
-    if (msg.type === "assistant") {
-      for (const block of msg.message.content) {
-        if (block.type === "text" && block.text) {
-          opts.onEvent?.({ kind: "text", text: block.text });
-        } else if (block.type === "tool_use") {
-          toolCalls.push(block.name);
-          opts.onEvent?.({ kind: "tool", tool: block.name });
+  try {
+    for await (const msg of iterator) {
+      if (msg.type === "assistant") {
+        for (const block of msg.message.content) {
+          if (block.type === "text" && block.text) {
+            opts.onEvent?.({ kind: "text", text: block.text });
+          } else if (block.type === "tool_use") {
+            toolCalls.push(block.name);
+            opts.onEvent?.({ kind: "tool", tool: block.name });
+          }
         }
+      } else if (msg.type === "result") {
+        isError = msg.subtype !== "success";
+        resultText =
+          "result" in msg && typeof msg.result === "string" ? msg.result : "";
+        opts.onEvent?.({ kind: "result", isError, text: resultText });
       }
-    } else if (msg.type === "result") {
-      isError = msg.subtype !== "success";
-      resultText =
-        "result" in msg && typeof msg.result === "string" ? msg.result : "";
-      opts.onEvent?.({ kind: "result", isError, text: resultText });
     }
+  } catch (err) {
+    // The SDK rejects the iterator (not a result message) when the Claude Code
+    // subprocess exits non-zero — notably on maxTurns ("Reached maximum number
+    // of turns"). Swallow it so partial work survives: the stage decides
+    // success from artifacts produced (e.g. spec count), not the turn cap.
+    isError = true;
+    resultText = err instanceof Error ? err.message : String(err);
+    opts.onEvent?.({ kind: "result", isError, text: resultText });
   }
 
   return { resultText, toolCalls, isError };
