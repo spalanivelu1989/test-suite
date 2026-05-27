@@ -126,14 +126,14 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** the JSON report renders to readable Markdown and HTML files.
 
-### T15a — Orchestrator: chain pipeline stages end-to-end
+### T15a — Orchestrator: chain pipeline stages end-to-end [x]
 
 - **Covers:** R2, R3, R4, R5
 - **Depends on:** T5b, T6, T7b, T8, T9, T10, T13
 - **Parallel:** no
 - **Done-when:** one call runs crawl→identify→generate→run→flake→heal→report to completion for a URL.
 
-### T15b — Orchestrator: emit ordered progress events per stage
+### T15b — Orchestrator: emit ordered progress events per stage [x]
 
 - **Covers:** R8
 - **Depends on:** T15a
