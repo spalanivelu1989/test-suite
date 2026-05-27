@@ -35,10 +35,23 @@ export async function createWorkspace(
   runId: string,
   baseDir = ".runs",
 ): Promise<Workspace> {
-  const isServerless = process.env.NETLIFY === "true" || !!process.env.LAMBDA || !!process.env.AWS_LAMBDA_JS_RUNTIME;
+  const isServerless =
+    process.env.NETLIFY === "true" ||
+    !!process.env.LAMBDA ||
+    !!process.env.AWS_LAMBDA_JS_RUNTIME ||
+    !!process.env.LAMBDA_TASK_ROOT ||
+    !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.cwd() === "/var/task" ||
+    process.cwd().startsWith("/var/task") ||
+    process.cwd().startsWith("/var/runtime") ||
+    process.env.CONTEXT === "production" ||
+    process.env.CONTEXT === "deploy-preview" ||
+    process.env.CONTEXT === "branch-deploy";
+
   const rootDir = isServerless ? tmpdir() : process.cwd();
   // On serverless, keep the subdirectory as "runs" instead of ".runs" if it's default
   const actualBaseDir = isServerless && baseDir === ".runs" ? "runs" : baseDir;
+
   
   const root = join(rootDir, actualBaseDir, runId);
   const specsDir = join(root, "specs");
