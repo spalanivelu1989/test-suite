@@ -53,6 +53,20 @@ not as a _verification-readiness_ dependency for Test & Tune.
 **Future prevention:** At Record/Assemble, flag dependencies needed to _verify_
 acceptance criteria, not only to run the product — so Stage 5 isn't blocked late.
 
+### [2026-05-27] v1 missed the established Playwright Agents pattern
+
+**Trigger:** After shipping v0.1.0, the user pointed to the official Playwright
+Agents (planner/generator/healer markdown subagents + `playwright-test` MCP) and
+asked whether our system matched — it did not.
+**Root cause:** Clarify/Record never surveyed prior art deeply. The Brief's "prior
+art" section flagged that commercial tools exist but we didn't examine the
+official Playwright agent tooling, so we designed a bespoke SDK pipeline + a thin
+reporter instead of the MCP live-recording agent pattern the user expected.
+**Fix:** Looping back to Record for a v2 (spec v0.2.0) on the hybrid agent design.
+**Future prevention:** In Clarify, when a domain has first-party/standard tooling
+(here, Playwright's own agents), inspect it before designing from scratch — a
+prior-art spike at Stage 1 would have caught this before any build.
+
 ### [2026-05-27] Auto-heal quality is the weak point to tune next
 
 **Trigger:** Keyed run hit M1 (80%) and M2 (0% flake) but M3 auto-heal was 33% (1/3), below the ≥50% target.

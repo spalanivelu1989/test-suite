@@ -7,11 +7,20 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** SHIPPED (2026-05-27). CRAFT cycle v0.1.0 complete.
+- **Stage:** v2 — Looping back to Stage 2 (Record) for an agent re-architecture.
 - **Last updated:** 2026-05-27
-- **Waiting on:** post-ship — run `/craft-framework:measure` once outcome metrics
-  are meaningful. Open follow-ups: tune auto-heal (M3 33% vs ≥50%); reconcile the
-  tarento.com curated flow list with the live site; sandbox before any hosted v2.
+- **Waiting on:** Spec v0.2.0 (Record). v0.1.0 shipped and remains the baseline.
+
+### v2 direction (decided 2026-05-27)
+
+Re-architect to the **Playwright Agents** pattern (ref:
+`/Users/senthilpalanivelu/Downloads/test/.claude/agents` — planner/generator/healer
+markdown subagents + `playwright run-test-mcp-server` MCP). Chosen approach =
+**Hybrid**: four agents (planner → generator → healer → reporter) do the work via
+the live-browser MCP, while the Next.js app triggers runs and shows a **rich
+reporter** (success rate %, passed/needs-attention/improve breakdown, fix prompts,
+issues, recommendations, and a **code-view tab** for generated specs). Running
+through CRAFT (Record → Assemble → Forge → Test).
 
 ## Stage completion log
 
