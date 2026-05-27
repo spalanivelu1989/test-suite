@@ -6,6 +6,7 @@ import { Play, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useThemeMode } from "./providers";
+import { getCatppuccinColors, catppuccinAlpha } from "./theme/catppuccin";
 
 const MotionBox = motion.create(Box);
 
@@ -15,6 +16,7 @@ export function RunForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { theme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
   const isDark = theme === "dark";
 
   async function onSubmit(e: React.FormEvent) {
@@ -57,23 +59,18 @@ export function RunForm() {
         align="center"
         gap={3}
         w="full"
-        bg={isDark ? "rgba(30, 41, 59, 0.45)" : "white"}
+        bg={isDark ? catppuccinAlpha(colors.surface0, 0.45) : colors.base}
         borderWidth="1px"
-        borderColor={isDark ? "white/10" : "gray.200"}
+        borderColor={isDark ? "white/10" : colors.overlay0}
         borderRadius="full"
         px={5}
         py={3}
         boxShadow={isDark ? "0 4px 30px rgba(0, 0, 0, 0.4)" : "0 10px 25px rgba(0, 0, 0, 0.05)"}
         transition="all 0.2s"
-        _focusWithin={{
-          borderColor: "cyan.500/50",
-          boxShadow: isDark 
-            ? "0 0 25px rgba(6, 182, 212, 0.15), 0 4px 30px rgba(0, 0, 0, 0.4)" 
-            : "0 0 20px rgba(6, 182, 212, 0.1), 0 10px 25px rgba(0, 0, 0, 0.05)"
-        }}
       >
         {/* Input field */}
         <Input
+          autoFocus
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Test a web app URL, e.g. https://www.tarento.com"
@@ -87,8 +84,8 @@ export function RunForm() {
           outline="none"
           _focus={{ bg: "transparent", border: "none", outline: "none", boxShadow: "none" }}
           _focusVisible={{ border: "none", outline: "none", boxShadow: "none" }}
-          color={isDark ? "white" : "gray.850"}
-          _placeholder={{ color: isDark ? "gray.500" : "gray.400" }}
+          color={colors.text}
+          _placeholder={{ color: colors.overlay0 }}
           px={1}
           py={1}
           h="auto"
@@ -100,10 +97,10 @@ export function RunForm() {
         <motion.button
           type="submit"
           disabled={submitting}
-          whileHover={submitting ? {} : { 
+          whileHover={submitting ? {} : {
             scale: 1.1,
-            backgroundColor: isDark ? "#06b6d4" : "#0891b2",
-            boxShadow: "0 0 15px rgba(6, 182, 212, 0.6)"
+            backgroundColor: isDark ? colors.sky : colors.sapphire,
+            boxShadow: `0 0 15px ${catppuccinAlpha(colors.sapphire, 0.6)}`
           }}
           whileTap={submitting ? {} : { scale: 0.95 }}
           style={{
@@ -113,8 +110,8 @@ export function RunForm() {
             width: "36px",
             height: "36px",
             borderRadius: "9999px",
-            backgroundColor: isDark ? "#0891b2" : "#06b6d4",
-            color: "white",
+            backgroundColor: isDark ? colors.sapphire : colors.sky,
+            color: colors.crust,
             cursor: submitting ? "not-allowed" : "pointer",
             border: "none",
             flexShrink: 0,
@@ -139,7 +136,7 @@ export function RunForm() {
           textAlign="center"
           zIndex={10}
         >
-          <Text color="red.400" display="inline-flex" alignItems="center" gap={2} fontSize="sm" bg={isDark ? "rgba(2, 6, 23, 0.9)" : "white"} px={4} py={1.5} borderRadius="full" borderWidth="1px" borderColor="red.500/20" boxShadow="md">
+          <Text color="red.400" display="inline-flex" alignItems="center" gap={2} fontSize="sm" bg={isDark ? catppuccinAlpha(colors.crust, 0.9) : colors.base} px={4} py={1.5} borderRadius="full" borderWidth="1px" borderColor="red.500/20" boxShadow="md">
             <TriangleAlert size={14} /> {error}
           </Text>
         </MotionBox>

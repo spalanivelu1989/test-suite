@@ -58,6 +58,8 @@ export interface RunAgentOptions {
   queryFn?: typeof sdkQuery;
   mcpServerName?: string;
   maxTurns?: number;
+  /** Aborts the underlying agent subprocess when the run is stopped. */
+  abortController?: AbortController;
 }
 
 export interface RunAgentResult {
@@ -97,6 +99,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
       // multi-flow run exhausted it mid-generation). 150 gives headroom.
       maxTurns: opts.maxTurns ?? 150,
       permissionMode: "bypassPermissions",
+      abortController: opts.abortController,
     },
   });
 

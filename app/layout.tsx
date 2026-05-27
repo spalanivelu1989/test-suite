@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${firaCode.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`dark ${inter.variable} ${firaCode.variable}`} suppressHydrationWarning>
       <body style={{ margin: 0, minHeight: "100vh" }}>
         <Providers>{children}</Providers>
       </body>

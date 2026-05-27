@@ -54,7 +54,11 @@ export async function GET(
           send("progress", run.events[sent], sent);
           lastWrite = Date.now();
         }
-        if (run.status === "completed" || run.status === "failed") {
+        if (
+          run.status === "completed" ||
+          run.status === "failed" ||
+          run.status === "cancelled"
+        ) {
           send("end", { status: run.status, error: run.error });
           controller.close();
           clearInterval(timer);

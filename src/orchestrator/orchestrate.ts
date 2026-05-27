@@ -30,9 +30,19 @@ export interface OrchestratorDeps {
   reruns?: number;
   /** Override workspace creation in tests. */
   makeWorkspace?: (runId: string) => Promise<Workspace>;
+  /** Stops the pipeline (and the agent subprocesses) when the user cancels. */
+  abortController?: AbortController;
 }
 
 class StageError extends Error {}
+
+/** Thrown when a run is stopped by the user mid-pipeline. */
+export class CancelledError extends Error {
+  constructor(message = "Run stopped by user") {
+    super(message);
+    this.name = "CancelledError";
+  }
+}
 
 /**
  * T17: run the four-agent pipeline (Planner → Generator → Healer → Reporter) for
@@ -52,38 +62,53 @@ export async function runPipeline(
     if (e.kind === "tool" && e.tool) emit(stage, `${label}: ${e.tool}`);
   };
 
+  // Abort early at every checkpoint so a stopped run doesn't start more work.
+  const checkCancelled = () => {
+    if (deps.abortController?.signal.aborted) throw new CancelledError();
+  };
+
   const ws = await (deps.makeWorkspace ?? createWorkspace)(runId);
   const exec = deps.suiteExec;
+  const stageDeps: StageDeps = {
+    ...deps.stageDeps,
+    abortController: deps.abortController,
+  };
   let agentRuns = 0;
 
   // 1. Planner → Markdown plan
+  checkCancelled();
   emit("planning", "Planner: exploring the app and writing a test plan");
   const plan = await planTests(
     ws,
     config.url,
     onAgent("planning", "planner"),
-    deps.stageDeps,
+    stageDeps,
   );
   agentRuns++;
+  checkCancelled();
   if (plan.isError)
     throw new StageError("Planner failed to produce a test plan");
 
   // 2. Generator → Playwright specs
   emit("generating", "Generator: writing Playwright tests from the plan");
-  const gen = await generateTests(ws, onAgent("generating", "generator"), deps.stageDeps);
+  const gen = await generateTests(ws, onAgent("generating", "generator"), stageDeps);
   agentRuns++;
+  checkCancelled();
   if (gen.isError) throw new StageError("Generator produced no tests");
 
   // 3. Initial run (pre-heal), then Healer, then re-run for flake + heal reconciliation
   emit("running", "Running generated tests");
   const initial = await captureResults(ws, exec);
+  checkCancelled();
 
   emit("healing", "Healer: repairing failures and quarantining the unfixable");
-  await healTests(ws, onAgent("healing", "healer"), deps.stageDeps);
+  await healTests(ws, onAgent("healing", "healer"), stageDeps);
   agentRuns++;
+  checkCancelled();
 
   emit("flake-check", "Re-running to check reliability");
   const flake = await assessSuiteFlakiness(ws, deps.reruns ?? 3, exec);
+  checkCancelled();
   const { results, healSuccessRate } = reconcileHealing(initial, flake.results);
 
   // 4. Reporter

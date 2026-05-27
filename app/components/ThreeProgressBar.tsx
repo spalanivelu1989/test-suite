@@ -3,21 +3,24 @@
 import { useEffect, useState } from "react";
 import { Box } from "@chakra-ui/react";
 import { useThemeMode } from "@/app/providers";
+import { getCatppuccinColors, catppuccinAlpha } from "@/app/theme/catppuccin";
 
 interface ThreeProgressBarProps {
   status: "pending" | "active" | "completed" | "failed";
   label: string;
-  colorHex?: string; // e.g. "#00f0ff" (neon cyan)
+  colorHex?: string; // Optional custom color hex
 }
 
 export function ThreeProgressBar({
   status,
   label,
-  colorHex = "#06b6d4",
+  colorHex: customColorHex,
 }: ThreeProgressBarProps) {
   const [mounted, setMounted] = useState(false);
   const { theme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
   const isDark = theme === "dark";
+  const colorHex = customColorHex ?? colors.sapphire;
 
   // Approximate numerical value for simulation
   const [progressVal, setProgressVal] = useState(0);
@@ -68,55 +71,55 @@ export function ThreeProgressBar({
   let progressTrackBg = "";
 
   if (isDark) {
-    cardBg = isActive ? "rgba(15, 23, 42, 0.6)" : "rgba(15, 23, 42, 0.3)";
+    cardBg = isActive ? catppuccinAlpha(colors.surface0, 0.6) : catppuccinAlpha(colors.surface0, 0.3);
     progressTrackBg = "rgba(0, 0, 0, 0.25)";
-    
+
     if (isActive) {
-      borderColor = "rgba(14, 165, 233, 0.25)";
-      labelColor = "#ffffff";
-      statusColor = "#0ea5e9";
-      progressBg = "#0ea5e9";
+      borderColor = catppuccinAlpha(colors.sapphire, 0.25);
+      labelColor = colors.text;
+      statusColor = colors.sapphire;
+      progressBg = colors.sapphire;
     } else if (isCompleted) {
-      borderColor = "rgba(16, 185, 129, 0.25)";
-      labelColor = "#34d399";
-      statusColor = "#10b981";
-      progressBg = "#10b981";
+      borderColor = catppuccinAlpha(colors.green, 0.25);
+      labelColor = colors.green;
+      statusColor = colors.green;
+      progressBg = colors.green;
     } else if (isFailed) {
-      borderColor = "rgba(239, 68, 68, 0.25)";
-      labelColor = "#f87171";
-      statusColor = "#ef4444";
-      progressBg = "#ef4444";
+      borderColor = catppuccinAlpha(colors.red, 0.25);
+      labelColor = colors.red;
+      statusColor = colors.red;
+      progressBg = colors.red;
     } else {
-      borderColor = "rgba(255, 255, 255, 0.05)";
-      labelColor = "#64748b";
-      statusColor = "#475569";
-      progressBg = "#475569";
+      borderColor = catppuccinAlpha(colors.text, 0.05);
+      labelColor = colors.overlay1;
+      statusColor = colors.surface2;
+      progressBg = colors.surface2;
     }
   } else {
-    // Light Mode
-    cardBg = isActive ? "#ffffff" : "rgba(255, 255, 255, 0.7)";
-    progressTrackBg = "rgba(0, 0, 0, 0.04)";
+    // Light Mode (Latte)
+    cardBg = isActive ? colors.base : catppuccinAlpha(colors.base, 0.7);
+    progressTrackBg = catppuccinAlpha(colors.crust, 0.3);
     
     if (isActive) {
-      borderColor = "rgba(14, 165, 233, 0.4)";
-      labelColor = "#0f172a";
-      statusColor = "#0ea5e9";
-      progressBg = "#0ea5e9";
+      borderColor = catppuccinAlpha(colors.sapphire, 0.4);
+      labelColor = colors.text;
+      statusColor = colors.sapphire;
+      progressBg = colors.sapphire;
     } else if (isCompleted) {
-      borderColor = "rgba(16, 185, 129, 0.35)";
-      labelColor = "#059669";
-      statusColor = "#10b981";
-      progressBg = "#10b981";
+      borderColor = catppuccinAlpha(colors.green, 0.35);
+      labelColor = colors.green;
+      statusColor = colors.green;
+      progressBg = colors.green;
     } else if (isFailed) {
-      borderColor = "rgba(239, 68, 68, 0.35)";
-      labelColor = "#b91c1c";
-      statusColor = "#ef4444";
-      progressBg = "#ef4444";
+      borderColor = catppuccinAlpha(colors.red, 0.35);
+      labelColor = colors.red;
+      statusColor = colors.red;
+      progressBg = colors.red;
     } else {
-      borderColor = "rgba(0, 0, 0, 0.06)";
-      labelColor = "#94a3b8";
-      statusColor = "#cbd5e1";
-      progressBg = "#cbd5e1";
+      borderColor = catppuccinAlpha(colors.overlay0, 0.25);
+      labelColor = colors.overlay2;
+      statusColor = colors.surface2;
+      progressBg = colors.surface2;
     }
   }
 
@@ -142,9 +145,7 @@ export function ThreeProgressBar({
       backdropFilter="blur(16px)"
       boxShadow={
         isActive
-          ? isDark
-            ? "0 0 20px rgba(14, 165, 233, 0.15)"
-            : "0 4px 12px rgba(14, 165, 233, 0.1)"
+          ? `0 4px 12px ${catppuccinAlpha(colors.sapphire, isDark ? 0.15 : 0.1)}`
           : "none"
       }
       transition="all 0.3s ease"
@@ -213,7 +214,7 @@ export function ThreeProgressBar({
         padding: "2px",
         display: "flex",
         gap: "3px",
-        border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)"}`,
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : catppuccinAlpha(colors.overlay0, 0.15)}`,
         boxSizing: "border-box",
       }}>
         {Array.from({ length: totalBlocks }).map((_, index) => {
@@ -226,7 +227,7 @@ export function ThreeProgressBar({
             blockBg = progressBg;
             blockOpacity = 1;
           } else {
-            blockBg = isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.15)";
+            blockBg = isDark ? "rgba(255, 255, 255, 0.15)" : catppuccinAlpha(colors.overlay0, 0.25);
             blockOpacity = 0.1;
           }
 

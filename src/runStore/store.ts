@@ -19,6 +19,17 @@ export interface RunStore {
   addEvent(id: string, event: Omit<ProgressEvent, "at">): Run;
   complete(id: string, report: RunReport): Run;
   fail(id: string, error: string): Run;
+  /** Mark a run as stopped by the user. No-op if the run is already terminal. */
+  cancel(id: string, message: string): Run;
+}
+
+/** True once a run can no longer change state. */
+function isTerminal(run: Run): boolean {
+  return (
+    run.status === "completed" ||
+    run.status === "failed" ||
+    run.status === "cancelled"
+  );
 }
 
 class RunNotFoundError extends Error {
@@ -97,6 +108,15 @@ export function createRunStore(): RunStore {
       run.error = error;
       run.status = "failed";
       run.stage = "error";
+      return touch(run);
+    },
+
+    cancel(id, message) {
+      const run = require(id);
+      if (isTerminal(run)) return run;
+      run.error = message;
+      run.status = "cancelled";
+      run.stage = "cancelled";
       return touch(run);
     },
   };

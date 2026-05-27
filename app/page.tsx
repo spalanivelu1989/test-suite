@@ -3,9 +3,11 @@
 import { Box, Container, Heading, VStack } from "@chakra-ui/react";
 import { RunForm } from "./RunForm";
 import { useThemeMode } from "./providers";
+import { getCatppuccinColors } from "./theme/catppuccin";
 
 export default function HomePage() {
   const { theme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
   const isDark = theme === "dark";
 
   return (
@@ -14,10 +16,10 @@ export default function HomePage() {
       minH="100dvh"
       bg={
         isDark
-          ? "radial-gradient(circle at center, #0e1b35 0%, #030712 100%)"
-          : "radial-gradient(circle at center, #f8fafc 0%, #e2e8f0 100%)"
+          ? `radial-gradient(circle at center, ${colors.surface0} 0%, ${colors.crust} 100%)`
+          : `radial-gradient(circle at center, ${colors.base} 0%, ${colors.mantle} 100%)`
       }
-      color={isDark ? "white" : "slate.900"}
+      color={colors.text}
       position="relative"
       overflow="hidden"
       display="flex"
@@ -32,7 +34,7 @@ export default function HomePage() {
             fontWeight="normal"
             letterSpacing="tight"
             textAlign="center"
-            color={isDark ? "white" : "gray.850"}
+            color={colors.text}
           >
             Test Suite AI Agent
           </Heading>

@@ -21,10 +21,16 @@ export type RunStage =
   | "healing"
   | "reporting"
   | "done"
+  | "cancelled"
   | "error";
 
 /** Coarse run lifecycle status. */
-export type RunStatus = "pending" | "running" | "completed" | "failed";
+export type RunStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 /** One progress event streamed to the UI (R8). */
 export interface ProgressEvent {

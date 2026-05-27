@@ -12,6 +12,8 @@ import {
 export interface StageDeps {
   runner?: typeof runAgent;
   loadAgentFn?: typeof loadAgent;
+  /** Forwarded to the agent runtime so a stopped run kills the agent subprocess. */
+  abortController?: AbortController;
 }
 
 export interface PlanResult {
@@ -38,7 +40,7 @@ export async function planTests(
     "plan as a Markdown file under the specs/ directory using planner_save_plan.",
   ].join(" ");
 
-  const res = await run({ agent, prompt, cwd: ws.root, onEvent });
+  const res = await run({ agent, prompt, cwd: ws.root, onEvent, abortController: deps.abortController });
   const planMarkdown = await readPlan(ws);
   return {
     planMarkdown,
@@ -73,7 +75,7 @@ export async function generateTests(
     "Generate one test file per scenario.",
   ].join(" ");
 
-  const res = await run({ agent, prompt, cwd: ws.root, onEvent });
+  const res = await run({ agent, prompt, cwd: ws.root, onEvent, abortController: deps.abortController });
   const specs = await readGeneratedSpecs(ws);
   return {
     specs,
@@ -106,6 +108,6 @@ export async function healTests(
     "mark it test.fixme() with a comment explaining what is happening. Do not ask questions.",
   ].join(" ");
 
-  const res = await run({ agent, prompt, cwd: ws.root, onEvent });
+  const res = await run({ agent, prompt, cwd: ws.root, onEvent, abortController: deps.abortController });
   return { toolCalls: res.toolCalls, isError: res.isError };
 }

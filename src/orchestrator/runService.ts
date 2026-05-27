@@ -31,6 +31,7 @@ export async function runToReport(
   runId: string,
   config: RunConfig,
   emit?: Parameters<typeof runPipeline>[2]["emit"],
+  abortController?: AbortController,
 ): Promise<RunReport> {
   const claude = createClaudeClient();
   // stageDeps + suiteExec default to the real Agent SDK runtime + Playwright CLI.
@@ -38,7 +39,41 @@ export async function runToReport(
     claude,
     curatedFlows: loadCuratedFlows(config.url),
     emit,
+    abortController,
   });
+}
+
+/**
+ * Process-wide registry of in-flight runs' abort controllers. Kept off the Run
+ * object (controllers aren't serializable) and on globalThis for the same reason
+ * the run store is: Next.js can duplicate module instances across routes/HMR.
+ */
+const globalForAborts = globalThis as unknown as {
+  __runAborts?: Map<string, AbortController>;
+};
+function abortRegistry(): Map<string, AbortController> {
+  if (!globalForAborts.__runAborts) globalForAborts.__runAborts = new Map();
+  return globalForAborts.__runAborts;
+}
+
+/**
+ * Stop an in-flight run (R8): abort its agent subprocess and mark it cancelled.
+ * Returns false if the run is unknown or already in a terminal state.
+ */
+export function cancelRun(runId: string): boolean {
+  const store = getRunStore();
+  const run = store.get(runId);
+  if (!run) return false;
+  if (
+    run.status === "completed" ||
+    run.status === "failed" ||
+    run.status === "cancelled"
+  ) {
+    return false;
+  }
+  abortRegistry().get(runId)?.abort();
+  store.cancel(runId, "Run stopped by user");
+  return true;
 }
 
 /**
@@ -48,14 +83,26 @@ export async function runToReport(
 export function startRun(config: RunConfig): string {
   const store = getRunStore();
   const run = store.create(config);
+  const controller = new AbortController();
+  abortRegistry().set(run.id, controller);
   void (async () => {
     try {
-      const report = await runToReport(run.id, config, (e) =>
-        store.addEvent(run.id, e),
+      const report = await runToReport(
+        run.id,
+        config,
+        (e) => store.addEvent(run.id, e),
+        controller,
       );
+      if (controller.signal.aborted) return; // cancelRun already marked it
       store.complete(run.id, report);
     } catch (err) {
-      store.fail(run.id, err instanceof Error ? err.message : String(err));
+      if (controller.signal.aborted) {
+        store.cancel(run.id, "Run stopped by user");
+      } else {
+        store.fail(run.id, err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      abortRegistry().delete(run.id);
     }
   })();
   return run.id;

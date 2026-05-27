@@ -3,6 +3,7 @@
 import { ChakraProvider, createSystem, defaultConfig, Button } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
+import { frappe, frappeAlpha, semanticColorTokens, getCatppuccinColors } from "./theme/catppuccin";
 
 type Theme = "light" | "dark";
 
@@ -28,11 +29,16 @@ const customConfig = createSystem(defaultConfig, {
         mono: { value: "var(--font-mono), monospace" },
       },
     },
+    semanticTokens: {
+      colors: semanticColorTokens,
+    },
   },
 });
 
 export function ThemeToggle() {
   const { theme, toggleTheme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
+  const isDark = theme === "dark";
 
   return (
     <Button
@@ -47,15 +53,17 @@ export function ThemeToggle() {
       w="42px"
       h="42px"
       p={0}
-      bg={theme === "dark" ? "rgba(15, 23, 42, 0.6)" : "white"}
-      borderColor={theme === "dark" ? "white/10" : "slate.200"}
-      color={theme === "dark" ? "white" : "slate.900"}
+      bg={isDark ? frappeAlpha(colors.surface0, 0.6) : colors.base}
+      borderColor={isDark ? "white/10" : colors.overlay0}
+      color={isDark ? "white" : colors.text}
       boxShadow="md"
       _hover={{
-        bg: theme === "dark" ? "rgba(15, 23, 42, 0.9)" : "slate.50",
+        bg: isDark ? frappeAlpha(colors.surface0, 0.9) : colors.surface1,
         borderColor: "cyan.500/40",
         transform: "scale(1.05)",
-        boxShadow: theme === "dark" ? "0 0 12px rgba(6, 182, 212, 0.25)" : "0 0 10px rgba(0, 0, 0, 0.1)",
+        boxShadow: isDark
+          ? `0 0 12px ${frappeAlpha(colors.sapphire, 0.25)}`
+          : `0 0 10px ${frappeAlpha(colors.sapphire, 0.15)}`,
       }}
       _active={{ transform: "scale(0.95)" }}
       transition="all 0.2s"
@@ -65,7 +73,7 @@ export function ThemeToggle() {
       alignItems="center"
       justifyContent="center"
     >
-      {theme === "dark" ? "🌙" : "☀️"}
+      {isDark ? "🌙" : "☀️"}
     </Button>
   );
 }
@@ -75,18 +83,22 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme;
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      document.documentElement.className = saved;
+    const activeTheme = saved === "light" || saved === "dark" ? saved : "dark";
+    setTheme(activeTheme);
+    if (activeTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
     } else {
-      document.documentElement.className = "dark";
+      document.documentElement.classList.add("light");
+      document.documentElement.classList.remove("dark");
     }
   }, []);
 
   useEffect(() => {
     // Dynamic sync of document body theme styles
-    document.body.style.background = theme === "dark" ? "#020617" : "#f8fafc";
-    document.body.style.color = theme === "dark" ? "#f8fafc" : "#0f172a";
+    const colors = getCatppuccinColors(theme);
+    document.body.style.background = colors.base;
+    document.body.style.color = colors.text;
     document.body.style.transition = "background-color 0.3s ease, color 0.3s ease";
   }, [theme]);
 
@@ -94,7 +106,13 @@ export function Providers({ children }: { children: ReactNode }) {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     localStorage.setItem("theme", next);
-    document.documentElement.className = next;
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+    } else {
+      document.documentElement.classList.add("light");
+      document.documentElement.classList.remove("dark");
+    }
   };
 
   return (

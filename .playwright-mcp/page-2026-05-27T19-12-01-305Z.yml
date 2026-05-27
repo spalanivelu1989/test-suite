@@ -1,0 +1,10 @@
+- generic [active] [ref=e1]:
+  - button "🌙" [ref=e2] [cursor=pointer]
+  - main [ref=e3]:
+    - generic [ref=e5]:
+      - heading "Test Suite AI Agent" [level=2] [ref=e6]
+      - generic [ref=e9]:
+        - textbox "Web app URL" [ref=e10]:
+          - /placeholder: Test a web app URL, e.g. https://www.tarento.com
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]

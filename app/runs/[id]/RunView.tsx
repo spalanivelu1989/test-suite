@@ -29,14 +29,18 @@ import {
   Wrench,
   ChevronRight,
   Terminal,
+  Square,
+  OctagonX,
+  Plus,
 } from "lucide-react";
 import NextLink from "next/link";
 import { useEffect, useState } from "react";
 import type { ProgressEvent, RunReport, TestOutcome } from "@/src/types";
 import { ThreeProgressBar } from "@/app/components/ThreeProgressBar";
 import { useThemeMode } from "@/app/providers";
+import { getCatppuccinColors, catppuccinAlpha } from "@/app/theme/catppuccin";
 
-type Status = "running" | "completed" | "failed";
+type Status = "running" | "completed" | "failed" | "cancelled";
 
 /** Return the basename of a file path for matching purposes. */
 function baseName(filePath: string): string {
@@ -51,19 +55,11 @@ const OUTCOME_COLOR: Record<TestOutcome, string> = {
   fixme: "gray",
 };
 
-const OUTCOME_GLOW: Record<TestOutcome, string> = {
-  passed: "rgba(16, 185, 129, 0.2)",
-  failed: "rgba(239, 68, 68, 0.2)",
-  flaky: "rgba(245, 158, 11, 0.2)",
-  healed: "rgba(59, 130, 246, 0.2)",
-  fixme: "rgba(100, 116, 139, 0.2)",
-};
-
 const PIPELINE_STAGES = [
-  { id: "planning", label: "Planner", colorHex: "#a78bfa" },
-  { id: "generating", label: "Generator", colorHex: "#22d3ee" },
-  { id: "healing", label: "Healer", colorHex: "#fbbf24" },
-  { id: "reporting", label: "Reporter", colorHex: "#34d399" },
+  { id: "planning", label: "Planner", colorKey: "mauve" },
+  { id: "generating", label: "Generator", colorKey: "sky" },
+  { id: "healing", label: "Healer", colorKey: "yellow" },
+  { id: "reporting", label: "Reporter", colorKey: "green" },
 ] as const;
 
 function getStageStatus(
@@ -91,7 +87,9 @@ function getStageStatus(
   const currentStageIndex = stageOrder.indexOf(mappedStageId);
   const thisStageIndex = stageOrder.indexOf(stageId);
 
-  if (runStatus === "failed") {
+  if (runStatus === "failed" || runStatus === "cancelled") {
+    // Freeze the bars: the stage that was in flight reads as failed/stopped,
+    // earlier stages as done, later stages as never-started.
     if (thisStageIndex === currentStageIndex) {
       return "failed";
     }
@@ -112,7 +110,9 @@ export function RunView({ id }: { id: string }) {
   const [status, setStatus] = useState<Status>("running");
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<RunReport | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const { theme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
   const isDark = theme === "dark";
 
   useEffect(() => {
@@ -123,6 +123,11 @@ export function RunView({ id }: { id: string }) {
     es.addEventListener("end", async (e) => {
       const { status: s, error: err } = JSON.parse((e as MessageEvent).data);
       es.close();
+      if (s === "cancelled") {
+        setStatus("cancelled");
+        setError(err ?? "Run stopped by user");
+        return;
+      }
       if (s === "failed") {
         setStatus("failed");
         setError(err ?? "The run failed");
@@ -141,6 +146,17 @@ export function RunView({ id }: { id: string }) {
     return () => es.close();
   }, [id]);
 
+  async function handleStop() {
+    if (cancelling || status !== "running") return;
+    setCancelling(true);
+    try {
+      await fetch(`/api/runs/${id}/cancel`, { method: "POST" });
+      // The SSE `end` event flips status to "cancelled" and the agents wind down.
+    } catch {
+      setCancelling(false);
+    }
+  }
+
   const currentStage = events[events.length - 1]?.stage;
 
 
@@ -149,21 +165,21 @@ export function RunView({ id }: { id: string }) {
       minH="100dvh"
       bg={
         isDark
-          ? "radial-gradient(circle at top, #0b1528 0%, #020617 100%)"
-          : "radial-gradient(circle at top, #f1f5f9 0%, #e2e8f0 100%)"
+          ? `radial-gradient(circle at top, ${colors.mantle} 0%, ${colors.crust} 100%)`
+          : `radial-gradient(circle at top, ${colors.base} 0%, ${colors.mantle} 100%)`
       }
-      color={isDark ? "white" : "slate.900"}
+      color={colors.text}
       py={10}
       px={{ base: 4, md: 8 }}
       transition="background-color 0.3s ease, color 0.3s ease"
     >
       <Stack gap={8} w="full" maxW="full" mx="auto">
-        <HStack justify="space-between" borderBottomWidth="1px" borderColor={isDark ? "white/5" : "gray.200"} pb={4}>
+        <HStack justify="space-between" borderBottomWidth="1px" borderColor={isDark ? "white/5" : colors.overlay0} pb={4}>
           <VStack align="stretch" gap={1}>
             <Heading
               size="2xl"
               fontWeight="extrabold"
-              color={isDark ? "white" : "slate.900"}
+              color={colors.text}
             >
               Dashboard
             </Heading>
@@ -172,9 +188,9 @@ export function RunView({ id }: { id: string }) {
 
         {/* 3D Progress Indicators Grid (T19) */}
         <Box
-          bg={isDark ? "rgba(15, 23, 42, 0.35)" : "white"}
+          bg={isDark ? catppuccinAlpha(colors.surface0, 0.35) : colors.base}
           borderWidth="1px"
-          borderColor={isDark ? "white/10" : "gray.200"}
+          borderColor={isDark ? "white/10" : colors.overlay0}
           borderRadius="2xl"
           p={6}
           backdropFilter="blur(20px)"
@@ -183,9 +199,9 @@ export function RunView({ id }: { id: string }) {
         >
           <Flex align="center" justify="space-between" mb={6}>
             <Text fontWeight="semibold" fontSize="sm" color={isDark ? "slate.400" : "slate.600"} display="flex" alignItems="center" gap={2}>
-              <Terminal size={14} style={{ color: "#06b6d4" }} /> Agents Working...
+              <Terminal size={14} style={{ color: colors.sapphire }} /> Agents Working...
             </Text>
-            <HStack gap={2}>
+            <HStack gap={3}>
               {status === "running" && <Spinner size="xs" color="cyan.500" />}
               <Text
                 fontWeight="bold"
@@ -196,11 +212,63 @@ export function RunView({ id }: { id: string }) {
                     ? "cyan.450"
                     : status === "completed"
                       ? "emerald.500"
-                      : "red.500"
+                      : status === "cancelled"
+                        ? "orange.400"
+                        : "red.500"
                 }
               >
-                {status === "running" ? "RUNNING" : status === "completed" ? "COMPLETED" : "FAILED"}
+                {status === "running"
+                  ? "RUNNING"
+                  : status === "completed"
+                    ? "COMPLETED"
+                    : status === "cancelled"
+                      ? "STOPPED"
+                      : "FAILED"}
               </Text>
+              {status === "running" && (
+                <Button
+                  size="xs"
+                  onClick={handleStop}
+                  loading={cancelling}
+                  loadingText="STOPPING"
+                  disabled={cancelling}
+                  bg={isDark ? "white/5" : "black/5"}
+                  color={isDark ? "slate.300" : "slate.700"}
+                  borderWidth="1px"
+                  borderColor={isDark ? "white/10" : "black/10"}
+                  borderRadius="full"
+                  cursor="pointer"
+                  display="inline-flex"
+                  alignItems="center"
+                  gap={2}
+                  px={3}
+                  py={1}
+                  fontWeight="bold"
+                  fontSize="10px"
+                  letterSpacing="wider"
+                  _hover={{
+                    bg: catppuccinAlpha(colors.red, 0.1),
+                    borderColor: catppuccinAlpha(colors.red, 0.4),
+                    color: colors.red,
+                    transform: "translateY(-1px)",
+                    boxShadow: `0 4px 12px ${catppuccinAlpha(colors.red, 0.15)}`,
+                  }}
+                  _active={{
+                    transform: "translateY(0)",
+                  }}
+                  transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+                >
+                  <Box
+                    w="6px"
+                    h="6px"
+                    borderRadius="full"
+                    bg={colors.red}
+                    boxShadow={`0 0 6px ${colors.red}`}
+                    style={{ animation: "pulse-glow 1.5s infinite" }}
+                  />
+                  <span>STOP RUN</span>
+                </Button>
+              )}
             </HStack>
           </Flex>
 
@@ -216,22 +284,22 @@ export function RunView({ id }: { id: string }) {
                 key={st.id}
                 label={st.label}
                 status={getStageStatus(st.id, currentStage, status)}
-                colorHex={st.colorHex}
+                colorHex={colors[st.colorKey]}
               />
             ))}
           </Box>
 
           {/* Console Output (T19) */}
           <Box
-            bg={isDark ? "rgba(2, 6, 23, 0.75)" : "slate.950"}
-            borderColor={isDark ? "white/10" : "slate.900"}
+            bg={isDark ? catppuccinAlpha(colors.crust, 0.75) : colors.crust}
+            borderColor={isDark ? "white/10" : colors.overlay0}
             borderWidth="1px"
             borderRadius="xl"
             p={4}
             fontFamily="mono"
             boxShadow="inset 0 1px 4px rgba(0, 0, 0, 0.25)"
           >
-            <Flex justify="space-between" align="center" borderBottomWidth="1px" borderColor="white/5" pb={2} mb={3}>
+            <Flex justify="space-between" align="center" borderBottomWidth="1px" borderColor={isDark ? "white/5" : colors.overlay0} pb={2} mb={3}>
               <Text fontSize="xs" color="slate.500">
                 SYSTEM LOG STREAM
               </Text>
@@ -246,13 +314,13 @@ export function RunView({ id }: { id: string }) {
               ) : (
                 events.map((ev, i) => (
                   <Flex key={i} fontSize="xs" align="flex-start" gap={2}>
-                    <Text color="cyan.500" userSelect="none" flexShrink={0}>
+                    <Text color={colors.sky} userSelect="none" flexShrink={0}>
                       &gt;
                     </Text>
-                    <Text color="slate.500" w="65px" flexShrink={0} userSelect="none">
+                    <Text color={isDark ? "slate.500" : colors.overlay2} w="65px" flexShrink={0} userSelect="none">
                       [{ev.stage}]
                     </Text>
-                    <Text color="slate.300" wordBreak="break-word">
+                    <Text color={colors.text} wordBreak="break-word">
                       {ev.message}
                     </Text>
                   </Flex>
@@ -265,25 +333,91 @@ export function RunView({ id }: { id: string }) {
         {/* Failure state */}
         {status === "failed" && (
           <Box
-            bg={isDark ? "rgba(239, 68, 68, 0.05)" : "red.50"}
-            borderColor={isDark ? "red.500/25" : "red.200"}
+            bg={isDark ? catppuccinAlpha(colors.red, 0.05) : catppuccinAlpha(colors.red, 0.1)}
+            borderColor={isDark ? "red.500/25" : catppuccinAlpha(colors.red, 0.35)}
             borderWidth="1px"
             borderRadius="xl"
             p={5}
-            boxShadow="0 10px 30px rgba(239, 68, 68, 0.05)"
+            boxShadow={`0 10px 30px ${catppuccinAlpha(colors.red, isDark ? 0.05 : 0.03)}`}
           >
-            <Text color={isDark ? "red.400" : "red.700"} display="flex" alignItems="center" gap={3} fontWeight="medium">
+            <Text color={colors.red} display="flex" alignItems="center" gap={3} fontWeight="medium">
               <TriangleAlert size={20} /> {error}
             </Text>
+          </Box>
+        )}
+
+        {/* Cancelled state */}
+        {status === "cancelled" && (
+          <Box
+            bg={isDark ? catppuccinAlpha(colors.peach, 0.04) : catppuccinAlpha(colors.peach, 0.08)}
+            borderColor={catppuccinAlpha(colors.peach, isDark ? 0.15 : 0.25)}
+            borderWidth="1px"
+            borderRadius="2xl"
+            p={5}
+            backdropFilter="blur(16px)"
+            boxShadow={`0 10px 30px ${catppuccinAlpha(colors.peach, isDark ? 0.05 : 0.03)}`}
+          >
+            <Flex
+              direction={{ base: "column", sm: "row" }}
+              align={{ base: "stretch", sm: "center" }}
+              justify="space-between"
+              gap={4}
+            >
+              <Text
+                color={colors.peach}
+                display="inline-flex"
+                alignItems="center"
+                gap={3}
+                fontWeight="extrabold"
+                fontSize="xs"
+                letterSpacing="widest"
+                fontFamily="mono"
+              >
+                <OctagonX size={16} /> <span>{(error ?? "Run stopped by user").toUpperCase()}</span>
+              </Text>
+              <Button
+                asChild
+                size="sm"
+                bg={isDark ? catppuccinAlpha(colors.sapphire, 0.08) : colors.base}
+                color={colors.sapphire}
+                borderWidth="1px"
+                borderColor={catppuccinAlpha(colors.sapphire, 0.35)}
+                borderRadius="full"
+                cursor="pointer"
+                flexShrink={0}
+                fontWeight="extrabold"
+                fontSize="11px"
+                letterSpacing="wider"
+                px={4.5}
+                py={2}
+                _hover={{
+                  bg: colors.sapphire,
+                  color: isDark ? colors.crust : colors.base,
+                  borderColor: colors.sapphire,
+                  transform: "scale(1.05) translateY(-0.5px)",
+                  boxShadow: isDark 
+                    ? `0 0 15px ${catppuccinAlpha(colors.sapphire, 0.45)}`
+                    : `0 4px 12px ${catppuccinAlpha(colors.sapphire, 0.35)}`,
+                }}
+                _active={{
+                  transform: "scale(0.97) translateY(0)",
+                }}
+                transition="all 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
+              >
+                <NextLink href="/" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <Plus size={13} strokeWidth={2.5} /> <span>START A NEW RUN</span>
+                </NextLink>
+              </Button>
+            </Flex>
           </Box>
         )}
 
         {/* Rich report with tabs (T20 + T21) */}
         {report && (
           <Box
-            bg={isDark ? "rgba(15, 23, 42, 0.35)" : "white"}
+            bg={isDark ? catppuccinAlpha(colors.surface0, 0.35) : colors.base}
             borderWidth="1px"
-            borderColor={isDark ? "white/10" : "gray.200"}
+            borderColor={isDark ? "white/10" : colors.overlay0}
             borderRadius="2xl"
             p={{ base: 6, md: 8 }}
             backdropFilter="blur(20px)"
@@ -324,7 +458,7 @@ export function RunView({ id }: { id: string }) {
             </Flex>
 
             <Tabs.Root defaultValue="report" variant="subtle">
-              <Tabs.List bg={isDark ? "rgba(2, 6, 23, 0.4)" : "gray.100"} p={1.5} borderRadius="xl" borderWidth="1px" borderColor={isDark ? "white/5" : "gray.200"} mb={6} display="inline-flex">
+              <Tabs.List bg={isDark ? catppuccinAlpha(colors.crust, 0.4) : colors.mantle} p={1.5} borderRadius="xl" borderWidth="1px" borderColor={isDark ? "white/5" : colors.overlay0} mb={6} display="inline-flex">
                 <Tabs.Trigger
                   value="report"
                   px={5}
@@ -333,8 +467,8 @@ export function RunView({ id }: { id: string }) {
                   cursor="pointer"
                   color={isDark ? "slate.400" : "slate.600"}
                   _selected={{
-                    color: isDark ? "white" : "slate.900",
-                    bg: isDark ? "rgba(255,255,255,0.06)" : "white",
+                    color: isDark ? "white" : colors.text,
+                    bg: isDark ? catppuccinAlpha(colors.text, 0.06) : colors.base,
                     boxShadow: isDark ? "inset 0 1px 1px rgba(255,255,255,0.08)" : "sm",
                   }}
                   transition="all 0.2s"
@@ -349,8 +483,8 @@ export function RunView({ id }: { id: string }) {
                   cursor="pointer"
                   color={isDark ? "slate.400" : "slate.600"}
                   _selected={{
-                    color: isDark ? "white" : "slate.900",
-                    bg: isDark ? "rgba(255,255,255,0.06)" : "white",
+                    color: isDark ? "white" : colors.text,
+                    bg: isDark ? catppuccinAlpha(colors.text, 0.06) : colors.base,
                     boxShadow: isDark ? "inset 0 1px 1px rgba(255,255,255,0.08)" : "sm",
                   }}
                   transition="all 0.2s"
@@ -362,20 +496,20 @@ export function RunView({ id }: { id: string }) {
               <Tabs.Content value="report">
                 <Stack gap={6}>
                   {report.summary && report.summary.length > 0 && (
-                    <ReportListCard title="WHAT WAS TESTED (EXPLANATION)" items={report.summary} colorHex="#0ea5e9" />
+                    <ReportListCard title="WHAT WAS TESTED (EXPLANATION)" items={report.summary} colorHex={colors.sapphire} />
                   )}
 
                   <Box>
-                    <Heading size="md" fontWeight="bold" color={isDark ? "slate.300" : "slate.800"} mb={3} display="flex" alignItems="center" gap={2}>
+                    <Heading size="md" fontWeight="bold" color={colors.text} mb={3} display="flex" alignItems="center" gap={2}>
                       <ChevronRight size={16} /> Raw Test Metrics
                     </Heading>
                     
-                    <TestMetricsTable report={report} isDark={isDark} id={id} />
+                    <TestMetricsTable report={report} id={id} />
                   </Box>
 
                   {report.fixPrompts.length > 0 && (
                     <Box>
-                      <Heading size="md" fontWeight="bold" color={isDark ? "slate.300" : "slate.800"} mb={3} display="flex" alignItems="center" gap={2}>
+                      <Heading size="md" fontWeight="bold" color={colors.text} mb={3} display="flex" alignItems="center" gap={2}>
                         <ChevronRight size={16} /> Prescribed Auto-Heal Actions
                       </Heading>
                       <Stack gap={3}>
@@ -384,17 +518,17 @@ export function RunView({ id }: { id: string }) {
                             key={i}
                             borderLeftWidth="3px"
                             borderColor="orange.400"
-                            bg={isDark ? "rgba(245, 158, 11, 0.04)" : "orange.50/40"}
+                            bg={isDark ? catppuccinAlpha(colors.peach, 0.04) : catppuccinAlpha(colors.peach, 0.08)}
                             p={4}
                             borderRadius="r-xl"
                             borderRightWidth="1px"
                             borderTopWidth="1px"
                             borderBottomWidth="1px"
-                            borderRightColor={isDark ? "white/5" : "orange.200/20"}
-                            borderTopColor={isDark ? "white/5" : "orange.200/20"}
-                            borderBottomColor={isDark ? "white/5" : "orange.200/20"}
+                            borderRightColor={isDark ? "white/5" : catppuccinAlpha(colors.peach, 0.2)}
+                            borderTopColor={isDark ? "white/5" : catppuccinAlpha(colors.peach, 0.2)}
+                            borderBottomColor={isDark ? "white/5" : catppuccinAlpha(colors.peach, 0.2)}
                           >
-                            <Text fontWeight="bold" fontSize="sm" color={isDark ? "slate.200" : "slate.800"} mb={1} fontFamily="mono">
+                            <Text fontWeight="bold" fontSize="sm" color={colors.text} mb={1} fontFamily="mono">
                               {f.test}
                             </Text>
                             <Text fontSize="xs" color={isDark ? "slate.400" : "slate.600"} mb={2}>
@@ -412,12 +546,12 @@ export function RunView({ id }: { id: string }) {
 
 
                   <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
-                    <ReportListCard title="ISSUES DETECTED" items={report.issues} colorHex="#ef4444" />
-                    <ReportListCard title="ARCHITECTURAL RECOMMENDATIONS" items={report.recommendations} colorHex="#10b981" />
+                    <ReportListCard title="ISSUES DETECTED" items={report.issues} colorHex={colors.red} />
+                    <ReportListCard title="ARCHITECTURAL RECOMMENDATIONS" items={report.recommendations} colorHex={colors.green} />
                   </Box>
 
                   {/* Export Options */}
-                  <Flex justify="flex-start" align="center" gap={3} pt={4} borderTopWidth="1px" borderColor={isDark ? "white/5" : "gray.200"}>
+                  <Flex justify="flex-start" align="center" gap={3} pt={4} borderTopWidth="1px" borderColor={isDark ? "white/5" : colors.overlay0}>
                     <Text fontSize="xs" fontWeight="bold" color="slate.500" fontFamily="mono">EXPORT DATA:</Text>
                     {([ "json", "md", "html" ] as const).map((fmt) => (
                       <Button
@@ -425,12 +559,12 @@ export function RunView({ id }: { id: string }) {
                         asChild
                         variant="subtle"
                         size="xs"
-                        bg={isDark ? "rgba(255,255,255,0.05)" : "white"}
-                        color={isDark ? "slate.300" : "slate.700"}
-                        borderColor={isDark ? "white/5" : "gray.200"}
+                        bg={isDark ? catppuccinAlpha(colors.text, 0.05) : colors.base}
+                        color={colors.text}
+                        borderColor={isDark ? "white/5" : colors.overlay0}
                         borderWidth="1px"
                         _hover={{
-                          bg: isDark ? "rgba(255,255,255,0.1)" : "gray.50",
+                          bg: isDark ? catppuccinAlpha(colors.text, 0.1) : colors.surface1,
                           borderColor: "cyan.500/20",
                           color: isDark ? "white" : "cyan.700",
                         }}
@@ -455,10 +589,10 @@ export function RunView({ id }: { id: string }) {
               <Tabs.Content value="code">
                 <Stack gap={6}>
                   {report.planMarkdown && (
-                    <CollapsiblePlanSection planMarkdown={report.planMarkdown} isDark={isDark} />
+                    <CollapsiblePlanSection planMarkdown={report.planMarkdown} />
                   )}
 
-                  <GeneratedSpecsPanel specs={report.generatedSpecs} isDark={isDark} />
+                  <GeneratedSpecsPanel specs={report.generatedSpecs} />
                 </Stack>
               </Tabs.Content>
             </Tabs.Root>
@@ -471,21 +605,22 @@ export function RunView({ id }: { id: string }) {
 
 function CollapsiblePlanSection({
   planMarkdown,
-  isDark,
 }: {
   planMarkdown: string;
-  isDark: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const lineCount = planMarkdown.split("\n").length;
+  const { theme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
+  const isDark = theme === "dark";
 
   return (
     <Box
       borderWidth="1px"
       borderColor={
         isOpen
-          ? isDark ? "violet.500/20" : "violet.200/60"
-          : isDark ? "white/5" : "gray.200"
+          ? isDark ? catppuccinAlpha(colors.mauve, 0.2) : catppuccinAlpha(colors.mauve, 0.4)
+          : isDark ? "white/5" : colors.overlay0
       }
       borderRadius="xl"
       overflow="hidden"
@@ -501,17 +636,17 @@ function CollapsiblePlanSection({
         py={3}
         bg={
           isOpen
-            ? isDark ? "rgba(139,92,246,0.07)" : "violet.50/60"
-            : isDark ? "rgba(255,255,255,0.03)" : "gray.50"
+            ? isDark ? catppuccinAlpha(colors.mauve, 0.07) : catppuccinAlpha(colors.mauve, 0.15)
+            : isDark ? catppuccinAlpha(colors.text, 0.03) : colors.base
         }
         borderBottomWidth={isOpen ? "1px" : 0}
-        borderColor={isDark ? "violet.500/15" : "violet.200/50"}
+        borderColor={isDark ? "violet.500/15" : catppuccinAlpha(colors.mauve, 0.2)}
         cursor="pointer"
         onClick={() => setIsOpen((v) => !v)}
         _hover={{
           bg: isOpen
-            ? isDark ? "rgba(139,92,246,0.1)" : "violet.50"
-            : isDark ? "rgba(255,255,255,0.05)" : "gray.100",
+            ? isDark ? catppuccinAlpha(colors.mauve, 0.1) : catppuccinAlpha(colors.mauve, 0.25)
+            : isDark ? catppuccinAlpha(colors.text, 0.05) : colors.surface1,
         }}
         transition="background 0.15s ease"
         textAlign="left"
@@ -520,7 +655,7 @@ function CollapsiblePlanSection({
           <ChevronRight
             size={13}
             style={{
-              color: isOpen ? "#8b5cf6" : isDark ? "#64748b" : "#94a3b8",
+              color: isOpen ? colors.mauve : isDark ? colors.overlay1 : colors.overlay2,
               flexShrink: 0,
             }}
           />
@@ -530,8 +665,8 @@ function CollapsiblePlanSection({
               fontWeight="semibold"
               color={
                 isOpen
-                  ? isDark ? "violet.300" : "violet.700"
-                  : isDark ? "slate.300" : "slate.700"
+                  ? isDark ? "violet.300" : colors.mauve
+                  : isDark ? "slate.300" : colors.text
               }
             >
               AI Spec Test Plan
@@ -571,10 +706,10 @@ function CollapsiblePlanSection({
           whiteSpace="pre-wrap"
           p={5}
           w="full"
-          bg={isDark ? "rgba(2, 6, 23, 0.75)" : "#f8f9fc"}
-          borderColor={isDark ? "white/10" : "gray.200"}
+          bg={isDark ? catppuccinAlpha(colors.crust, 0.75) : colors.base}
+          borderColor={isDark ? "white/10" : colors.overlay0}
           borderWidth={isDark ? 0 : 1}
-          color={isDark ? "slate.300" : "slate.800"}
+          color={colors.text}
           fontSize="11px"
           fontFamily="'Fira Code', 'JetBrains Mono', monospace"
           lineHeight={1.7}
@@ -591,12 +726,13 @@ function CollapsiblePlanSection({
 
 function GeneratedSpecsPanel({
   specs,
-  isDark,
 }: {
   specs: { file: string; code: string }[];
-  isDark: boolean;
 }) {
   const [openSpecs, setOpenSpecs] = useState<Record<string, boolean>>({});
+  const { theme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
+  const isDark = theme === "dark";
 
   const allOpen = specs.length > 0 && specs.every((s) => openSpecs[s.file]);
 
@@ -624,7 +760,7 @@ function GeneratedSpecsPanel({
           alignItems="center"
           gap={2}
         >
-          <Code2 size={14} style={{ color: "#06b6d4" }} />
+          <Code2 size={14} style={{ color: colors.sapphire }} />
           Generated Specs ({specs.length})
         </Heading>
 
@@ -633,17 +769,17 @@ function GeneratedSpecsPanel({
             size="xs"
             variant="subtle"
             onClick={allOpen ? collapseAll : expandAll}
-            bg={isDark ? "rgba(255,255,255,0.05)" : "white"}
-            color={isDark ? "slate.400" : "slate.600"}
+            bg={isDark ? catppuccinAlpha(colors.text, 0.05) : colors.base}
+            color={colors.text}
             borderWidth="1px"
-            borderColor={isDark ? "white/8" : "gray.200"}
+            borderColor={isDark ? "white/8" : colors.overlay0}
             borderRadius="md"
             cursor="pointer"
             display="inline-flex"
             alignItems="center"
             gap={1.5}
             _hover={{
-              bg: isDark ? "rgba(6,182,212,0.1)" : "cyan.50",
+              bg: isDark ? catppuccinAlpha(colors.sapphire, 0.1) : catppuccinAlpha(colors.sapphire, 0.15),
               color: "cyan.400",
               borderColor: "cyan.500/30",
             }}
@@ -677,7 +813,7 @@ function GeneratedSpecsPanel({
                 borderColor={
                   isOpen
                     ? isDark ? "cyan.500/20" : "cyan.200/60"
-                    : isDark ? "white/5" : "gray.200"
+                    : isDark ? "white/5" : colors.overlay0
                 }
                 borderRadius="xl"
                 overflow="hidden"
@@ -693,17 +829,17 @@ function GeneratedSpecsPanel({
                   py={3}
                   bg={
                     isOpen
-                      ? isDark ? "rgba(6,182,212,0.07)" : "cyan.50/60"
-                      : isDark ? "rgba(255,255,255,0.03)" : "gray.50"
+                      ? isDark ? catppuccinAlpha(colors.sapphire, 0.07) : catppuccinAlpha(colors.sapphire, 0.15)
+                      : isDark ? catppuccinAlpha(colors.text, 0.03) : colors.base
                   }
                   borderBottomWidth={isOpen ? "1px" : 0}
-                  borderColor={isDark ? "cyan.500/15" : "cyan.200/50"}
+                  borderColor={isDark ? "cyan.500/15" : colors.overlay0}
                   cursor="pointer"
                   onClick={() => toggleSpec(s.file)}
                   _hover={{
                     bg: isOpen
-                      ? isDark ? "rgba(6,182,212,0.1)" : "cyan.50"
-                      : isDark ? "rgba(255,255,255,0.05)" : "gray.100",
+                      ? isDark ? catppuccinAlpha(colors.sapphire, 0.1) : catppuccinAlpha(colors.sapphire, 0.2)
+                      : isDark ? catppuccinAlpha(colors.text, 0.05) : colors.surface1,
                   }}
                   transition="background 0.15s ease"
                   textAlign="left"
@@ -711,7 +847,7 @@ function GeneratedSpecsPanel({
                   <HStack gap={3}>
                     <Code2
                       size={13}
-                      style={{ color: isOpen ? "#06b6d4" : isDark ? "#64748b" : "#94a3b8", flexShrink: 0 }}
+                      style={{ color: isOpen ? colors.sapphire : isDark ? colors.overlay1 : colors.overlay2, flexShrink: 0 }}
                     />
                     <VStack align="stretch" gap={0}>
                       <Text
@@ -720,8 +856,8 @@ function GeneratedSpecsPanel({
                         fontFamily="mono"
                         color={
                           isOpen
-                            ? isDark ? "cyan.300" : "cyan.700"
-                            : isDark ? "slate.300" : "slate.700"
+                            ? isDark ? "cyan.300" : colors.sapphire
+                            : isDark ? "slate.300" : colors.text
                         }
                       >
                         {name}
@@ -760,8 +896,8 @@ function GeneratedSpecsPanel({
                     whiteSpace="pre-wrap"
                     p={5}
                     w="full"
-                    bg={isDark ? "rgba(2, 6, 23, 0.75)" : "#f8f9fc"}
-                    color={isDark ? "slate.300" : "slate.800"}
+                    bg={isDark ? catppuccinAlpha(colors.crust, 0.75) : colors.base}
+                    color={colors.text}
                     fontSize="11px"
                     fontFamily="'Fira Code', 'JetBrains Mono', monospace"
                     lineHeight={1.7}
@@ -782,8 +918,11 @@ function GeneratedSpecsPanel({
   );
 }
 
-function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: boolean; id: string }) {
+function TestMetricsTable({ report, id }: { report: RunReport; id: string }) {
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const { theme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
+  const isDark = theme === "dark";
 
   // Build a lookup map: basename -> code
   const specCodeMap = Object.fromEntries(
@@ -794,29 +933,40 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
     setExpandedRows((prev) => ({ ...prev, [fileName]: !prev[fileName] }));
   }
 
+  const outcomeGlow = (outcome: TestOutcome) => {
+    const outcomeColors = {
+      passed: colors.green,
+      failed: colors.red,
+      flaky: colors.peach,
+      healed: colors.blue,
+      fixme: colors.surface2,
+    };
+    return catppuccinAlpha(outcomeColors[outcome], 0.2);
+  };
+
   return (
-    <Box borderWidth="1px" borderColor={isDark ? "white/5" : "gray.200"} borderRadius="xl" overflow="hidden">
+    <Box borderWidth="1px" borderColor={isDark ? "white/5" : colors.overlay0} borderRadius="xl" overflow="hidden">
       <Table.Root size="sm" variant="outline">
-        <Table.Header bg={isDark ? "white/5" : "gray.50"}>
+        <Table.Header bg={isDark ? "white/5" : colors.mantle}>
           <Table.Row>
-            <Table.ColumnHeader color={isDark ? "slate.400" : "slate.600"} py={3}>FLOW IDENTIFIER</Table.ColumnHeader>
-            <Table.ColumnHeader color={isDark ? "slate.400" : "slate.600"} py={3}>VERDICT</Table.ColumnHeader>
-            <Table.ColumnHeader color={isDark ? "slate.400" : "slate.600"} py={3}>OBSERVATIONS</Table.ColumnHeader>
-            <Table.ColumnHeader color={isDark ? "slate.400" : "slate.600"} py={3} w="80px">CODE</Table.ColumnHeader>
+            <Table.ColumnHeader color={isDark ? "slate.400" : colors.overlay2} py={3}>FLOW IDENTIFIER</Table.ColumnHeader>
+            <Table.ColumnHeader color={isDark ? "slate.400" : colors.overlay2} py={3}>VERDICT</Table.ColumnHeader>
+            <Table.ColumnHeader color={isDark ? "slate.400" : colors.overlay2} py={3}>OBSERVATIONS</Table.ColumnHeader>
+            <Table.ColumnHeader color={isDark ? "slate.400" : colors.overlay2} py={3} w="80px">CODE</Table.ColumnHeader>
           </Table.Row>
         </Table.Header>
-        <Table.Body bg={isDark ? "rgba(15, 23, 42, 0.15)" : "white"}>
+        <Table.Body bg={isDark ? catppuccinAlpha(colors.surface0, 0.15) : colors.base}>
           {report.results.map((r) => {
             const specCode = specCodeMap[baseName(r.fileName)] ?? null;
             const isOpen = !!expandedRows[r.fileName];
             return (
               <React.Fragment key={r.fileName}>
                 <Table.Row
-                  borderColor={isDark ? "white/5" : "gray.100"}
-                  _hover={{ bg: isDark ? "rgba(255,255,255,0.02)" : "gray.50/60" }}
+                  borderColor={isDark ? "white/5" : colors.overlay0}
+                  _hover={{ bg: isDark ? catppuccinAlpha(colors.text, 0.02) : colors.surface0 }}
                   transition="background 0.15s ease"
                 >
-                  <Table.Cell py={3} fontWeight="medium" fontFamily="mono" fontSize="xs" color={isDark ? "white" : "slate.850"}>
+                  <Table.Cell py={3} fontWeight="medium" fontFamily="mono" fontSize="xs" color={colors.text}>
                     <VStack align="stretch" gap={0.5}>
                       <Text>{r.flowId}</Text>
                       <Text fontSize="9px" color="slate.500" fontFamily="mono">{baseName(r.fileName)}</Text>
@@ -829,7 +979,7 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
                       borderRadius="md"
                       fontSize="10px"
                       fontWeight="bold"
-                      boxShadow={`0 0 10px ${OUTCOME_GLOW[r.outcome]}`}
+                      boxShadow={`0 0 10px ${outcomeGlow(r.outcome)}`}
                       display="inline-flex"
                       alignItems="center"
                       gap={1}
@@ -845,7 +995,7 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
                       {r.outcome.toUpperCase()}
                     </Badge>
                   </Table.Cell>
-                  <Table.Cell py={3} color={isDark ? "slate.400" : "slate.600"} fontSize="xs">
+                  <Table.Cell py={3} color={isDark ? "slate.400" : colors.overlay2} fontSize="xs">
                     {r.failureReason ?? (r.healed ? "Locator was auto-healed successfully" : "Test passed without issues")}
                   </Table.Cell>
                   <Table.Cell py={3}>
@@ -856,17 +1006,17 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
                         onClick={() => toggleRow(r.fileName)}
                         aria-label={isOpen ? "Hide code" : "View code"}
                         bg={isOpen
-                          ? isDark ? "rgba(6, 182, 212, 0.15)" : "cyan.50"
-                          : isDark ? "rgba(255,255,255,0.05)" : "white"
+                          ? isDark ? catppuccinAlpha(colors.sapphire, 0.15) : catppuccinAlpha(colors.sapphire, 0.2)
+                          : isDark ? catppuccinAlpha(colors.text, 0.05) : colors.base
                         }
                         color={isOpen
-                          ? "cyan.400"
-                          : isDark ? "slate.400" : "slate.600"
+                          ? colors.sapphire
+                          : isDark ? "slate.400" : colors.text
                         }
                         borderWidth="1px"
                         borderColor={isOpen
                           ? "cyan.500/30"
-                          : isDark ? "white/8" : "gray.200"
+                          : isDark ? "white/8" : colors.overlay0
                         }
                         borderRadius="md"
                         cursor="pointer"
@@ -874,7 +1024,7 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
                         alignItems="center"
                         gap={1}
                         _hover={{
-                          bg: isDark ? "rgba(6, 182, 212, 0.12)" : "cyan.50",
+                          bg: isDark ? catppuccinAlpha(colors.sapphire, 0.12) : catppuccinAlpha(colors.sapphire, 0.1),
                           color: "cyan.400",
                           borderColor: "cyan.500/30",
                         }}
@@ -894,16 +1044,16 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
                 {/* Expandable code panel */}
                 {isOpen && specCode && (
                   <Table.Row
-                    borderColor={isDark ? "cyan.500/15" : "cyan.200/50"}
+                    borderColor={isDark ? "cyan.500/15" : colors.overlay0}
                     borderTopWidth="1px"
                     borderBottomWidth="2px"
-                    bg={isDark ? "rgba(6, 182, 212, 0.03)" : "cyan.50/30"}
+                    bg={isDark ? catppuccinAlpha(colors.sapphire, 0.03) : catppuccinAlpha(colors.sapphire, 0.06)}
                   >
                     <Table.Cell colSpan={4} p={0}>
                       <Box
                         position="relative"
                         borderTopWidth="1px"
-                        borderColor={isDark ? "cyan.500/20" : "cyan.200/60"}
+                        borderColor={isDark ? "cyan.500/20" : colors.overlay0}
                       >
                         {/* Header bar */}
                         <Flex
@@ -911,17 +1061,17 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
                           justify="space-between"
                           px={4}
                           py={2}
-                          bg={isDark ? "rgba(6, 182, 212, 0.08)" : "cyan.50"}
+                          bg={isDark ? catppuccinAlpha(colors.sapphire, 0.08) : catppuccinAlpha(colors.sapphire, 0.15)}
                           borderBottomWidth="1px"
-                          borderColor={isDark ? "cyan.500/20" : "cyan.200/60"}
+                          borderColor={isDark ? "cyan.500/20" : colors.overlay0}
                         >
                           <HStack gap={2}>
-                            <Code2 size={12} style={{ color: "#06b6d4" }} />
+                            <Code2 size={12} style={{ color: colors.sapphire }} />
                             <Text
                               fontSize="10px"
                               fontWeight="bold"
                               fontFamily="mono"
-                              color={isDark ? "cyan.300" : "cyan.700"}
+                              color={isDark ? "cyan.300" : colors.sapphire}
                               letterSpacing="wider"
                             >
                               {baseName(r.fileName)}
@@ -957,10 +1107,10 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
                           whiteSpace="pre-wrap"
                           p={5}
                           w="full"
-                          bg={isDark ? "rgba(2, 6, 23, 0.85)" : "#f8f9fc"}
-                          color={isDark ? "slate.200" : "slate.800"}
+                          bg={isDark ? catppuccinAlpha(colors.crust, 0.85) : colors.base}
+                          color={colors.text}
                           borderWidth={isDark ? 0 : 1}
-                          borderColor="gray.200"
+                          borderColor={colors.overlay0}
                           fontSize="11px"
                           fontFamily="'Fira Code', 'JetBrains Mono', monospace"
                           lineHeight={1.7}
@@ -986,22 +1136,23 @@ function TestMetricsTable({ report, isDark, id }: { report: RunReport; isDark: b
 
 function ReportListCard({ title, items, colorHex }: { title: string; items: string[]; colorHex: string }) {
   const { theme } = useThemeMode();
+  const colors = getCatppuccinColors(theme);
   const isDark = theme === "dark";
 
   return (
     <Box
-      bg={isDark ? "rgba(15, 23, 42, 0.4)" : "gray.50"}
+      bg={isDark ? catppuccinAlpha(colors.surface0, 0.4) : colors.base}
       borderWidth="1px"
-      borderColor={isDark ? "white/5" : "gray.200"}
+      borderColor={isDark ? "white/5" : colors.overlay0}
       borderRadius="xl"
       p={5}
     >
       <Heading
         size="xs"
         fontWeight="bold"
-        color={isDark ? "slate.400" : "slate.650"}
+        color={isDark ? "slate.400" : colors.overlay2}
         borderBottomWidth="1px"
-        borderColor={isDark ? "white/5" : "gray.200"}
+        borderColor={isDark ? "white/5" : colors.overlay0}
         pb={2}
         mb={3}
         letterSpacing="wide"
@@ -1017,7 +1168,7 @@ function ReportListCard({ title, items, colorHex }: { title: string; items: stri
           {items.map((it, i) => (
             <Flex key={i} align="flex-start" gap={2} fontSize="xs">
               <span style={{ color: colorHex }}>•</span>
-              <Text color={isDark ? "slate.300" : "slate.700"}>{it}</Text>
+              <Text color={isDark ? "slate.300" : colors.text}>{it}</Text>
             </Flex>
           ))}
         </Stack>
