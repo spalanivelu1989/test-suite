@@ -6,6 +6,7 @@ const OUTCOME_LABEL: Record<TestResult["outcome"], string> = {
   failed: "FAIL",
   flaky: "FLAKY",
   healed: "HEALED",
+  fixme: "FIXME",
 };
 
 function pct(n: number): string {

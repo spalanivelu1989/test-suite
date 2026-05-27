@@ -74,7 +74,7 @@ export interface GeneratedTest {
   validationError?: string;
 }
 
-export type TestOutcome = "passed" | "failed" | "flaky" | "healed";
+export type TestOutcome = "passed" | "failed" | "flaky" | "healed" | "fixme";
 
 /** Result of executing one generated test (R4, R7, R9). */
 export interface TestResult {

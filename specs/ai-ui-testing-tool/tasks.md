@@ -73,7 +73,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** running the healer executes the suite, repairs locator failures, and marks unfixable tests `test.fixme()` with a comment.
 
-### T9 — Results parser (Playwright results + fixme detection)
+### T9 — Results parser (Playwright results + fixme detection) [x]
 
 - **Covers:** R4, R15
 - **Depends on:** T8

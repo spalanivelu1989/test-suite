@@ -30,6 +30,7 @@ const OUTCOME_COLOR: Record<TestOutcome, string> = {
   failed: "red",
   flaky: "orange",
   healed: "blue",
+  fixme: "gray",
 };
 
 export function RunView({ id }: { id: string }) {
