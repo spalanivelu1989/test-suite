@@ -94,14 +94,14 @@ tasks at the same dependency level.
 - **Parallel:** yes
 - **Done-when:** planner flows compared to the curated fixture → coverage % (reuses coverage/coverage.ts).
 
-### T12 — Success-rate + per-test buckets
+### T12 — Success-rate + per-test buckets [x]
 
 - **Covers:** R16
 - **Depends on:** T9
 - **Parallel:** no
 - **Done-when:** computes success rate = passed ÷ all planned (fixme = not-passed, Q7/D7) and classifies each test as passed / needs-attention / where-to-improve; unit-tested.
 
-### T13 — Reporter narrative (fix prompts, issues, recommendations)
+### T13 — Reporter narrative (fix prompts, issues, recommendations) [x]
 
 - **Covers:** R16
 - **Depends on:** T9

@@ -1,0 +1,98 @@
+import type { ClaudeClient } from "../claude/client";
+import type { TestResult } from "../types";
+
+/** One concrete fix prompt: a problem found and exactly what to change (R16). */
+export interface FixPrompt {
+  test: string;
+  problem: string;
+  change: string;
+}
+
+export interface Narrative {
+  fixPrompts: FixPrompt[];
+  issues: string[];
+  recommendations: string[];
+}
+
+const SYSTEM =
+  "You are a senior QA engineer reviewing an automated UI test run. Return ONLY a " +
+  'JSON object: { "fixPrompts": [{"test":"","problem":"","change":""}], ' +
+  '"issues": [""], "recommendations": [""] }. fixPrompts cover failing/quarantined ' +
+  "tests (concrete problem + exact change). issues are problems found in the app or suite. " +
+  "recommendations are how to improve coverage/quality. No prose outside the JSON.";
+
+export function buildNarrativePrompt(
+  results: TestResult[],
+  specs: { file: string; code: string }[],
+): string {
+  const failing = results.filter(
+    (r) => r.outcome === "failed" || r.outcome === "fixme",
+  );
+  const lines = [
+    `Total tests: ${results.length}. Failing/quarantined: ${failing.length}.`,
+    "",
+    "Problem tests:",
+    ...failing.map(
+      (r) => `- ${r.flowId} [${r.outcome}] ${r.failureReason ?? ""}`,
+    ),
+    "",
+    "Generated specs (truncated):",
+    ...specs
+      .slice(0, 20)
+      .map((s) => `--- ${s.file} ---\n${s.code.slice(0, 800)}`),
+    "",
+    "Produce the JSON review now.",
+  ];
+  return lines.join("\n");
+}
+
+/** Extract the JSON object from a model response that may include fences/prose. */
+export function parseNarrative(text: string): Narrative {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end < start) {
+    return { fixPrompts: [], issues: [], recommendations: [] };
+  }
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    return { fixPrompts: [], issues: [], recommendations: [] };
+  }
+  const strArr = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  const fixPrompts = Array.isArray(raw.fixPrompts)
+    ? raw.fixPrompts
+        .map((p): FixPrompt => {
+          const o = (p ?? {}) as Record<string, unknown>;
+          return {
+            test: typeof o.test === "string" ? o.test : "",
+            problem: typeof o.problem === "string" ? o.problem : "",
+            change: typeof o.change === "string" ? o.change : "",
+          };
+        })
+        .filter((p) => p.problem || p.change)
+    : [];
+  return {
+    fixPrompts,
+    issues: strArr(raw.issues),
+    recommendations: strArr(raw.recommendations),
+  };
+}
+
+/** T13: ask Claude for fix prompts, issues, and recommendations (R16). */
+export async function generateNarrative(
+  results: TestResult[],
+  specs: { file: string; code: string }[],
+  claude: ClaudeClient,
+): Promise<Narrative> {
+  // No failures and nothing to review → skip the call.
+  if (results.length === 0)
+    return { fixPrompts: [], issues: [], recommendations: [] };
+  const text = await claude.complete({
+    purpose: "report-narrative",
+    system: SYSTEM,
+    prompt: buildNarrativePrompt(results, specs),
+  });
+  return parseNarrative(text);
+}
