@@ -17,7 +17,7 @@ tasks at the same dependency level.
 
 ## Task list
 
-### T1 — Add @anthropic-ai/claude-agent-sdk + smoke-test query()
+### T1 — Add @anthropic-ai/claude-agent-sdk + smoke-test query() [x]
 
 - **Covers:** R6, R12
 - **Depends on:** —

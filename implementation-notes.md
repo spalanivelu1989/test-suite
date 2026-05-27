@@ -26,6 +26,16 @@ Keep it to 2–5 lines. If in doubt, write it down.
 
 <!-- Entries go below this line, newest last. -->
 
+### [2026-05-27] v0.2.0 Forge — Agent SDK verified (T1)
+
+**Type:** Decision
+**Task:** T1
+
+`@anthropic-ai/claude-agent-sdk@0.3.152` `query()` works headlessly with the
+bundled runtime (no separate Claude Code CLI install) and authenticates via
+`ANTHROPIC_API_KEY` from env. Smoke test returned "PONG", result subtype
+`success`. Safe to build the agent runtime (T4) on this.
+
 ### [2026-05-27] Initialized git for atomic per-task saves
 
 **Type:** Decision
