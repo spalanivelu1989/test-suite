@@ -7,9 +7,11 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** v2 — Looping back to Stage 2 (Record) for an agent re-architecture.
+- **Stage:** v2 — Record complete (Spec v0.2.0 approved); ready for Stage 3 (Assemble).
 - **Last updated:** 2026-05-27
-- **Waiting on:** Spec v0.2.0 (Record). v0.1.0 shipped and remains the baseline.
+- **Waiting on:** nothing — ready to run `/craft-framework:assemble`. NOTE: the
+  v0.1.0 tasks.md + review-report.md are now stale vs v0.2.0 (validator flags
+  R12–R17 / AC12–AC17 uncovered) — expected; Assemble + Test will regenerate them.
 
 ### v2 direction (decided 2026-05-27)
 
@@ -33,6 +35,7 @@ through CRAFT (Record → Assemble → Forge → Test).
 | 2026-05-27 | 4 — Forge     | All 26 tasks built; 47 unit tests pass; build clean             | ✅     |
 | 2026-05-27 | 5 — Test&Tune | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage | ✅     |
 | 2026-05-27 | Ship          | Shipped v0.1.0 at the Human Gate (user decision)                | ✅     |
+| 2026-05-27 | 2 — Record v2 | Spec v0.2.0 approved (4-agent architecture + rich reporter)     | ✅     |
 
 ## Key decisions
 
