@@ -171,7 +171,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** `bin/run-ci.ts` runs the new orchestrator headless, writes JSON, and exits non-zero when the success rate indicates failures.
 
-### T23 — Remove superseded v0.1.0 pipeline modules
+### T23 — Remove superseded v0.1.0 pipeline modules [x]
 
 - **Covers:** R12
 - **Depends on:** T17

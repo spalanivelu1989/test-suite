@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { GeneratedTest, TestResult } from "../types";
-import { assessFlakiness, detectFlakes } from "./flake";
+import type { TestResult } from "../types";
+import { detectFlakes } from "./flake";
 
 const r = (flowId: string, outcome: TestResult["outcome"]): TestResult => ({
   flowId,
@@ -27,19 +27,4 @@ test("detectFlakes flags a flow whose outcome diverges across runs", () => {
 test("detectFlakes returns 0 rate when all runs agree", () => {
   const runs = [[r("a", "passed")], [r("a", "passed")], [r("a", "passed")]];
   assert.equal(detectFlakes(runs).flakeRate, 0);
-});
-
-test("assessFlakiness runs the suite the requested number of times", async () => {
-  let calls = 0;
-  const tests: GeneratedTest[] = [
-    { flowId: "a", fileName: "a.spec.ts", code: "", valid: true },
-  ];
-  const runOnce = async () => {
-    calls += 1;
-    return [r("a", calls === 2 ? "failed" : "passed")];
-  };
-  const { results, flakeRate } = await assessFlakiness(tests, runOnce, 3);
-  assert.equal(calls, 3);
-  assert.equal(results[0].outcome, "flaky");
-  assert.equal(flakeRate, 1);
 });

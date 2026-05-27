@@ -1,8 +1,9 @@
-import type { GeneratedTest, TestResult } from "../types";
+import type { TestResult } from "../types";
 
 /**
  * Compare results across N identical runs (R7). A flow whose outcome diverges
  * across runs is flagged flaky. flakeRate = flaky flows / total flows.
+ * The suite re-run wrapper lives in results/parse.ts (assessSuiteFlakiness).
  */
 export function detectFlakes(runs: TestResult[][]): {
   results: TestResult[];
@@ -30,22 +31,4 @@ export function detectFlakes(runs: TestResult[][]): {
   const flakyCount = results.filter((r) => r.flaky).length;
   const flakeRate = results.length === 0 ? 0 : flakyCount / results.length;
   return { results, flakeRate };
-}
-
-export type RunOnce = (tests: GeneratedTest[]) => Promise<TestResult[]>;
-
-/**
- * Run the tests `reruns` times on the unchanged app and assess flakiness.
- * `reruns` includes the first run (default 3 per M2's measurement definition).
- */
-export async function assessFlakiness(
-  tests: GeneratedTest[],
-  runOnce: RunOnce,
-  reruns = 3,
-): Promise<{ results: TestResult[]; flakeRate: number }> {
-  const runs: TestResult[][] = [];
-  for (let i = 0; i < Math.max(1, reruns); i++) {
-    runs.push(await runOnce(tests));
-  }
-  return detectFlakes(runs);
 }

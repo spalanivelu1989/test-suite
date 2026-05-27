@@ -34,43 +34,11 @@ export interface ProgressEvent {
   data?: Record<string, unknown>;
 }
 
-/** A discovered page during crawl (R2). */
-export interface CrawledPage {
-  url: string;
-  title: string;
-  depth: number;
-  links: string[];
-  elements: PageElement[];
-}
-
-/** An interactive element extracted from a page (R2, T5b). */
-export interface PageElement {
-  role: string;
-  label: string;
-  selector: string;
-}
-
-/** Structured crawl output (R2). */
-export interface CrawlResult {
-  entryUrl: string;
-  pages: CrawledPage[];
-}
-
-/** A candidate primary user flow identified by Claude (R2, T6). */
+/** A primary user flow (kept for report metadata; produced by the Planner). */
 export interface Flow {
   id: string;
   name: string;
   steps: string[];
-}
-
-/** A generated Playwright test for a flow (R3, T7). */
-export interface GeneratedTest {
-  flowId: string;
-  fileName: string;
-  code: string;
-  /** Set by T7b after parse/compile validation. */
-  valid: boolean;
-  validationError?: string;
 }
 
 export type TestOutcome = "passed" | "failed" | "flaky" | "healed" | "fixme";
