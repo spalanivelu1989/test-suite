@@ -1,0 +1,27 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+
+# env
+.env
+.env.local
+.env*.local
+
+# logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# generated run artifacts
+/.runs/
+/test-output/
+/playwright-report/
+/.playwright/
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts.timestamp

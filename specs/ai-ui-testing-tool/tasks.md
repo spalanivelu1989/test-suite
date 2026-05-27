@@ -14,7 +14,7 @@ tasks at the same dependency level.
 
 ## Task list
 
-### T1 — Scaffold Next.js + React 19 + TS app with Chakra/Framer/Lucide
+### T1 — Scaffold Next.js + React 19 + TS app with Chakra/Framer/Lucide [x]
 
 - **Covers:** R8
 - **Depends on:** —

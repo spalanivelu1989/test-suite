@@ -25,3 +25,32 @@ Keep it to 2–5 lines. If in doubt, write it down.
 ## Log
 
 <!-- Entries go below this line, newest last. -->
+
+### [2026-05-27] Initialized git for atomic per-task saves
+
+**Type:** Decision
+**Task:** Forge setup
+
+The project wasn't a git repo. The Constitution/Plan imply atomic, reversible
+saves per task, so initialized git and committed the CRAFT artifacts as the
+baseline. Each completed task is committed as its own unit.
+
+### [2026-05-27] No Anthropic API key in environment
+
+**Type:** Assumption
+**Task:** T3 and all Claude-dependent tasks (T6, T7a, T10)
+
+No `ANTHROPIC_API_KEY` is set. The Claude client reads the key from env /
+`.env.local` at runtime. Build and unit checks proceed without it; live
+Claude-dependent verification (AC5, real flow/test/heal generation) is deferred
+until the user supplies a key. Code must fail clearly if the key is absent at run time.
+
+### [2026-05-27] Manual Next.js scaffold instead of create-next-app
+
+**Type:** Tradeoff
+**Task:** T1
+
+`create-next-app` is interactive and pulls opinionated defaults. Scaffolded the
+Next.js App Router project manually (package.json, tsconfig, next.config, app/)
+for deterministic control over deps (React 19, Chakra, Framer, Lucide) and to
+keep the install reproducible.
