@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 // Isolated per-run workspace (D3). Agents run with cwd = workspace.root, save
 // the Markdown plan under specs/, and write generated specs under tests/. The UI
@@ -34,7 +35,12 @@ export async function createWorkspace(
   runId: string,
   baseDir = ".runs",
 ): Promise<Workspace> {
-  const root = join(process.cwd(), baseDir, runId);
+  const isServerless = process.env.NETLIFY === "true" || !!process.env.LAMBDA || !!process.env.AWS_LAMBDA_JS_RUNTIME;
+  const rootDir = isServerless ? tmpdir() : process.cwd();
+  // On serverless, keep the subdirectory as "runs" instead of ".runs" if it's default
+  const actualBaseDir = isServerless && baseDir === ".runs" ? "runs" : baseDir;
+  
+  const root = join(rootDir, actualBaseDir, runId);
   const specsDir = join(root, "specs");
   const testsDir = join(root, "tests");
   await mkdir(specsDir, { recursive: true });
@@ -45,6 +51,7 @@ export async function createWorkspace(
   await writeFile(configPath, CONFIG, "utf8");
   return { root, specsDir, testsDir, seedPath, configPath };
 }
+
 
 /** Read the Markdown test plan the Planner saved (first .md under specs/). */
 export async function readPlan(ws: Workspace): Promise<string | null> {
