@@ -63,14 +63,14 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** given crawl output, Claude returns a list of named candidate flows with steps.
 
-### T7a — Test generator: Claude generates a Playwright test from a flow
+### T7a — Test generator: Claude generates a Playwright test from a flow [x]
 
 - **Covers:** R3, R6
 - **Depends on:** T3, T6
 - **Parallel:** no
 - **Done-when:** for a candidate flow, Claude returns a Playwright test file as text.
 
-### T7b — Test generator: validate/parse generated test, regenerate on failure
+### T7b — Test generator: validate/parse generated test, regenerate on failure [x]
 
 - **Covers:** R3
 - **Depends on:** T7a
