@@ -7,20 +7,21 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** 4 — Forge complete; ready for Stage 5 (Test & Tune)
+- **Stage:** 5 — Test & Tune complete; Review Report recommends Ship.
 - **Last updated:** 2026-05-27
-- **Waiting on:** nothing — ready to run `/craft-framework:test-tune`. NOTE: a
-  full successful run (and AC5/AC11/M1 verification) needs an ANTHROPIC_API_KEY.
+- **Waiting on:** user's final ship decision at the Human Gate. Post-ship:
+  `/craft-framework:measure` (esp. M3 auto-heal, which measured 33% vs ≥50%).
 
 ## Stage completion log
 
-| Date       | Stage        | Deliverable                                             | Status |
-| ---------- | ------------ | ------------------------------------------------------- | ------ |
-| 2026-05-27 | Setup        | Memory files created                                    | ✅     |
-| 2026-05-27 | 1 — Clarify  | Brief approved (specs/ai-ui-testing-tool/brief.md)      | ✅     |
-| 2026-05-27 | 2 — Record   | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md) | ✅     |
-| 2026-05-27 | 3 — Assemble | plan.md + tasks.md approved (26 tasks, Next.js stack)   | ✅     |
-| 2026-05-27 | 4 — Forge    | All 26 tasks built; 47 unit tests pass; build clean     | ✅     |
+| Date       | Stage         | Deliverable                                                     | Status |
+| ---------- | ------------- | --------------------------------------------------------------- | ------ |
+| 2026-05-27 | Setup         | Memory files created                                            | ✅     |
+| 2026-05-27 | 1 — Clarify   | Brief approved (specs/ai-ui-testing-tool/brief.md)              | ✅     |
+| 2026-05-27 | 2 — Record    | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md)         | ✅     |
+| 2026-05-27 | 3 — Assemble  | plan.md + tasks.md approved (26 tasks, Next.js stack)           | ✅     |
+| 2026-05-27 | 4 — Forge     | All 26 tasks built; 47 unit tests pass; build clean             | ✅     |
+| 2026-05-27 | 5 — Test&Tune | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage | ✅     |
 
 ## Key decisions
 
