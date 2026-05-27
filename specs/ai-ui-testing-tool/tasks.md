@@ -21,7 +21,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** `npm run dev` serves a blank Chakra-themed page; TypeScript builds clean.
 
-### T2 — Install & configure Playwright + browser binaries [P]
+### T2 — Install & configure Playwright + browser binaries [P] [x]
 
 - **Covers:** R3, R4 (C1)
 - **Depends on:** T1
