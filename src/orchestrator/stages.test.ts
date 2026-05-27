@@ -104,6 +104,28 @@ test("generateTests reads back one spec per scenario the agent wrote", async () 
   }
 });
 
+test("generateTests proceeds when the agent hit its turn cap but wrote specs", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    const runner = async (): Promise<RunAgentResult> => {
+      await writeFile(
+        join(ws.testsDir, "home.spec.ts"),
+        "import {test} from '@playwright/test';",
+        "utf8",
+      );
+      return { resultText: "max turns", toolCalls: [], isError: true }; // agent errored…
+    };
+    const res = await generateTests(ws, undefined, {
+      runner,
+      loadAgentFn: async () => fakeAgent,
+    });
+    assert.equal(res.isError, false); // …but a spec exists, so we proceed
+    assert.equal(res.specs.length, 1);
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
 test("generateTests flags an error when no specs were written", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {

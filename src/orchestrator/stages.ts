@@ -43,8 +43,9 @@ export async function planTests(
   return {
     planMarkdown,
     toolCalls: res.toolCalls,
-    // A run with no saved plan is a planner failure even if the agent "succeeded".
-    isError: res.isError || !planMarkdown,
+    // A saved plan = success even if the agent hit its turn cap; only a missing
+    // plan is fatal (graceful degradation — found via a live maxTurns cutoff).
+    isError: !planMarkdown,
   };
 }
 
@@ -77,7 +78,9 @@ export async function generateTests(
   return {
     specs,
     toolCalls: res.toolCalls,
-    isError: res.isError || specs.length === 0,
+    // Any generated specs = proceed, even if the agent hit its turn cap; only
+    // zero specs is fatal. We still test what was generated.
+    isError: specs.length === 0,
   };
 }
 

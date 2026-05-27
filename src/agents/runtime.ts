@@ -93,7 +93,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
       mcpServers: DEFAULT_MCP,
       allowedTools: opts.agent.tools,
       model: opts.agent.model,
-      maxTurns: opts.maxTurns ?? 60,
+      // Agents make many MCP browser calls per test; 60 was too low (a real
+      // multi-flow run exhausted it mid-generation). 150 gives headroom.
+      maxTurns: opts.maxTurns ?? 150,
       permissionMode: "bypassPermissions",
     },
   });
