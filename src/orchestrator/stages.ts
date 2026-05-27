@@ -1,5 +1,9 @@
 import { type AgentEvent, loadAgent, runAgent } from "../agents/runtime";
-import { readPlan, type Workspace } from "../agents/workspace";
+import {
+  readGeneratedSpecs,
+  readPlan,
+  type Workspace,
+} from "../agents/workspace";
 
 // The four pipeline stages (T6–T8 + results). Each stage runs one agent in the
 // run workspace via the runtime; deps are injectable so the orchestration is
@@ -41,5 +45,38 @@ export async function planTests(
     toolCalls: res.toolCalls,
     // A run with no saved plan is a planner failure even if the agent "succeeded".
     isError: res.isError || !planMarkdown,
+  };
+}
+
+export interface GenerateResult {
+  specs: { file: string; code: string }[];
+  toolCalls: string[];
+  isError: boolean;
+}
+
+/** T7: run the Generator → turn each plan scenario into a Playwright spec file. */
+export async function generateTests(
+  ws: Workspace,
+  onEvent?: (e: AgentEvent) => void,
+  deps: StageDeps = {},
+): Promise<GenerateResult> {
+  const load = deps.loadAgentFn ?? loadAgent;
+  const run = deps.runner ?? runAgent;
+  const agent = await load("playwright-test-generator");
+
+  const prompt = [
+    "Read the Markdown test plan saved under the specs/ directory.",
+    "For each scenario in the plan, generate a Playwright test: call generator_setup_page,",
+    "execute the steps with the browser tools, then call generator_write_test to save it",
+    "as tests/<fs-friendly-scenario-name>.spec.ts. Use seed.spec.ts as the seed.",
+    "Generate one test file per scenario.",
+  ].join(" ");
+
+  const res = await run({ agent, prompt, cwd: ws.root, onEvent });
+  const specs = await readGeneratedSpecs(ws);
+  return {
+    specs,
+    toolCalls: res.toolCalls,
+    isError: res.isError || specs.length === 0,
   };
 }

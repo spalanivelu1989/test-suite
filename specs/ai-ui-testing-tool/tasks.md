@@ -59,7 +59,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** running the planner produces a persisted Markdown plan file (titled scenarios + numbered steps) in the run workspace.
 
-### T7 — Generator stage → Playwright specs
+### T7 — Generator stage → Playwright specs [x]
 
 - **Covers:** R3, R14
 - **Depends on:** T6
