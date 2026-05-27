@@ -136,28 +136,28 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** one call runs the four stages in order, emits per-stage progress events, and produces the RunReport; failure in any stage marks the run failed (no false pass); unit-tested with stubbed stages.
 
-### T18 — API: start / SSE / report + spec sources
+### T18 — API: start / SSE / report + spec sources [x]
 
 - **Covers:** R1, R5, R8, R11, R17
 - **Depends on:** T17
 - **Parallel:** no
 - **Done-when:** POST /api/runs validates + starts a run; SSE streams agent stages; report endpoint serves MD/HTML/JSON incl. plan + spec sources.
 
-### T19 — UI: agent-stage progress view
+### T19 — UI: agent-stage progress view [x]
 
 - **Covers:** R8, R12
 - **Depends on:** T18
 - **Parallel:** no
 - **Done-when:** RunView shows live Planner→Generator→Healer→Reporter progress over SSE.
 
-### T20 — UI: rich report view [P]
+### T20 — UI: rich report view [P] [x]
 
 - **Covers:** R5, R8, R16
 - **Depends on:** T19
 - **Parallel:** yes
 - **Done-when:** the report renders app URL, success rate %, passed/needs-attention/improve breakdown, fix prompts, issues, and recommendations, plus downloads.
 
-### T21 — UI: code-view tab [P]
+### T21 — UI: code-view tab [P] [x]
 
 - **Covers:** R17
 - **Depends on:** T19
