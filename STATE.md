@@ -7,10 +7,11 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** 5 — Test & Tune complete; Review Report recommends Ship.
+- **Stage:** SHIPPED (2026-05-27). CRAFT cycle v0.1.0 complete.
 - **Last updated:** 2026-05-27
-- **Waiting on:** user's final ship decision at the Human Gate. Post-ship:
-  `/craft-framework:measure` (esp. M3 auto-heal, which measured 33% vs ≥50%).
+- **Waiting on:** post-ship — run `/craft-framework:measure` once outcome metrics
+  are meaningful. Open follow-ups: tune auto-heal (M3 33% vs ≥50%); reconcile the
+  tarento.com curated flow list with the live site; sandbox before any hosted v2.
 
 ## Stage completion log
 
@@ -22,6 +23,7 @@ and after every task completed during Forge.
 | 2026-05-27 | 3 — Assemble  | plan.md + tasks.md approved (26 tasks, Next.js stack)           | ✅     |
 | 2026-05-27 | 4 — Forge     | All 26 tasks built; 47 unit tests pass; build clean             | ✅     |
 | 2026-05-27 | 5 — Test&Tune | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage | ✅     |
+| 2026-05-27 | Ship          | Shipped v0.1.0 at the Human Gate (user decision)                | ✅     |
 
 ## Key decisions
 
