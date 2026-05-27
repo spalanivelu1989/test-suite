@@ -7,11 +7,11 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** v2 — Assemble complete (plan + tasks v0.2.0 approved); ready for Stage 4 (Forge).
+- **Stage:** v2 — Forge complete (all 23 tasks built); ready for Stage 5 (Test & Tune).
 - **Last updated:** 2026-05-27
-- **Waiting on:** nothing — ready to run `/craft-framework:forge`. NOTE: the
-  v0.1.0 review-report.md is still stale vs v0.2.0 (validator flags AC12–AC17) —
-  expected; Test & Tune regenerates it after the build.
+- **Waiting on:** nothing — ready to run `/craft-framework:test-tune`. NOTE:
+  review-report.md still reflects v0.1.0 (validator flags AC12–AC17) — Test & Tune
+  regenerates it. A full v2 live run needs ANTHROPIC_API_KEY + the MCP server.
 
 ### v2 direction (decided 2026-05-27)
 
@@ -37,6 +37,7 @@ through CRAFT (Record → Assemble → Forge → Test).
 | 2026-05-27 | Ship            | Shipped v0.1.0 at the Human Gate (user decision)                | ✅     |
 | 2026-05-27 | 2 — Record v2   | Spec v0.2.0 approved (4-agent architecture + rich reporter)     | ✅     |
 | 2026-05-27 | 3 — Assemble v2 | plan + tasks v0.2.0 approved (23 tasks; Agent SDK + MCP)        | ✅     |
+| 2026-05-27 | 4 — Forge v2    | All 23 v0.2.0 tasks built; 48 unit tests, build clean           | ✅     |
 
 ## Key decisions
 

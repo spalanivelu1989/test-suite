@@ -26,6 +26,27 @@ Keep it to 2–5 lines. If in doubt, write it down.
 
 <!-- Entries go below this line, newest last. -->
 
+### [2026-05-27] Heal success + "healed" outcome reconstructed via pre/post runs (T17)
+
+**Type:** Decision
+**Task:** T17
+
+The Healer agent repairs specs opaquely (the final run just shows passing tests),
+so the "healed" outcome and M3 aren't directly observable. The orchestrator runs
+the suite once BEFORE healing and again AFTER (via the flake re-runs); tests that
+went failed→passed are marked "healed" and M3 = healed ÷ initially-failed. Costs an
+extra suite run but makes M3 measurable and the report honest.
+
+### [2026-05-27] claudeCallCount approximated for agent stages (T17)
+
+**Type:** Assumption
+**Task:** T17
+
+Agent stages run via the Agent SDK, whose Claude calls aren't counted by our
+`claude/client` (that only powers the Reporter narrative). claudeCallCount is
+reported as agentRuns (3) + narrative calls — a proxy, not an exact API call
+count. AC5's real evidence is the agent runs + SDK logs, not this number.
+
 ### [2026-05-27] Coverage matcher over-credits on generic tokens (T11)
 
 **Type:** Assumption
