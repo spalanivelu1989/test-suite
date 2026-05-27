@@ -7,11 +7,11 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** v2 — Record complete (Spec v0.2.0 approved); ready for Stage 3 (Assemble).
+- **Stage:** v2 — Assemble complete (plan + tasks v0.2.0 approved); ready for Stage 4 (Forge).
 - **Last updated:** 2026-05-27
-- **Waiting on:** nothing — ready to run `/craft-framework:assemble`. NOTE: the
-  v0.1.0 tasks.md + review-report.md are now stale vs v0.2.0 (validator flags
-  R12–R17 / AC12–AC17 uncovered) — expected; Assemble + Test will regenerate them.
+- **Waiting on:** nothing — ready to run `/craft-framework:forge`. NOTE: the
+  v0.1.0 review-report.md is still stale vs v0.2.0 (validator flags AC12–AC17) —
+  expected; Test & Tune regenerates it after the build.
 
 ### v2 direction (decided 2026-05-27)
 
@@ -26,16 +26,17 @@ through CRAFT (Record → Assemble → Forge → Test).
 
 ## Stage completion log
 
-| Date       | Stage         | Deliverable                                                     | Status |
-| ---------- | ------------- | --------------------------------------------------------------- | ------ |
-| 2026-05-27 | Setup         | Memory files created                                            | ✅     |
-| 2026-05-27 | 1 — Clarify   | Brief approved (specs/ai-ui-testing-tool/brief.md)              | ✅     |
-| 2026-05-27 | 2 — Record    | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md)         | ✅     |
-| 2026-05-27 | 3 — Assemble  | plan.md + tasks.md approved (26 tasks, Next.js stack)           | ✅     |
-| 2026-05-27 | 4 — Forge     | All 26 tasks built; 47 unit tests pass; build clean             | ✅     |
-| 2026-05-27 | 5 — Test&Tune | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage | ✅     |
-| 2026-05-27 | Ship          | Shipped v0.1.0 at the Human Gate (user decision)                | ✅     |
-| 2026-05-27 | 2 — Record v2 | Spec v0.2.0 approved (4-agent architecture + rich reporter)     | ✅     |
+| Date       | Stage           | Deliverable                                                     | Status |
+| ---------- | --------------- | --------------------------------------------------------------- | ------ |
+| 2026-05-27 | Setup           | Memory files created                                            | ✅     |
+| 2026-05-27 | 1 — Clarify     | Brief approved (specs/ai-ui-testing-tool/brief.md)              | ✅     |
+| 2026-05-27 | 2 — Record      | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md)         | ✅     |
+| 2026-05-27 | 3 — Assemble    | plan.md + tasks.md approved (26 tasks, Next.js stack)           | ✅     |
+| 2026-05-27 | 4 — Forge       | All 26 tasks built; 47 unit tests pass; build clean             | ✅     |
+| 2026-05-27 | 5 — Test&Tune   | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage | ✅     |
+| 2026-05-27 | Ship            | Shipped v0.1.0 at the Human Gate (user decision)                | ✅     |
+| 2026-05-27 | 2 — Record v2   | Spec v0.2.0 approved (4-agent architecture + rich reporter)     | ✅     |
+| 2026-05-27 | 3 — Assemble v2 | plan + tasks v0.2.0 approved (23 tasks; Agent SDK + MCP)        | ✅     |
 
 ## Key decisions
 

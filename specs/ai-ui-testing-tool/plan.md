@@ -1,10 +1,10 @@
 # Plan (Design) — AI UI Testing Tool
 
 > Stage 3 (Assemble) deliverable. Defines **HOW** to build what the Spec
-> describes. Pairs with `tasks.md`. Every design choice traces back to a
-> requirement or constraint in the Spec.
+> describes. Pairs with `tasks.md`. Every design choice traces to a requirement
+> or constraint in the Spec.
 
-- **Targets Spec version:** v0.1.0
+- **Targets Spec version:** v0.2.0
 - **Status:** Approved
 - **Last updated:** 2026-05-27
 
@@ -12,136 +12,152 @@
 
 ## Approach
 
-A single full-stack **Next.js (App Router) + React 19 + TypeScript** application
-that is both the web UI and the API/agent host. A user submits a URL in the UI;
-an in-process **Orchestrator** drives a pipeline — crawl → identify flows →
-generate Playwright tests → run → flake-check → auto-heal → report — emitting
-progress over **Server-Sent Events (SSE)**. **Claude (Anthropic TS SDK)** is the
-reasoning engine for crawling guidance, flow identification, test generation, and
-healing. **Playwright** does all browser automation. Reports are produced as
-JSON (source of truth) and rendered to Markdown + HTML. A headless CLI entry
-reuses the same Orchestrator for CI/CD. v1 keeps state in memory and generates
-fresh tests per run (persistence is out of scope).
+Keep the v0.1.0 **Next.js hybrid shell** (web UI + API + run store + SSE) but
+**replace the bespoke prompt pipeline with the Playwright Agents pattern**. A run
+executes four sequential stages: **Planner → Generator → Healer → Reporter**. The
+first three are the official Playwright agent definitions, run programmatically
+via **`@anthropic-ai/claude-agent-sdk`** `query()` against the
+**`playwright run-test-mcp-server`** MCP (live browser, `planner_save_plan`,
+`generator_write_test`, `test_run`/`test_debug`). The Reporter is ours: it
+computes the success rate + buckets deterministically and uses a Claude call to
+write fix prompts, issues, and recommendations. Each run gets an isolated
+workspace (`.runs/<id>/` with `seed.spec.ts`, the Markdown plan, and generated
+specs) so agents read/write files and the UI can read them back for the
+**code-view tab**. Progress streams over the existing SSE; the rich report renders
+in the UI and downloads as MD/HTML/JSON.
 
 ## Architecture & structure
 
 ```
 ai-ui-testing-tool/
-├── app/                      # Next.js App Router (UI + API)
-│   ├── page.tsx              # URL input form + entry (R1, R8)
-│   ├── runs/[id]/page.tsx    # Live progress + report viewer (R8, R5)
-│   └── api/
-│       ├── runs/route.ts             # POST start run (R1, R8)
-│       ├── runs/[id]/stream/route.ts # SSE progress (R8)
-│       └── runs/[id]/report/route.ts # MD/HTML/JSON download (R5, R11)
+├── .claude/agents/                 # official agent defs (planner/generator/healer) (C7, R12)
+│   ├── playwright-test-planner.md
+│   ├── playwright-test-generator.md
+│   └── playwright-test-healer.md
+├── .mcp.json                       # playwright run-test-mcp-server config (C7)
+├── seed.spec.ts                    # seed test the generator builds from
+├── app/
+│   ├── page.tsx + RunForm.tsx      # URL input (reused) (R1, R8)
+│   ├── runs/[id]/                  # RunView: agent-stage progress + rich report + code-view tab (R8,R16,R17)
+│   └── api/runs/...                # start / SSE / report endpoints (reused, extended) (R1,R8,R5,R11)
 ├── src/
-│   ├── orchestrator/         # Pipeline chaining + progress events (R2–R5)
-│   ├── crawler/              # Playwright crawl + element extraction (R2)
-│   ├── flows/                # Claude flow identification (R2, R6)
-│   ├── generator/            # Claude → Playwright test files (R3, R6)
-│   ├── runner/               # Execute tests, capture results (R4)
-│   ├── flake/                # Re-run divergence detection (R7)
-│   ├── healer/               # Locator-failure repair via Claude (R9, R6)
-│   ├── coverage/             # Tested vs curated flows → M1 (R2)
-│   ├── reporter/             # JSON + Markdown + HTML (R5, R11)
-│   ├── claude/               # Anthropic SDK wrapper + call logging (R6)
-│   └── runStore/             # In-memory run state + lifecycle (R8)
-├── bin/run-ci.ts             # Headless CI entry (R10, R11)
-└── fixtures/tarento-flows.json # Curated primary flows for tarento.com (DEP4)
+│   ├── agents/runtime.ts           # Agent SDK wrapper: runAgent(name,prompt,cwd,onEvent) (R6,R12)
+│   ├── agents/workspace.ts         # per-run .runs/<id>/ workspace (R12,R13,R14)
+│   ├── orchestrator/orchestrate.ts # planner→generator→healer→reporter sequencing (rewrite) (R12)
+│   ├── results/parse.ts            # Playwright results + fixme detection → TestResult[] (R4,R15)
+│   ├── flake/flake.ts              # re-run suite N times → flake rate (reused) (R7)
+│   ├── coverage/coverage.ts        # curated-flow coverage (reused) (R2,M1)
+│   ├── reporter/
+│   │   ├── successRate.ts          # passed ÷ all planned; bucket each test (R16, Q7)
+│   │   ├── narrative.ts            # Claude → fix prompts / issues / recommendations (R16)
+│   │   ├── report.ts               # build extended RunReport (R11,R16,R17)
+│   │   └── render.ts               # rich Markdown + HTML (rewrite) (R5,R16)
+│   ├── claude/client.ts            # reused — powers the Reporter narrative (R6)
+│   ├── runStore/store.ts           # reused (globalThis) (R8)
+│   └── types.ts                    # extended report model (R16,R17)
+├── bin/run-ci.ts                   # CI entry (updated) (R10,R11)
+└── fixtures/tarento-flows.json     # curated flows (reused) (M1)
 ```
+
+**Removed (superseded by agents+MCP):** `src/crawler/*`, `src/flows/*`,
+`src/generator/*`, `src/runner/runner.ts`, `src/healer/*` (Q10 = replace).
 
 ## Components / modules
 
-| Component       | Responsibility                                                            | Addresses   |
-| --------------- | ------------------------------------------------------------------------- | ----------- |
-| Web UI          | URL form, live progress (SSE), report viewer, downloads, error states     | R1, R5, R8  |
-| API routes      | Start run, stream progress, serve reports                                 | R1, R8, R11 |
-| Orchestrator    | Chain the pipeline stages; emit progress events                           | R2–R5       |
-| Crawler         | Playwright navigation + page/element/link extraction (scope/depth limits) | R1, R2      |
-| Flow identifier | Claude turns crawl data into candidate primary flows                      | R2, R6      |
-| Test generator  | Claude generates runnable Playwright tests from flows                     | R3, R6      |
-| Test runner     | Execute Playwright tests; capture pass/fail + failure detail              | R4          |
-| Flake detector  | Re-run on unchanged app; flag divergence; compute flake rate              | R7          |
-| Auto-healer     | Detect locator failure; Claude repair + re-run; record heal outcome       | R9, R6      |
-| Coverage calc   | Compare tested flows vs curated list → M1 %                               | R2          |
-| Reporter        | Assemble JSON; render Markdown + HTML                                     | R5, R11     |
-| Claude client   | Anthropic SDK wrapper; logs Anthropic calls (verifiability)               | R6          |
-| Run store       | In-memory run state + IDs + lifecycle                                     | R8          |
-| CI entry        | Headless non-interactive run; JSON out; exit code                         | R10, R11    |
+| Component                | Responsibility                                          | Addresses            |
+| ------------------------ | ------------------------------------------------------- | -------------------- |
+| Agent runtime            | Run one agent def via Agent SDK + MCP, stream events    | R6, R12              |
+| Run workspace            | Isolated `.runs/<id>/` dir (seed, plan, specs)          | R12, R13, R14        |
+| Planner stage            | Explore app → save Markdown test plan                   | R2, R13              |
+| Generator stage          | Plan → Playwright `.spec.ts` files                      | R3, R14              |
+| Healer stage             | Run + repair suite; `test.fixme()` the unfixable        | R4, R9, R15          |
+| Results parser           | Playwright results (+fixme) → TestResult[]              | R4, R15              |
+| Flake check              | Re-run suite N× → flake rate                            | R7                   |
+| Coverage calc            | Curated-flow coverage (M1)                              | R2                   |
+| Success-rate + buckets   | passed÷planned; classify passed/needs-attention/improve | R16                  |
+| Reporter narrative       | Claude → fix prompts, issues, recommendations           | R16                  |
+| Report model + renderers | Extended RunReport; rich MD/HTML/JSON                   | R5, R11, R16, R17    |
+| Web UI (RunView)         | Agent-stage progress, rich report, code-view tab        | R8, R16, R17         |
+| API                      | Start run, SSE, serve report + spec sources             | R1, R8, R5, R11, R17 |
+| CI entry                 | Headless run, JSON, exit code                           | R10, R11             |
 
 ## Data flow
 
-1. **Submit** — UI POSTs `{url, config}` to `/api/runs`; input validated; a run
-   ID is created in the run store; the Orchestrator starts asynchronously.
-2. **Crawl** — Crawler drives Playwright over the target within scope/depth
-   limits, extracting pages, interactive elements, and links.
-3. **Identify** — Flow identifier sends crawl data to Claude → candidate flows.
-4. **Generate** — Test generator asks Claude for Playwright tests per flow;
-   generated tests are validated (compile/parse) before running.
-5. **Run** — Test runner executes the tests, capturing per-test pass/fail +
-   failure reason.
-6. **Flake check** — selected tests re-run N times on the unchanged app;
-   divergence flagged; flake rate computed.
-7. **Heal** — locator failures handed to the auto-healer (Claude repair + re-run);
-   heal outcome recorded.
-8. **Report** — coverage calc + results → JSON; rendered to Markdown + HTML.
-9. **Stream/serve** — progress events stream to the UI via SSE throughout;
-   reports served for view/download.
+1. **Submit** — UI POSTs `{url, config}` → validated → run created → background job starts.
+2. **Workspace** — create `.runs/<id>/` with `seed.spec.ts` and a `specs/`+`tests/` layout.
+3. **Planner** — Agent SDK runs the planner def against the MCP; it explores the
+   live app and calls `planner_save_plan` → Markdown plan in the workspace.
+4. **Generator** — Agent SDK runs the generator def over the plan; `generator_write_test`
+   emits one `.spec.ts` per scenario into the workspace.
+5. **Healer** — Agent SDK runs the healer def; `test_run`/`test_debug` execute and
+   repair; unfixable tests become `test.fixme()` with a comment.
+6. **Results** — parse Playwright results (+ detect fixme/skipped) → TestResult[];
+   flake check re-runs N×; coverage computed vs curated flows.
+7. **Reporter** — compute success rate (passed÷planned; fixme=not-passed) + buckets;
+   Claude narrative produces fix prompts/issues/recommendations; assemble RunReport
+   (incl. plan markdown + generated spec sources).
+8. **Stream/serve** — per-stage progress over SSE; report served as MD/HTML/JSON;
+   UI shows rich report + code-view tab.
 
-- **Error paths:** invalid/unreachable URL → validation error to UI + non-zero
-  exit in CI, no report emitted; invalid generated test → regenerate or mark the
-  flow failed (never silently drop); auth-required pages → out of scope, skipped.
+- **Error paths:** invalid/unreachable URL → validation error + non-zero CI exit, no
+  report; an agent stage failing → run marked failed with the stage + reason (no false pass);
+  MCP server unavailable → clear setup error.
 
 ## Dependencies & integration points
 
-- **Next.js (App Router) + React 19 + TypeScript** — app shell + API.
-- **Chakra UI + Framer Motion + Lucide** — UI components, motion, icons.
-- **Playwright** (+ browser binaries) — browser automation (C1).
-- **@anthropic-ai/sdk** — Claude reasoning engine (C3, R6); requires API key (DEP1).
-- **Reference app:** tarento.com (DEP3); curated flow fixture (DEP4).
+- **`@anthropic-ai/claude-agent-sdk`** — programmatic agent runner (stdio MCP, streaming).
+- **`playwright run-test-mcp-server`** (ships with Playwright) — the agent tool surface.
+- Official agent defs copied from `/Users/senthilpalanivelu/Downloads/test/.claude/agents`.
+- Reused v0.1.0: Next.js app, run store, SSE, validation, coverage calc, flake, Claude client.
+- Anthropic API key (DEP1), Playwright browsers (DEP2), tarento.com (DEP3), curated fixture (DEP4).
 
 ## Key decisions
 
-| ID  | Decision                                                            | Rationale                                                            | Driven by  |
-| --- | ------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------- |
-| D1  | Single Next.js full-stack app (UI + API in one)                     | One language/runtime; least friction; Playwright & Anthropic both TS | R8, Q6     |
-| D2  | Chakra UI + Framer Motion + Lucide                                  | User-specified UI stack                                              | R8         |
-| D3  | Playwright for all browser automation                               | Spec constraint                                                      | C1         |
-| D4  | Claude via @anthropic-ai/sdk as reasoning engine, with call logging | Spec constraint; logging makes R6 verifiable (AC5)                   | C3, R6     |
-| D5  | SSE for progress streaming                                          | User-specified; good fit for long runs, simpler than websockets      | R8         |
-| D6  | In-memory run store (no DB) for v1                                  | Simplicity rule; persistence is out of scope                         | C6         |
-| D7  | Fresh tests generated per run (no persistence)                      | Matches Spec out-of-scope (no versioned suites)                      | Spec scope |
-| D8  | Validate generated tests before running                             | Claude output may not compile; avoid false failures                  | R3, RK1    |
-| D9  | Auto-heal limited to locator-type failures in v1                    | Bounds the hardest feature; matches M3 framing                       | R9         |
-| D10 | CI mode reuses the same Orchestrator via `bin/run-ci.ts`            | One pipeline, two entry points; avoids divergence                    | R10        |
+| ID  | Decision                                                                       | Rationale                                                                                      | Driven by     |
+| --- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | ------------- |
+| D1  | Adopt official Playwright Agents (copy defs + `.mcp.json` + seed)              | Faithful to the reference pattern the user requires                                            | C7, R12       |
+| D2  | Run agents via `@anthropic-ai/claude-agent-sdk` `query()`, 3 sequential calls  | SDK supports custom prompt + stdio MCP + streaming; sequential keeps planner→gen→heal context  | Q8, R12       |
+| D3  | Per-run workspace `.runs/<id>/` (gitignored)                                   | Agents need a real filesystem to read the plan + write specs; UI reads them back for code-view | R13, R14, R17 |
+| D4  | Reporter = deterministic metrics + Claude narrative (reuse `claude/client.ts`) | Success rate is math; fix prompts/recommendations need reasoning; no browser needed            | R16           |
+| D5  | Keep Next.js shell + run store + SSE + report endpoints; rebuild reporter rich | Q10 = replace pipeline, keep shell; minimizes thrown-away work                                 | Q10, R8       |
+| D6  | Remove superseded modules (crawler/flows/generator/validate/runner/healer)     | Q10 = replace, no dual paths; honors simplicity                                                | Q10, C6       |
+| D7  | Success rate = passed ÷ all planned tests; `test.fixme()` counts as not-passed | User decision (Q7); avoids inflating score by quarantining                                     | Q7, R16       |
+| D8  | Runs execute as background jobs streaming over SSE (existing pattern)          | Agent+browser runs take minutes; must not block the request                                    | R8            |
 
 ## Risks & mitigations
 
-| ID  | Risk                                                    | Likelihood | Impact | Mitigation                                                                   |
-| --- | ------------------------------------------------------- | ---------- | ------ | ---------------------------------------------------------------------------- |
-| RK1 | Claude-generated Playwright tests don't compile/run     | High       | High   | Validate/parse generated tests (D8); regenerate on failure; cap retries      |
-| RK2 | Flaky generated tests erode trust                       | Med        | High   | Explicit flake detection (T9) + visible labeling (Constitution: determinism) |
-| RK3 | Long crawl/run blocks the request or serverless timeout | Med        | Med    | Run as in-process async job, stream via SSE; cap crawl depth/time            |
-| RK4 | Large v1 scope (UI + agent + heal + CI) overruns        | High       | Med    | Task order lands the core loop usable before heal/CI; heal & CI are Should   |
-| RK5 | tarento.com blocks bots / changes structure             | Low        | Med    | Respect robots, throttle; curated flow fixture decouples M1 from churn       |
+| ID  | Risk                                                                  | Likelihood | Impact | Mitigation                                                                           |
+| --- | --------------------------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------ |
+| RK1 | Agent + browser runs are slow/expensive (3 agent loops + MCP browser) | High       | Med    | Bound crawl/plan scope; document cost; reuse v1's small caps for tests/demo          |
+| RK2 | Agent SDK / MCP API drift vs. docs                                    | Med        | High   | Pin versions; T1/T3 smoke tests up front before building on them                     |
+| RK3 | Long-running job hits Next route timeout                              | Med        | Med    | Background job + SSE (D8); never run in the request lifecycle                        |
+| RK4 | `test.fixme()` tests leak into "passed"                               | Med        | High   | D7 success-rate rule + a dedicated test (AC15)                                       |
+| RK5 | Brittle parsing of agent outputs (plan path, spec files, results)     | Med        | Med    | Read deterministically from the workspace; rely on MCP's known write tools/paths     |
+| RK6 | MCP server not installed/bootable in env                              | Low        | High   | T3 smoke test; clear setup error path; document `npx playwright run-test-mcp-server` |
 
 ---
 
 ## Requirements coverage (design level)
 
-| Requirement | Addressed by (component / decision)                    |
-| ----------- | ------------------------------------------------------ |
-| R1          | Web UI form + API validation + Crawler scope config    |
-| R2          | Crawler + Flow identifier + Coverage calc (D3)         |
-| R3          | Test generator + Playwright (D3, D8)                   |
-| R4          | Test runner                                            |
-| R5          | Reporter (Markdown + HTML) + report API + UI viewer    |
-| R6          | Claude client (D4) used by identifier/generator/healer |
-| R7          | Flake detector + UI labeling (D6 n/a)                  |
-| R8          | Next.js app: UI + API + SSE + run store (D1, D5, D6)   |
-| R9          | Auto-healer (D9)                                       |
-| R10         | CI entry `bin/run-ci.ts` (D10)                         |
-| R11         | Reporter JSON + report API + CI output                 |
+| Requirement | Addressed by (component / decision)                      |
+| ----------- | -------------------------------------------------------- |
+| R1          | RunForm + API validation (reused)                        |
+| R2          | Planner stage + coverage calc                            |
+| R3          | Generator stage                                          |
+| R4          | Healer stage + results parser                            |
+| R5          | Report renderers + report endpoints + UI                 |
+| R6          | Agent runtime (Agent SDK) + Claude client (D2, D4)       |
+| R7          | Flake check (reused)                                     |
+| R8          | Next.js shell + run store + SSE + UI (D5, D8)            |
+| R9          | Healer stage                                             |
+| R10         | CI entry                                                 |
+| R11         | Report model + JSON + CI output                          |
+| R12         | Agent defs + runtime + orchestrator rewrite (D1, D2, D6) |
+| R13         | Planner stage → Markdown plan in workspace               |
+| R14         | Generator stage → specs in workspace                     |
+| R15         | Healer stage (fixme) + results parser                    |
+| R16         | Success-rate+buckets + narrative + renderers (D4, D7)    |
+| R17         | Report model (plan + spec sources) + code-view tab       |
 
 ---
 
