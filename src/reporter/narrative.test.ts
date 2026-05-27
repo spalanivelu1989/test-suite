@@ -6,17 +6,18 @@ import { generateNarrative, parseNarrative } from "./narrative";
 
 test("parseNarrative extracts fixPrompts/issues/recommendations from fenced JSON", () => {
   const text =
-    'Here:\n```json\n{"fixPrompts":[{"test":"contact","problem":"selector missing","change":"use getByRole"}],"issues":["form has no validation"],"recommendations":["add aria labels"]}\n```';
+    'Here:\n```json\n{"fixPrompts":[{"test":"contact","problem":"selector missing","change":"use getByRole"}],"issues":["form has no validation"],"recommendations":["add aria labels"],"summary":["user can submit forms"]}\n```';
   const n = parseNarrative(text);
   assert.equal(n.fixPrompts.length, 1);
   assert.equal(n.fixPrompts[0].test, "contact");
   assert.deepEqual(n.issues, ["form has no validation"]);
   assert.deepEqual(n.recommendations, ["add aria labels"]);
+  assert.deepEqual(n.summary, ["user can submit forms"]);
 });
 
 test("parseNarrative returns empty structure on garbage", () => {
   const n = parseNarrative("no json");
-  assert.deepEqual(n, { fixPrompts: [], issues: [], recommendations: [] });
+  assert.deepEqual(n, { fixPrompts: [], issues: [], recommendations: [], summary: [] });
 });
 
 test("generateNarrative calls Claude and parses the response", async () => {
@@ -27,7 +28,7 @@ test("generateNarrative calls Claude and parses the response", async () => {
           content: [
             {
               type: "text",
-              text: '{"fixPrompts":[],"issues":["slow page"],"recommendations":["cache assets"]}',
+              text: '{"fixPrompts":[],"issues":["slow page"],"recommendations":["cache assets"],"summary":["tested routing"]}',
             },
           ],
         }),
@@ -39,6 +40,7 @@ test("generateNarrative calls Claude and parses the response", async () => {
   ];
   const n = await generateNarrative(results, [], claude);
   assert.deepEqual(n.issues, ["slow page"]);
+  assert.deepEqual(n.summary, ["tested routing"]);
   assert.equal(claude.calls[0].purpose, "report-narrative");
 });
 

@@ -94,6 +94,7 @@ export interface RunReport {
   fixPrompts: FixPrompt[];
   issues: string[];
   recommendations: string[];
+  summary?: string[];
   planMarkdown: string | null;
   generatedSpecs: { file: string; code: string }[];
 }

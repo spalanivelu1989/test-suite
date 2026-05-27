@@ -7,11 +7,19 @@ import {
 } from "./client";
 
 test("throws MissingApiKeyError when no key and no injected sdk", async () => {
-  const client = createClaudeClient({ apiKey: undefined, sdk: undefined });
-  await assert.rejects(
-    () => client.complete({ purpose: "test", prompt: "hi" }),
-    MissingApiKeyError,
-  );
+  const oldKey = process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
+  try {
+    const client = createClaudeClient({ apiKey: undefined, sdk: undefined });
+    await assert.rejects(
+      () => client.complete({ purpose: "test", prompt: "hi" }),
+      MissingApiKeyError,
+    );
+  } finally {
+    if (oldKey !== undefined) {
+      process.env.ANTHROPIC_API_KEY = oldKey;
+    }
+  }
 });
 
 test("returns concatenated text and logs the call", async () => {

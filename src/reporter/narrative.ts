@@ -7,14 +7,22 @@ export interface Narrative {
   fixPrompts: FixPrompt[];
   issues: string[];
   recommendations: string[];
+  summary: string[];
 }
 
 const SYSTEM =
   "You are a senior QA engineer reviewing an automated UI test run. Return ONLY a " +
   'JSON object: { "fixPrompts": [{"test":"","problem":"","change":""}], ' +
-  '"issues": [""], "recommendations": [""] }. fixPrompts cover failing/quarantined ' +
-  "tests (concrete problem + exact change). issues are problems found in the app or suite. " +
-  "recommendations are how to improve coverage/quality. No prose outside the JSON.";
+  '"issues": [""], "recommendations": [""], "summary": [""] }. ' +
+  "fixPrompts cover failing/quarantined tests (concrete problem + exact change). " +
+  "issues are problems found in the app or suite. " +
+  "recommendations are how to improve coverage/quality. " +
+  "summary is a list of clear, non-technical, simple English bullet points explaining " +
+  "what features or user flows were tested (e.g. 'We verified that the user can filter items " +
+  "by Coding, Design, and Personal categories. We also verified that typing a query in the " +
+  "search bar narrows down results in real-time.'). Write in the third person, keeping descriptions " +
+  "friendly and understandable for business stakeholders or non-technical users. " +
+  "No prose outside the JSON.";
 
 export function buildNarrativePrompt(
   results: TestResult[],
@@ -26,7 +34,10 @@ export function buildNarrativePrompt(
   const lines = [
     `Total tests: ${results.length}. Failing/quarantined: ${failing.length}.`,
     "",
-    "Problem tests:",
+    "All tests run (including success and failure):",
+    ...results.map((r) => `- ${r.flowId} [${r.outcome}]`),
+    "",
+    "Problem tests details:",
     ...failing.map(
       (r) => `- ${r.flowId} [${r.outcome}] ${r.failureReason ?? ""}`,
     ),
@@ -46,13 +57,13 @@ export function parseNarrative(text: string): Narrative {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start === -1 || end === -1 || end < start) {
-    return { fixPrompts: [], issues: [], recommendations: [] };
+    return { fixPrompts: [], issues: [], recommendations: [], summary: [] };
   }
   let raw: Record<string, unknown>;
   try {
     raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
   } catch {
-    return { fixPrompts: [], issues: [], recommendations: [] };
+    return { fixPrompts: [], issues: [], recommendations: [], summary: [] };
   }
   const strArr = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
@@ -72,6 +83,7 @@ export function parseNarrative(text: string): Narrative {
     fixPrompts,
     issues: strArr(raw.issues),
     recommendations: strArr(raw.recommendations),
+    summary: strArr(raw.summary),
   };
 }
 
@@ -83,7 +95,7 @@ export async function generateNarrative(
 ): Promise<Narrative> {
   // No failures and nothing to review → skip the call.
   if (results.length === 0)
-    return { fixPrompts: [], issues: [], recommendations: [] };
+    return { fixPrompts: [], issues: [], recommendations: [], summary: [] };
   const text = await claude.complete({
     purpose: "report-narrative",
     system: SYSTEM,

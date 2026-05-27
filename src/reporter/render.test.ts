@@ -67,7 +67,11 @@ test("renderHtml is self-contained and escapes content", () => {
   };
   const html = renderHtml(evil);
   assert.match(html, /<!doctype html>/);
-  assert.match(html, /40% success rate/);
+  // score appears as the large verdict number
+  assert.match(html, /40%/);
+  // passes count appears in the verdict text
+  assert.match(html, /2 out of 5 checks passed/);
+  // XSS escaping
   assert.ok(!html.includes("<script>bad</script>"));
   assert.match(html, /&lt;script&gt;/);
 });

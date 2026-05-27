@@ -48,8 +48,8 @@ export async function runPipeline(
     message: string,
     data?: Record<string, unknown>,
   ) => deps.emit?.({ stage, message, data });
-  const onAgent = (label: string) => (e: { kind: string; tool?: string }) => {
-    if (e.kind === "tool" && e.tool) emit("running", `${label}: ${e.tool}`);
+  const onAgent = (stage: ProgressEvent["stage"], label: string) => (e: { kind: string; tool?: string }) => {
+    if (e.kind === "tool" && e.tool) emit(stage, `${label}: ${e.tool}`);
   };
 
   const ws = await (deps.makeWorkspace ?? createWorkspace)(runId);
@@ -61,7 +61,7 @@ export async function runPipeline(
   const plan = await planTests(
     ws,
     config.url,
-    onAgent("planner"),
+    onAgent("planning", "planner"),
     deps.stageDeps,
   );
   agentRuns++;
@@ -70,7 +70,7 @@ export async function runPipeline(
 
   // 2. Generator → Playwright specs
   emit("generating", "Generator: writing Playwright tests from the plan");
-  const gen = await generateTests(ws, onAgent("generator"), deps.stageDeps);
+  const gen = await generateTests(ws, onAgent("generating", "generator"), deps.stageDeps);
   agentRuns++;
   if (gen.isError) throw new StageError("Generator produced no tests");
 
@@ -79,7 +79,7 @@ export async function runPipeline(
   const initial = await captureResults(ws, exec);
 
   emit("healing", "Healer: repairing failures and quarantining the unfixable");
-  await healTests(ws, onAgent("healer"), deps.stageDeps);
+  await healTests(ws, onAgent("healing", "healer"), deps.stageDeps);
   agentRuns++;
 
   emit("flake-check", "Re-running to check reliability");
@@ -105,6 +105,7 @@ export async function runPipeline(
     fixPrompts: narrative.fixPrompts,
     issues: narrative.issues,
     recommendations: narrative.recommendations,
+    summary: narrative.summary,
     planMarkdown,
     generatedSpecs: specs,
   });

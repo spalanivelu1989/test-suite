@@ -32,6 +32,7 @@ const base: ReportInput = {
   fixPrompts: [{ test: "c", problem: "selector", change: "use getByRole" }],
   issues: ["slow"],
   recommendations: ["add labels"],
+  summary: ["simple summary"],
   planMarkdown: "# Plan",
   generatedSpecs: [{ file: "home.spec.ts", code: "x" }],
 };
@@ -45,6 +46,7 @@ test("buildReport assembles all rich fields incl. success rate", () => {
   assert.equal(report.successRate.rate, 0.5);
   assert.equal(report.fixPrompts.length, 1);
   assert.deepEqual(report.issues, ["slow"]);
+  assert.deepEqual(report.summary, ["simple summary"]);
   assert.equal(report.planMarkdown, "# Plan");
   assert.ok(report.generatedAt);
   assert.doesNotThrow(() => JSON.parse(reportToJson(report)));

@@ -1,6 +1,17 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Inter, Fira_Code } from "next/font/google";
 import { Providers } from "./providers";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+
+const firaCode = Fira_Code({
+  subsets: ["latin"],
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
   title: "AI UI Testing Tool",
@@ -10,8 +21,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html lang="en" className={`${inter.variable} ${firaCode.variable}`} suppressHydrationWarning>
+      <body style={{ margin: 0, minHeight: "100vh" }}>
         <Providers>{children}</Providers>
       </body>
     </html>
