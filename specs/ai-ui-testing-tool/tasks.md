@@ -140,21 +140,21 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** each pipeline stage emits a typed progress event consumable by the SSE layer.
 
-### T16 — API: POST /api/runs to start a run (validate URL + config)
+### T16 — API: POST /api/runs to start a run (validate URL + config) [x]
 
 - **Covers:** R1, R8
 - **Depends on:** T4, T15a
 - **Parallel:** no
 - **Done-when:** POSTing a valid URL starts a run and returns its ID; invalid input is rejected with a clear error.
 
-### T17 — API: SSE endpoint streaming run progress events
+### T17 — API: SSE endpoint streaming run progress events [x]
 
 - **Covers:** R8
 - **Depends on:** T15b, T16
 - **Parallel:** no
 - **Done-when:** a client subscribed to the SSE endpoint receives live progress events for a run.
 
-### T18 — API: report retrieval/download endpoints (MD / HTML / JSON) [P]
+### T18 — API: report retrieval/download endpoints (MD / HTML / JSON) [P] [x]
 
 - **Covers:** R5, R11, R8
 - **Depends on:** T13, T14, T16
