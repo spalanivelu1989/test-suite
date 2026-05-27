@@ -81,7 +81,11 @@ export type SuiteExecutor = (ws: Workspace) => Promise<PlaywrightJsonReport>;
 
 async function defaultExecutor(ws: Workspace): Promise<PlaywrightJsonReport> {
   await new Promise<void>((resolve) => {
-    const child = spawn("npx", ["playwright", "test", "--reporter=json"], {
+    // No --reporter flag: the CLI flag overrides the config's reporter and the
+    // built-in json reporter then writes to stdout, not a file. The workspace
+    // config already declares `['json', { outputFile: 'results.json' }]`, so
+    // letting it apply is what actually produces results.json on disk.
+    const child = spawn("npx", ["playwright", "test"], {
       cwd: ws.root,
       env: { ...process.env },
     });
