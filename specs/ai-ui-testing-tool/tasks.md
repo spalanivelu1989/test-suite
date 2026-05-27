@@ -24,14 +24,14 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** a trivial `query()` call (no MCP) returns a response; SDK version pinned.
 
-### T2 — Adopt the Playwright Agents pattern files [P]
+### T2 — Adopt the Playwright Agents pattern files [P] [x]
 
 - **Covers:** R12, C7
 - **Depends on:** —
 - **Parallel:** yes
 - **Done-when:** `.claude/agents/{planner,generator,healer}.md` copied from the reference, `.mcp.json` (playwright-test) and `seed.spec.ts` present.
 
-### T3 — Smoke-test the playwright run-test-mcp-server
+### T3 — Smoke-test the playwright run-test-mcp-server [x]
 
 - **Covers:** R12, C7
 - **Depends on:** T2
