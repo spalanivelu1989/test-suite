@@ -13,6 +13,12 @@ const fakeReport: RunReport = {
   flakeRate: 0,
   healSuccessRate: 0,
   claudeCallCount: 0,
+  successRate: { rate: 0, passed: 0, total: 0 },
+  fixPrompts: [],
+  issues: [],
+  recommendations: [],
+  planMarkdown: null,
+  generatedSpecs: [],
 };
 
 test("create assigns an id and queued/pending state", () => {

@@ -108,21 +108,21 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** a Claude call (reusing `claude/client.ts`) over failures + spec sources returns fix prompts, issues-found, and recommendations; pure parsing unit-tested with a fake client.
 
-### T14 — Extend RunReport model
+### T14 — Extend RunReport model [x]
 
 - **Covers:** R11, R16, R17
 - **Depends on:** —
 - **Parallel:** no
 - **Done-when:** `RunReport` includes successRate, buckets, fixPrompts[], issues[], recommendations[], planMarkdown, generatedSpecs[{file,code}]; typecheck clean.
 
-### T15 — Build rich report (assemble RunReport)
+### T15 — Build rich report (assemble RunReport) [x]
 
 - **Covers:** R5, R11, R16, R17
 - **Depends on:** T10, T11, T12, T13, T14
 - **Parallel:** no
 - **Done-when:** a run's data assembles into the extended RunReport (JSON), incl. plan markdown + spec sources; unit-tested.
 
-### T16 — Rich Markdown + HTML renderers
+### T16 — Rich Markdown + HTML renderers [x]
 
 - **Covers:** R5, R16
 - **Depends on:** T14

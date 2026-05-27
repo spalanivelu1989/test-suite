@@ -1,28 +1,46 @@
-import type { CoverageSummary, Flow, RunReport, TestResult } from "../types";
+import type {
+  CoverageSummary,
+  FixPrompt,
+  Flow,
+  RunReport,
+  TestResult,
+} from "../types";
+import { computeSuccessRate } from "./successRate";
 
 export interface ReportInput {
   runId: string;
   url: string;
-  flows: Flow[];
   results: TestResult[];
   coverage: CoverageSummary;
   flakeRate: number;
   healSuccessRate: number;
   claudeCallCount: number;
+  fixPrompts: FixPrompt[];
+  issues: string[];
+  recommendations: string[];
+  planMarkdown: string | null;
+  generatedSpecs: { file: string; code: string }[];
+  flows?: Flow[];
 }
 
-/** T13: assemble the canonical JSON report (R11). Pure. */
+/** T15: assemble the canonical rich JSON report (R11, R16, R17). Pure. */
 export function buildReport(input: ReportInput): RunReport {
   return {
     runId: input.runId,
     url: input.url,
     generatedAt: new Date().toISOString(),
-    flows: input.flows,
+    flows: input.flows ?? [],
     results: input.results,
     coverage: input.coverage,
     flakeRate: input.flakeRate,
     healSuccessRate: input.healSuccessRate,
     claudeCallCount: input.claudeCallCount,
+    successRate: computeSuccessRate(input.results),
+    fixPrompts: input.fixPrompts,
+    issues: input.issues,
+    recommendations: input.recommendations,
+    planMarkdown: input.planMarkdown,
+    generatedSpecs: input.generatedSpecs,
   };
 }
 
@@ -30,22 +48,23 @@ export function reportToJson(report: RunReport): string {
   return JSON.stringify(report, null, 2);
 }
 
-/** Convenience counts used by both renderers (T14) and the UI (T21). */
+/** Convenience outcome counts used by the renderers and UI. */
 export function summarize(report: RunReport): {
   total: number;
   passed: number;
   failed: number;
   flaky: number;
   healed: number;
+  fixme: number;
 } {
-  const total = report.results.length;
   const by = (o: TestResult["outcome"]) =>
     report.results.filter((r) => r.outcome === o).length;
   return {
-    total,
+    total: report.results.length,
     passed: by("passed"),
     failed: by("failed"),
     flaky: by("flaky"),
     healed: by("healed"),
+    fixme: by("fixme"),
   };
 }

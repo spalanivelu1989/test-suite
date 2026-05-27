@@ -7,7 +7,7 @@ const report: RunReport = {
   runId: "r1",
   url: "https://x.com",
   generatedAt: "2026-05-27T00:00:00.000Z",
-  flows: [{ id: "home", name: "Home", steps: [] }],
+  flows: [],
   results: [
     { flowId: "home", fileName: "home.spec.ts", outcome: "passed" },
     {
@@ -17,6 +17,13 @@ const report: RunReport = {
       flaky: true,
     },
     { flowId: "buy", fileName: "buy.spec.ts", outcome: "healed", healed: true },
+    {
+      flowId: "login",
+      fileName: "login.spec.ts",
+      outcome: "failed",
+      failureReason: "no button",
+    },
+    { flowId: "old", fileName: "old.spec.ts", outcome: "fixme" },
   ],
   coverage: {
     curatedTotal: 4,
@@ -27,32 +34,40 @@ const report: RunReport = {
   flakeRate: 0.1,
   healSuccessRate: 0.5,
   claudeCallCount: 7,
+  successRate: { rate: 0.4, passed: 2, total: 5 },
+  fixPrompts: [
+    {
+      test: "login",
+      problem: "missing button",
+      change: "use getByRole('button')",
+    },
+  ],
+  issues: ["contact form lacks validation"],
+  recommendations: ["add aria labels"],
+  planMarkdown: "# Plan\n## 1. Home",
+  generatedSpecs: [{ file: "home.spec.ts", code: "code" }],
 };
 
-test("renderMarkdown includes coverage, labels, and uncovered flows", () => {
+test("renderMarkdown includes success rate, breakdown, fix prompts, issues, recommendations", () => {
   const md = renderMarkdown(report);
-  assert.match(md, /75%/);
-  assert.match(md, /FLAKY/);
-  assert.match(md, /HEALED/);
-  assert.match(md, /Uncovered curated flows/);
-  assert.match(md, /- Careers/);
+  assert.match(md, /Success rate: 40%/);
+  assert.match(md, /75% \(3\/4 curated flows\)/);
+  assert.match(md, /Needs attention \(2\)/); // failed + fixme
+  assert.match(md, /Where to improve \(2\)/); // flaky + healed
+  assert.match(md, /## Fix prompts/);
+  assert.match(md, /missing button/);
+  assert.match(md, /## Issues found/);
+  assert.match(md, /## Recommendations/);
 });
 
 test("renderHtml is self-contained and escapes content", () => {
   const evil: RunReport = {
     ...report,
-    results: [
-      {
-        flowId: "x",
-        fileName: "x.spec.ts",
-        outcome: "failed",
-        failureReason: "<script>bad</script>",
-      },
-    ],
+    issues: ["<script>bad</script>"],
   };
   const html = renderHtml(evil);
   assert.match(html, /<!doctype html>/);
-  assert.match(html, /75% flow coverage/);
+  assert.match(html, /40% success rate/);
   assert.ok(!html.includes("<script>bad</script>"));
   assert.match(html, /&lt;script&gt;/);
 });

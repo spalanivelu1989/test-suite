@@ -87,6 +87,11 @@ export async function runPipeline(
     flakeRate: flake.flakeRate,
     healSuccessRate: heal.healSuccessRate,
     claudeCallCount: deps.claude.calls.length,
+    fixPrompts: [],
+    issues: [],
+    recommendations: [],
+    planMarkdown: null,
+    generatedSpecs: [],
   });
   emit("done", "Run complete", { coverage: coverage.percent });
   return report;

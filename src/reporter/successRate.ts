@@ -1,11 +1,6 @@
-import type { TestResult } from "../types";
+import type { SuccessRate, TestResult } from "../types";
 
-export interface SuccessRate {
-  /** 0–1. passed ÷ all planned tests; fixme/failed/flaky count as not-passed (Q7/D7). */
-  rate: number;
-  passed: number;
-  total: number;
-}
+export type { SuccessRate };
 
 /** A healed test passes now, so it counts toward "passed" in the rate. */
 const PASSING: TestResult["outcome"][] = ["passed", "healed"];

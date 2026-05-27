@@ -97,6 +97,20 @@ export interface CoverageSummary {
   missingFlows: string[];
 }
 
+/** Success rate = passed ÷ all planned tests (Q7/D7). */
+export interface SuccessRate {
+  rate: number;
+  passed: number;
+  total: number;
+}
+
+/** A concrete fix prompt: a problem found and exactly what to change (R16). */
+export interface FixPrompt {
+  test: string;
+  problem: string;
+  change: string;
+}
+
 /** The canonical JSON report (R11). Markdown + HTML (R5) render from this. */
 export interface RunReport {
   runId: string;
@@ -108,6 +122,13 @@ export interface RunReport {
   flakeRate: number;
   healSuccessRate: number;
   claudeCallCount: number;
+  // v0.2.0 rich-report additions (R16, R17)
+  successRate: SuccessRate;
+  fixPrompts: FixPrompt[];
+  issues: string[];
+  recommendations: string[];
+  planMarkdown: string | null;
+  generatedSpecs: { file: string; code: string }[];
 }
 
 /** A run as tracked by the in-memory store (R8). */

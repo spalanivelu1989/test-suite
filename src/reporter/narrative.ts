@@ -1,12 +1,7 @@
 import type { ClaudeClient } from "../claude/client";
-import type { TestResult } from "../types";
+import type { FixPrompt, TestResult } from "../types";
 
-/** One concrete fix prompt: a problem found and exactly what to change (R16). */
-export interface FixPrompt {
-  test: string;
-  problem: string;
-  change: string;
-}
+export type { FixPrompt };
 
 export interface Narrative {
   fixPrompts: FixPrompt[];
