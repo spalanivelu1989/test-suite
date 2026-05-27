@@ -52,7 +52,7 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** creating a run yields a gitignored `.runs/<id>/` with `seed.spec.ts` and `tests/`+plan locations; unit-tested.
 
-### T6 — Planner stage → Markdown test plan
+### T6 — Planner stage → Markdown test plan [x]
 
 - **Covers:** R2, R13
 - **Depends on:** T4, T5
