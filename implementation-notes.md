@@ -26,6 +26,17 @@ Keep it to 2–5 lines. If in doubt, write it down.
 
 <!-- Entries go below this line, newest last. -->
 
+### [2026-05-27] Coverage matcher over-credits on generic tokens (T11)
+
+**Type:** Assumption
+**Task:** T11
+
+The reused `isCovered` matcher counts a curated flow as covered on any
+significant-token overlap — so generic words like "page" can falsely match (e.g.
+"careers page" vs "home page"). Acceptable for v0.2.0 (the curated tarento flow
+names are distinctive enough), but a stopword filter would make M1 coverage more
+trustworthy. Flagged for tuning, not fixed now.
+
 ### [2026-05-27] v0.2.0 Forge — Agent SDK verified (T1)
 
 **Type:** Decision

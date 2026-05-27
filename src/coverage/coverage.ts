@@ -1,4 +1,4 @@
-import type { CoverageSummary } from "../types";
+import type { CoverageSummary, TestResult } from "../types";
 
 export interface NamedFlow {
   id: string;
@@ -55,4 +55,16 @@ export function computeCoverage(
     percent,
     missingFlows,
   };
+}
+
+/** T11: coverage of curated flows by the tests that were actually run (R2, M1). */
+export function coverageFromResults(
+  curated: NamedFlow[],
+  results: TestResult[],
+): CoverageSummary {
+  const tested: NamedFlow[] = results.map((r) => ({
+    id: r.flowId,
+    name: r.flowId,
+  }));
+  return computeCoverage(curated, tested);
 }

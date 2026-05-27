@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { computeCoverage, isCovered } from "./coverage";
+import { computeCoverage, coverageFromResults, isCovered } from "./coverage";
 
 const curated = [
   { id: "home", name: "Load home page" },
@@ -37,4 +37,23 @@ test("computeCoverage reports percent, count, and missing flows", () => {
 
 test("computeCoverage handles empty curated list", () => {
   assert.equal(computeCoverage([], []).percent, 0);
+});
+
+test("coverageFromResults maps test results to coverage vs curated flows", () => {
+  const localCurated = [
+    { id: "home", name: "Load home page" },
+    { id: "contact", name: "Contact form" },
+    { id: "careers", name: "Careers" },
+  ];
+  const summary = coverageFromResults(localCurated, [
+    { flowId: "Load home page", fileName: "home.spec.ts", outcome: "passed" },
+    {
+      flowId: "Contact form submission",
+      fileName: "contact.spec.ts",
+      outcome: "failed",
+    },
+  ]);
+  assert.equal(summary.curatedTotal, 3);
+  assert.equal(summary.testedCount, 2);
+  assert.deepEqual(summary.missingFlows, ["Careers"]);
 });

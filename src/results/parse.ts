@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Workspace } from "../agents/workspace";
+import { detectFlakes } from "../flake/flake";
 import type { TestResult } from "../types";
 
 // Authoritative results capture (T9): after the Healer has edited the specs, we
@@ -103,4 +104,20 @@ export async function captureResults(
 ): Promise<TestResult[]> {
   const report = await exec(ws);
   return parsePlaywrightResults(report);
+}
+
+/**
+ * T10: re-run the healed suite N times on the unchanged app, flag divergent
+ * tests, and compute the flake rate (M2). Reuses detectFlakes.
+ */
+export async function assessSuiteFlakiness(
+  ws: Workspace,
+  reruns = 3,
+  exec: SuiteExecutor = defaultExecutor,
+): Promise<{ results: TestResult[]; flakeRate: number }> {
+  const runs: TestResult[][] = [];
+  for (let i = 0; i < Math.max(1, reruns); i++) {
+    runs.push(await captureResults(ws, exec));
+  }
+  return detectFlakes(runs);
 }

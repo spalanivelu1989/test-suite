@@ -80,14 +80,14 @@ tasks at the same dependency level.
 - **Parallel:** no
 - **Done-when:** Playwright run output → `TestResult[]` with passed/failed/healed and `fixme`/skipped flagged; unit-tested (reuses/adapts mapPlaywrightResults).
 
-### T10 — Flake check (re-run N×) [P]
+### T10 — Flake check (re-run N×) [P] [x]
 
 - **Covers:** R7
 - **Depends on:** T9
 - **Parallel:** yes
 - **Done-when:** the generated suite re-runs N times on the unchanged app; divergent tests flagged and a flake rate computed (reuses flake/flake.ts).
 
-### T11 — Coverage calc vs curated flows [P]
+### T11 — Coverage calc vs curated flows [P] [x]
 
 - **Covers:** R2
 - **Depends on:** T6
