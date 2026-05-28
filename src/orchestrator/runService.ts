@@ -1,14 +1,15 @@
 import { createClaudeClient } from "../claude/client";
-import type { NamedFlow } from "../coverage/coverage";
 import { getRunStore } from "../runStore/store";
-import type { RunConfig, RunReport } from "../types";
+import type { Flow, RunConfig, RunReport } from "../types";
+import { persistRun } from "../agents/workspace";
 import { runPipeline } from "./orchestrate";
 import tarentoData from "../../fixtures/tarento-flows.json" with { type: "json" };
 
-const tarentoFlows: NamedFlow[] = (tarentoData.flows as NamedFlow[]).map(
+const tarentoFlows: Flow[] = (tarentoData.flows as Flow[]).map(
   (f) => ({
     id: f.id,
     name: f.name,
+    steps: f.steps ?? [],
   }),
 );
 
@@ -17,7 +18,7 @@ const tarentoFlows: NamedFlow[] = (tarentoData.flows as NamedFlow[]).map(
  * (tarento.com) use the fixture; for any other site there is no curated baseline,
  * so coverage is measured against the flows the agent itself discovered.
  */
-export function loadCuratedFlows(url: string): NamedFlow[] {
+export function loadCuratedFlows(url: string): Flow[] {
   try {
     if (/(^|\.)tarento\.com$/i.test(new URL(url).hostname)) return tarentoFlows;
   } catch {
@@ -72,7 +73,8 @@ export function cancelRun(runId: string): boolean {
     return false;
   }
   abortRegistry().get(runId)?.abort();
-  store.cancel(runId, "Run stopped by user");
+  const cancelled = store.cancel(runId, "Run stopped by user");
+  void persistRun(cancelled);
   return true;
 }
 
@@ -83,6 +85,7 @@ export function cancelRun(runId: string): boolean {
 export function startRun(config: RunConfig): string {
   const store = getRunStore();
   const run = store.create(config);
+  void persistRun(run);
   const controller = new AbortController();
   abortRegistry().set(run.id, controller);
   void (async () => {
@@ -90,17 +93,20 @@ export function startRun(config: RunConfig): string {
       const report = await runToReport(
         run.id,
         config,
-        (e) => store.addEvent(run.id, e),
+        (e) => {
+          const updated = store.addEvent(run.id, e);
+          void persistRun(updated);
+        },
         controller,
       );
       if (controller.signal.aborted) return; // cancelRun already marked it
-      store.complete(run.id, report);
+      const completed = store.complete(run.id, report);
+      void persistRun(completed);
     } catch (err) {
-      if (controller.signal.aborted) {
-        store.cancel(run.id, "Run stopped by user");
-      } else {
-        store.fail(run.id, err instanceof Error ? err.message : String(err));
-      }
+      const terminal = controller.signal.aborted
+        ? store.cancel(run.id, "Run stopped by user")
+        : store.fail(run.id, err instanceof Error ? err.message : String(err));
+      void persistRun(terminal);
     } finally {
       abortRegistry().delete(run.id);
     }

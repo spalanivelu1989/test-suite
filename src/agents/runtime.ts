@@ -39,7 +39,7 @@ export async function loadAgent(
   name: string,
   agentsDir = ".claude/agents",
 ): Promise<AgentDef> {
-  const content = await readFile(join(process.cwd(), agentsDir, `${name}.md`), "utf8");
+  const content = await readFile(join(agentsDir, `${name}.md`), "utf8");
   return parseAgentFile(content);
 }
 

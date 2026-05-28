@@ -21,6 +21,7 @@ export interface RunStore {
   fail(id: string, error: string): Run;
   /** Mark a run as stopped by the user. No-op if the run is already terminal. */
   cancel(id: string, message: string): Run;
+  remove(id: string): boolean;
 }
 
 /** True once a run can no longer change state. */
@@ -119,6 +120,9 @@ export function createRunStore(): RunStore {
       run.stage = "cancelled";
       return touch(run);
     },
+    remove(id) {
+      return runs.delete(id);
+    },
   };
 }
 
@@ -129,6 +133,8 @@ export function createRunStore(): RunStore {
  */
 const globalForStore = globalThis as unknown as { __runStore?: RunStore };
 export function getRunStore(): RunStore {
-  if (!globalForStore.__runStore) globalForStore.__runStore = createRunStore();
+  if (!globalForStore.__runStore || !globalForStore.__runStore.remove) {
+    globalForStore.__runStore = createRunStore();
+  }
   return globalForStore.__runStore;
 }

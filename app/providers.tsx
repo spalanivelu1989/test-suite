@@ -118,7 +118,6 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <ChakraProvider value={customConfig}>
-        <ThemeToggle />
         {children}
       </ChakraProvider>
     </ThemeContext.Provider>

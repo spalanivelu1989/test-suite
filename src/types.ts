@@ -2,12 +2,52 @@
 // module (crawler, flows, generator, runner, reporter, store, API, UI) agrees on
 // one vocabulary (CONTEXT.md). Builders implement the producers in later tasks.
 
+/**
+ * Crawl strategy selected by the user in the Launch Wizard.
+ * Drives both the depth of exploration and the expected test-scenario budget.
+ *
+ * | Mode        | Max depth | Scenarios / page |
+ * |-------------|-----------|-----------------|
+ * | direct      | 0         | 8               |
+ * | standard    | 1         | 5               |
+ * | deep        | 3         | 4               |
+ * | aggressive  | 10 (unlimited) | 3           |
+ */
+export type CrawlMode = "direct" | "standard" | "deep" | "aggressive";
+
+/** Numeric depth limit per crawl mode. Used in the Planner prompt. */
+export const CRAWL_MODE_DEPTH: Record<CrawlMode, number> = {
+  direct: 0,
+  standard: 1,
+  deep: 3,
+  aggressive: 10,
+};
+
+/**
+ * Expected number of test scenarios per page per crawl mode.
+ * Used by the Generator to compute the scenario ceiling and scale maxTurns.
+ */
+export const CRAWL_MODE_SCENARIOS_PER_PAGE: Record<CrawlMode, number> = {
+  direct: 8,
+  standard: 5,
+  deep: 4,
+  aggressive: 3,
+};
+
+/** Human-readable label for each crawl mode, displayed in the UI. */
+export const CRAWL_MODE_LABEL: Record<CrawlMode, string> = {
+  direct: "Direct page only (depth 0)",
+  standard: "Standard depth (depth 1)",
+  deep: "Deep crawl (depth 3)",
+  aggressive: "Aggressive crawl (depth 10)",
+};
+
 /** User-supplied run configuration (R1). */
 export interface RunConfig {
   url: string;
-  /** Max crawl depth from the entry URL (R1 scope limit). */
-  maxDepth?: number;
-  /** Max number of pages to visit (R1 scope limit). */
+  /** Crawl strategy; replaces the old numeric maxDepth. Default: "standard". */
+  crawlMode?: CrawlMode;
+  /** Max number of pages to visit (R1 scope limit). Default: 10. */
   maxPages?: number;
 }
 
@@ -44,7 +84,7 @@ export interface ProgressEvent {
 export interface Flow {
   id: string;
   name: string;
-  steps: string[];
+  steps?: string[];
 }
 
 export type TestOutcome = "passed" | "failed" | "flaky" | "healed" | "fixme";

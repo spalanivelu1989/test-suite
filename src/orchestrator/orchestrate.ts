@@ -15,13 +15,13 @@ import {
 } from "../results/parse";
 import { buildReport } from "../reporter/report";
 import { generateNarrative } from "../reporter/narrative";
-import type { ProgressEvent, RunConfig, RunReport } from "../types";
+import type { Flow, ProgressEvent, RunConfig, RunReport } from "../types";
 import { generateTests, healTests, planTests, type StageDeps } from "./stages";
 
 export interface OrchestratorDeps {
   /** Powers the Reporter narrative (the agents are driven by the Agent SDK). */
   claude: ClaudeClient;
-  curatedFlows: NamedFlow[];
+  curatedFlows: Flow[];
   emit?: (event: Omit<ProgressEvent, "at">) => void;
   /** Injected stage runner/agent loader (tests stub these). */
   stageDeps?: StageDeps;
@@ -58,8 +58,14 @@ export async function runPipeline(
     message: string,
     data?: Record<string, unknown>,
   ) => deps.emit?.({ stage, message, data });
-  const onAgent = (stage: ProgressEvent["stage"], label: string) => (e: { kind: string; tool?: string }) => {
-    if (e.kind === "tool" && e.tool) emit(stage, `${label}: ${e.tool}`);
+  const onAgent = (stage: ProgressEvent["stage"], label: string) => (e: { kind: string; tool?: string; text?: string }) => {
+    if (e.kind === "tool" && e.tool) {
+      emit(stage, `[${label}] tool: ${e.tool}`);
+    } else if (e.kind === "text" && e.text) {
+      // Truncate long text to keep the log readable (first 200 chars).
+      const snippet = e.text.length > 200 ? e.text.slice(0, 200) + "…" : e.text;
+      emit(stage, `[${label}] ${snippet}`);
+    }
   };
 
   // Abort early at every checkpoint so a stopped run doesn't start more work.
@@ -83,6 +89,7 @@ export async function runPipeline(
     config.url,
     onAgent("planning", "planner"),
     stageDeps,
+    { crawlMode: config.crawlMode, maxPages: config.maxPages },
   );
   agentRuns++;
   checkCancelled();
@@ -91,7 +98,15 @@ export async function runPipeline(
 
   // 2. Generator → Playwright specs
   emit("generating", "Generator: writing Playwright tests from the plan");
-  const gen = await generateTests(ws, onAgent("generating", "generator"), stageDeps);
+  const gen = await generateTests(
+    ws,
+    onAgent("generating", "generator"),
+    stageDeps,
+    { crawlMode: config.crawlMode, maxPages: config.maxPages },
+  );
+  if (gen.trimmedCount > 0) {
+    emit("generating", `Plan trimmed: ${gen.trimmedCount} scenario(s) removed to stay within budget`);
+  }
   agentRuns++;
   checkCancelled();
   if (gen.isError) throw new StageError("Generator produced no tests");
@@ -133,6 +148,7 @@ export async function runPipeline(
     summary: narrative.summary,
     planMarkdown,
     generatedSpecs: specs,
+    flows: deps.curatedFlows,
   });
   emit("done", "Run complete", {
     successRate: Math.round(report.successRate.rate * 100),

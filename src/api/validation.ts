@@ -1,4 +1,6 @@
-import type { RunConfig } from "../types";
+import type { CrawlMode, RunConfig } from "../types";
+
+const VALID_CRAWL_MODES: CrawlMode[] = ["direct", "standard", "deep", "aggressive"];
 
 export type ParseResult =
   | { ok: true; config: RunConfig }
@@ -23,11 +25,14 @@ export function parseRunRequest(body: unknown): ParseResult {
     return { ok: false, error: "URL must use http or https" };
   }
   const config: RunConfig = { url: parsed.toString() };
-  if (b.maxDepth !== undefined) {
-    if (typeof b.maxDepth !== "number" || b.maxDepth < 0) {
-      return { ok: false, error: "maxDepth must be a non-negative number" };
+  if (b.crawlMode !== undefined) {
+    if (!VALID_CRAWL_MODES.includes(b.crawlMode as CrawlMode)) {
+      return {
+        ok: false,
+        error: `crawlMode must be one of: ${VALID_CRAWL_MODES.join(", ")}`,
+      };
     }
-    config.maxDepth = b.maxDepth;
+    config.crawlMode = b.crawlMode as CrawlMode;
   }
   if (b.maxPages !== undefined) {
     if (typeof b.maxPages !== "number" || b.maxPages < 1) {

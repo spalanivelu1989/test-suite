@@ -10,7 +10,7 @@ import type { RunConfig } from "../src/types";
 interface CliArgs {
   url?: string;
   out: string;
-  maxDepth?: number;
+  crawlMode?: string;
   maxPages?: number;
 }
 
@@ -19,7 +19,7 @@ function parseArgs(argv: string[]): CliArgs {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--out") args.out = argv[++i];
-    else if (a === "--max-depth") args.maxDepth = Number(argv[++i]);
+    else if (a === "--crawl-mode") args.crawlMode = argv[++i];
     else if (a === "--max-pages") args.maxPages = Number(argv[++i]);
     else if (!a.startsWith("--")) args.url = a;
   }
@@ -30,13 +30,13 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.url) {
     console.error(
-      "Usage: npm run ci -- <url> [--out dir] [--max-depth n] [--max-pages n]",
+      "Usage: npm run ci -- <url> [--out dir] [--crawl-mode direct|standard|deep|aggressive] [--max-pages n]",
     );
     process.exit(2);
   }
 
   const config: RunConfig = { url: args.url };
-  if (args.maxDepth !== undefined) config.maxDepth = args.maxDepth;
+  if (args.crawlMode !== undefined) config.crawlMode = args.crawlMode as RunConfig["crawlMode"];
   if (args.maxPages !== undefined) config.maxPages = args.maxPages;
 
   const runId = randomUUID();

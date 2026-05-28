@@ -9,12 +9,14 @@ interface ThreeProgressBarProps {
   status: "pending" | "active" | "completed" | "failed";
   label: string;
   colorHex?: string; // Optional custom color hex
+  activeStartAt?: string; // Optional start time of the active stage (ISO string)
 }
 
 export function ThreeProgressBar({
   status,
   label,
   colorHex: customColorHex,
+  activeStartAt,
 }: ThreeProgressBarProps) {
   const [mounted, setMounted] = useState(false);
   const { theme } = useThemeMode();
@@ -35,7 +37,17 @@ export function ThreeProgressBar({
     } else if (status === "failed") {
       setProgressVal((prev) => (prev > 0 ? prev : 0.5));
     } else if (status === "active") {
-      setProgressVal(0.02); // Start at 2%
+      // Calculate initial progress based on activeStartAt
+      let initialProgress = 0.02;
+      if (activeStartAt) {
+        const startTime = new Date(activeStartAt).getTime();
+        const now = Date.now();
+        const secondsElapsed = Math.max(0, (now - startTime) / 1000);
+        // Linear rate: 1.5% every 800ms -> 1.875% per second (0.01875)
+        initialProgress = Math.min(0.95, 0.02 + secondsElapsed * 0.01875);
+      }
+      setProgressVal(initialProgress);
+
       interval = setInterval(() => {
         setProgressVal((prev) => {
           if (prev >= 0.95) return 0.95;
@@ -47,7 +59,7 @@ export function ThreeProgressBar({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [status]);
+  }, [status, activeStartAt]);
 
   useEffect(() => {
     setMounted(true);
