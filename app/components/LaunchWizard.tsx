@@ -80,14 +80,14 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
         {/* Section 1: Name and tags */}
         <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" p={4}>
           <VStack align="stretch" gap={2}>
-            <Text fontSize="11px" fontWeight="semibold" color={colors.text}>
+            <Text fontSize="13px" fontWeight="semibold" color={colors.text}>
               Target URL
             </Text>
             <Input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="e.g. https://www.tarento.com"
-              fontSize="12px"
+              fontSize="13px"
               bg={isDark ? "slate.900" : "white"}
               borderColor={colors.border}
               borderRadius="sm"
@@ -95,7 +95,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               disabled={submitting}
               autoFocus
             />
-            <Text fontSize="10px" color={colors.subtext}>
+            <Text fontSize="12px" color={colors.subtext}>
               The AI agent will crawl this URL, planning and executing test suites.
             </Text>
           </VStack>
@@ -103,10 +103,10 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
 
         {/* Section 2: Application and OS Images (AMI) */}
         <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" p={4}>
-          <Heading size="xs" color={colors.text} mb={3} borderBottom="1px solid" borderColor={colors.border} pb={2} display="flex" alignItems="center" gap={1.5}>
+          <Heading size="xs" fontSize="13px" color={colors.text} mb={3} borderBottom="1px solid" borderColor={colors.border} pb={2} display="flex" alignItems="center" gap={1.5}>
             Application and OS Images (Amazon Machine Image) <Info size={11} style={{ color: colors.subtext }} />
           </Heading>
-          <Text fontSize="11px" color={colors.subtext} mb={4}>
+          <Text fontSize="13px" color={colors.subtext} mb={4}>
             An AMI is a template that contains the software configuration (operating system, application server, and applications) required to launch your instance.
           </Text>
 
@@ -134,14 +134,14 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                 />
                 <VStack align="stretch" gap={0.5} flex={1}>
                   <HStack>
-                    <Text fontSize="11px" fontWeight="bold" color={colors.text}>
+                    <Text fontSize="13px" fontWeight="bold" color={colors.text}>
                       Playwright Chrome Headless (Recommended)
                     </Text>
-                    <Box bg="green.500/10" color="green.600" fontSize="9px" fontWeight="bold" px={1.5} py={0.1} borderRadius="sm">
+                    <Box bg="green.500/10" color="green.600" fontSize="11px" fontWeight="bold" px={1.5} py={0.1} borderRadius="sm">
                       Free tier eligible
                     </Box>
                   </HStack>
-                  <Text fontSize="10px" color={colors.subtext}>
+                  <Text fontSize="12px" color={colors.subtext}>
                     Playwright framework using headless chromium browser. Ideal for single-page apps (SPAs) and traditional HTML web apps.
                   </Text>
                 </VStack>
@@ -170,10 +170,10 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   flexShrink={0}
                 />
                 <VStack align="stretch" gap={0.5} flex={1}>
-                  <Text fontSize="11px" fontWeight="bold" color={colors.text}>
+                  <Text fontSize="13px" fontWeight="bold" color={colors.text}>
                     Playwright Firefox Headless
                   </Text>
-                  <Text fontSize="10px" color={colors.subtext}>
+                  <Text fontSize="12px" color={colors.subtext}>
                     Playwright framework using headless gecko browser. Perfect for cross-browser verification.
                   </Text>
                 </VStack>
@@ -187,20 +187,20 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           <Heading size="xs" color={colors.text} mb={3} borderBottom="1px solid" borderColor={colors.border} pb={2}>
             Instance type
           </Heading>
-          <Text fontSize="11px" color={colors.subtext} mb={3}>
+          <Text fontSize="13px" color={colors.subtext} mb={3}>
             Instance types comprise varying combinations of CPU, memory, storage, and networking capacity. Choose a type based on how many tokens or threads you need.
           </Text>
 
           <HStack gap={3}>
             <VStack align="stretch" gap={1.5} flex={1}>
-              <Text fontSize="11px" fontWeight="semibold" color={colors.text}>
+              <Text fontSize="13px" fontWeight="semibold" color={colors.text}>
                 Instance Type
               </Text>
               <NativeSelect.Root size="sm">
                 <NativeSelect.Field
                   value={instanceType}
                   onChange={(e) => setInstanceType(e.target.value)}
-                  fontSize="12px"
+                  fontSize="13px"
                   bg={isDark ? "slate.900" : "white"}
                   borderColor={colors.border}
                   borderRadius="sm"
@@ -221,14 +221,14 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           
           <HStack gap={4} wrap="wrap">
             <VStack align="stretch" gap={1.5} flex={1} minW="150px">
-              <Text fontSize="11px" fontWeight="semibold" color={colors.text}>
+              <Text fontSize="13px" fontWeight="semibold" color={colors.text}>
                 Maximum Crawl Depth
               </Text>
               <NativeSelect.Root size="sm">
                 <NativeSelect.Field
                   value={crawlMode}
                   onChange={(e) => setCrawlMode(e.target.value)}
-                  fontSize="12px"
+                  fontSize="13px"
                   bg={isDark ? "slate.900" : "white"}
                   borderColor={colors.border}
                   borderRadius="sm"
@@ -242,14 +242,14 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             </VStack>
 
             <VStack align="stretch" gap={1.5} flex={1} minW="150px">
-              <Text fontSize="11px" fontWeight="semibold" color={colors.text}>
+              <Text fontSize="13px" fontWeight="semibold" color={colors.text}>
                 Maximum Crawl Pages
               </Text>
               <NativeSelect.Root size="sm">
                 <NativeSelect.Field
                   value={maxPages}
                   onChange={(e) => setMaxPages(e.target.value)}
-                  fontSize="12px"
+                  fontSize="13px"
                   bg={isDark ? "slate.900" : "white"}
                   borderColor={colors.border}
                   borderRadius="sm"
@@ -282,7 +282,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             Summary
           </Heading>
 
-          <VStack align="stretch" gap={3} mb={5} fontSize="11px">
+          <VStack align="stretch" gap={3} mb={5} fontSize="13px">
             <Flex justify="space-between">
               <Text color={colors.subtext}>Number of instances:</Text>
               <Text fontWeight="bold">1</Text>
@@ -325,15 +325,34 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             type="submit"
             disabled={submitting}
             w="full"
-            bg={AWS_COLORS.orange.main}
+            bg="linear-gradient(135deg, #f88a2b 0%, #ec7211 100%)"
             color="white"
-            fontSize="12px"
+            fontSize="13px"
             fontWeight="bold"
-            py={2.5}
+            py={3}
             h="auto"
             borderRadius="sm"
             cursor={submitting ? "not-allowed" : "pointer"}
-            _hover={{ bg: AWS_COLORS.orange.hover }}
+            border="1px solid #d05e0a"
+            boxShadow="0 2px 4px rgba(236,114,17,0.2), inset 0 1px 0 rgba(255,255,255,0.2)"
+            transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+            _hover={
+              submitting
+                ? {}
+                : {
+                    bg: "linear-gradient(135deg, #ffa047 0%, #d05e0a 100%)",
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 4px 12px rgba(236, 114, 17, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+                  }
+            }
+            _active={
+              submitting
+                ? {}
+                : {
+                    transform: "translateY(0)",
+                    boxShadow: "0 2px 4px rgba(236, 114, 17, 0.2)",
+                  }
+            }
             display="flex"
             alignItems="center"
             justifyContent="center"
@@ -355,13 +374,13 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           {error && (
             <Flex mt={4} p={2.5} bg="red.500/10" border="1px solid" borderColor="red.500/20" borderRadius="sm" gap={2} align="flex-start">
               <TriangleAlert size={14} style={{ color: "red", flexShrink: 0, marginTop: "2px" }} />
-              <Text fontSize="10px" color="red">
+              <Text fontSize="12px" color="red">
                 {error}
               </Text>
             </Flex>
           )}
 
-          <Flex mt={4} align="center" gap={2} fontSize="10px" color="green.600" bg="green.500/5" p={2} borderRadius="sm">
+          <Flex mt={4} align="center" gap={2} fontSize="12px" color="green.600" bg="green.500/5" p={2} borderRadius="sm">
             <ShieldCheck size={14} />
             <Text fontWeight="medium">IAM policies check passed</Text>
           </Flex>

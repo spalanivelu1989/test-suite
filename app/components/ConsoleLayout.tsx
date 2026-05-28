@@ -218,7 +218,7 @@ export function ConsoleLayout({
             overflowY="auto"
           >
             <Box px={4} py={3} borderBottom="1px solid" borderColor={colors.border}>
-              <Text fontSize="12px" fontWeight="extrabold" color={colors.text} letterSpacing="wider" textTransform="uppercase">
+              <Text fontSize="13px" fontWeight="extrabold" color={colors.text} letterSpacing="wider" textTransform="uppercase">
                 Management
               </Text>
             </Box>
@@ -242,7 +242,7 @@ export function ConsoleLayout({
                     bg={isActive ? colors.tabSelectedBg : "transparent"}
                     color={isActive ? colors.text : colors.subtext}
                     fontWeight={isActive ? "bold" : "normal"}
-                    fontSize="12px"
+                    fontSize="13.5px"
                     cursor="pointer"
                     _hover={{
                       bg: colors.rowHover,
@@ -251,14 +251,14 @@ export function ConsoleLayout({
                   >
                     <HStack justify="space-between" w="full">
                       <HStack gap={3}>
-                        <Icon size={14} style={{ color: isActive ? AWS_COLORS.orange.main : "inherit" }} />
+                        <Icon size={15} style={{ color: isActive ? AWS_COLORS.orange.main : "inherit" }} />
                         <span>{item.label}</span>
                       </HStack>
                       {item.badge !== undefined && (
                         <Box
                           bg={AWS_COLORS.orange.main}
                           color="white"
-                          fontSize="9px"
+                          fontSize="10px"
                           fontWeight="bold"
                           px={1.5}
                           py={0.2}
@@ -274,30 +274,30 @@ export function ConsoleLayout({
             </VStack>
 
             <Box mt="auto" p={4} borderTop="1px solid" borderColor={colors.border}>
-              <VStack align="stretch" gap={2}>
+              <VStack align="stretch" gap={2.5}>
                 <Link
                   href="https://playwright.dev"
                   target="_blank"
-                  fontSize="10px"
+                  fontSize="11px"
                   color={colors.subtext}
                   _hover={{ color: AWS_COLORS.orange.main }}
                   display="flex"
                   alignItems="center"
-                  gap={1}
+                  gap={1.5}
                 >
-                  Playwright Documentation <ExternalLink size={8} />
+                  Playwright Documentation <ExternalLink size={10} />
                 </Link>
                 <Link
                   href="https://anthropic.com"
                   target="_blank"
-                  fontSize="10px"
+                  fontSize="11px"
                   color={colors.subtext}
                   _hover={{ color: AWS_COLORS.orange.main }}
                   display="flex"
                   alignItems="center"
-                  gap={1}
+                  gap={1.5}
                 >
-                  Claude Agent SDK <ExternalLink size={8} />
+                  Claude Agent SDK <ExternalLink size={10} />
                 </Link>
               </VStack>
             </Box>

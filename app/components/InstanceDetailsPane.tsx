@@ -158,7 +158,7 @@ function highlightTypeScript(code: string) {
     html = html.replace(/(\/\/.*)$/g, '<span style="color: #71717a; font-style: italic;">$1</span>');
     
     return (
-      <Flex key={idx} align="flex-start" py={0.5} fontFamily="mono" fontSize="11px">
+      <Flex key={idx} align="flex-start" py={0.5} fontFamily="mono" fontSize="13px">
         <Text
           w="30px"
           minW="30px"
@@ -219,18 +219,18 @@ function AWSCodeViewer({ filename, code, isMaximized, copiedFile, onCopy }: AWSC
       >
         <HStack gap={2}>
           <Code2 size={13} style={{ color: "#f97316" }} />
-          <Text fontSize="11px" fontWeight="bold" fontFamily="mono" color="#d4d4d8">
+          <Text fontSize="13px" fontWeight="bold" fontFamily="mono" color="#d4d4d8">
             {filename}
           </Text>
         </HStack>
         <HStack gap={3}>
-          <Badge variant="subtle" fontSize="9px" bg="#27272a" color="#a1a1aa" borderRadius="sm">
+          <Badge variant="subtle" fontSize="11px" bg="#27272a" color="#a1a1aa" borderRadius="sm">
             TypeScript
           </Badge>
           <Button
             size="xs"
             variant="ghost"
-            fontSize="10px"
+            fontSize="12px"
             height="20px"
             px={2.5}
             color="#d4d4d8"
@@ -251,7 +251,7 @@ function AWSCodeViewer({ filename, code, isMaximized, copiedFile, onCopy }: AWSC
         overflow="auto"
         flex={1}
         fontFamily="mono"
-        fontSize="11px"
+        fontSize="13px"
         bg="#09090b"
       >
         {highlightTypeScript(code)}
@@ -339,7 +339,7 @@ export function InstanceDetailsPane({
         justify="space-between"
       >
         <HStack gap={4}>
-          <Text fontSize="12px" fontWeight="bold" fontFamily="mono" color={colors.text}>
+          <Text fontSize="13.5px" fontWeight="bold" fontFamily="mono" color={colors.text}>
             {shortId} ({run.config.url})
           </Text>
           <Badge
@@ -394,7 +394,7 @@ export function InstanceDetailsPane({
         >
           <Tabs.Trigger
             value="details"
-            fontSize="11px"
+            fontSize="13px"
             fontWeight="bold"
             px={3}
             py={1.5}
@@ -407,7 +407,7 @@ export function InstanceDetailsPane({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="status-checks"
-            fontSize="11px"
+            fontSize="13px"
             fontWeight="bold"
             px={3}
             py={1.5}
@@ -420,7 +420,7 @@ export function InstanceDetailsPane({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="narrative"
-            fontSize="11px"
+            fontSize="13px"
             fontWeight="bold"
             px={3}
             py={1.5}
@@ -433,7 +433,7 @@ export function InstanceDetailsPane({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="monitoring"
-            fontSize="11px"
+            fontSize="13px"
             fontWeight="bold"
             px={3}
             py={1.5}
@@ -446,7 +446,7 @@ export function InstanceDetailsPane({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="logs"
-            fontSize="11px"
+            fontSize="13px"
             fontWeight="bold"
             px={3}
             py={1.5}
@@ -459,7 +459,7 @@ export function InstanceDetailsPane({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="code"
-            fontSize="11px"
+            fontSize="13px"
             fontWeight="bold"
             px={3}
             py={1.5}
@@ -475,7 +475,7 @@ export function InstanceDetailsPane({
         <Box flex={1} overflowY="auto" p={4} bg={colors.subBg}>
           {/* TAB 1: DETAILS */}
           <Box display={activeDetailsTab === "details" ? "block" : "none"}>
-            <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={6} fontSize="11px">
+            <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={6} fontSize="13px">
               <VStack align="stretch" gap={3}>
                 <Heading size="xs" color={colors.text} borderBottom="1px solid" borderColor={colors.border} pb={1.5}>
                   Instance Summary
@@ -561,7 +561,7 @@ export function InstanceDetailsPane({
               
               {/* Stepper progress bars */}
               <Box>
-                <Text fontSize="11px" fontWeight="bold" color={colors.subtext} mb={3}>
+                <Text fontSize="13px" fontWeight="bold" color={colors.subtext} mb={3}>
                   Agent Execution Pipeline Checks
                 </Text>
                 <Box display="grid" gridTemplateColumns={{ base: "1fr", sm: "repeat(4, 1fr)" }} gap={3}>
@@ -594,10 +594,10 @@ export function InstanceDetailsPane({
                 <VStack align="stretch" gap={4} borderTop="1px solid" borderColor={colors.border} pt={4}>
                   <HStack justify="space-between">
                     <HStack gap={4}>
-                      <Text fontSize="20px" fontWeight="black" fontFamily="mono">
+                      <Text fontSize="22px" fontWeight="black" fontFamily="mono">
                         {Math.round(report.successRate.rate * 100)}% Success
                       </Text>
-                      <Text fontSize="11px" color={colors.subtext}>
+                      <Text fontSize="13px" color={colors.subtext}>
                         ({report.successRate.passed} passed / {report.successRate.total} total tests executed)
                       </Text>
                     </HStack>
@@ -618,7 +618,7 @@ export function InstanceDetailsPane({
                             display="flex"
                             alignItems="center"
                             gap={1}
-                            fontSize="10px"
+                            fontSize="11.5px"
                             textDecoration="none"
                           >
                             <Download size={10} /> {fmt.toUpperCase()}
@@ -633,12 +633,12 @@ export function InstanceDetailsPane({
                     <Table.Root size="sm" variant="outline" border="none">
                       <Table.Header bg={isDark ? "white/5" : "gray.100"}>
                         <Table.Row borderColor={colors.border}>
-                          <Table.ColumnHeader color={colors.subtext} fontSize="9px" py={1.5}>Flow ID</Table.ColumnHeader>
-                          <Table.ColumnHeader color={colors.subtext} fontSize="9px" py={1.5}>Verdict</Table.ColumnHeader>
-                          <Table.ColumnHeader color={colors.subtext} fontSize="9px" py={1.5}>Observations / Error Logs</Table.ColumnHeader>
+                          <Table.ColumnHeader color={colors.subtext} fontSize="11px" py={1.5}>Flow ID</Table.ColumnHeader>
+                          <Table.ColumnHeader color={colors.subtext} fontSize="11px" py={1.5}>Verdict</Table.ColumnHeader>
+                          <Table.ColumnHeader color={colors.subtext} fontSize="11px" py={1.5}>Observations / Error Logs</Table.ColumnHeader>
                         </Table.Row>
                       </Table.Header>
-                      <Table.Body fontSize="11px">
+                      <Table.Body fontSize="13px">
                         {report.results.map((res, i) => (
                           <Table.Row key={i} borderColor={colors.border} _hover={{ bg: colors.rowHover }}>
                             <Table.Cell py={1.5} fontFamily="mono" fontWeight="medium">
@@ -648,7 +648,7 @@ export function InstanceDetailsPane({
                               <Badge
                                 colorPalette={OUTCOME_COLOR[res.outcome]}
                                 variant="solid"
-                                fontSize="9px"
+                                fontSize="11px"
                                 borderRadius="sm"
                                 px={1.5}
                               >
@@ -667,15 +667,15 @@ export function InstanceDetailsPane({
                   {/* Fix Prompts / Auto-heals */}
                   {report.fixPrompts.length > 0 && (
                     <Box>
-                      <Text fontSize="11px" fontWeight="bold" color="orange.500" mb={2}>
+                      <Text fontSize="13px" fontWeight="bold" color="orange.500" mb={2}>
                         Prescribed Auto-Heal Actions
                       </Text>
                       <VStack align="stretch" gap={2}>
                         {report.fixPrompts.map((fix, idx) => (
-                          <Box key={idx} bg="orange.500/5" borderLeft="3px solid" borderColor="orange.500" p={2.5} borderRadius="sm" fontSize="11px">
+                          <Box key={idx} bg="orange.500/5" borderLeft="3px solid" borderColor="orange.500" p={2.5} borderRadius="sm" fontSize="13px">
                             <Text fontWeight="bold">{fix.test}</Text>
-                            <Text color={colors.subtext} fontSize="10px" mt={0.5}>Problem: {fix.problem}</Text>
-                            <Text color="orange.600" fontWeight="semibold" fontSize="10px" mt={0.5}>→ Auto-heal fix: {fix.change}</Text>
+                            <Text color={colors.subtext} fontSize="11.5px" mt={0.5}>Problem: {fix.problem}</Text>
+                            <Text color="orange.600" fontWeight="semibold" fontSize="11.5px" mt={0.5}>→ Auto-heal fix: {fix.change}</Text>
                           </Box>
                         ))}
                       </VStack>
@@ -694,12 +694,12 @@ export function InstanceDetailsPane({
                 {/* 1. What Was Tested (Overall narrative) */}
                 {report.summary && report.summary.length > 0 && (
                   <Box bg={isDark ? "white/5" : "gray.50"} p={3} borderRadius="md" border="1px solid" borderColor={colors.border}>
-                    <Heading size="xs" color={colors.text} mb={2.5} display="flex" alignItems="center" gap={2} fontSize="11px">
+                    <Heading size="xs" color={colors.text} mb={2.5} display="flex" alignItems="center" gap={2} fontSize="13px">
                       📋 Run Overview Narrative
                     </Heading>
                     <VStack align="stretch" gap={1.5} pl={1.5}>
                       {report.summary.map((bullet, idx) => (
-                        <Text key={idx} fontSize="11px" color={colors.text} lineHeight={1.5}>
+                        <Text key={idx} fontSize="13px" color={colors.text} lineHeight={1.5}>
                           • {bullet}
                         </Text>
                       ))}
@@ -710,7 +710,7 @@ export function InstanceDetailsPane({
                 {/* 2. Tested Flows & Spec Files Paired */}
                 {report.generatedSpecs && report.generatedSpecs.length > 0 ? (
                   <Box border="1px solid" borderColor={colors.border} p={3.5} borderRadius="md" bg={isDark ? "white/3" : "gray.50/30"}>
-                    <Heading size="xs" color={colors.text} mb={3.5} display="flex" alignItems="center" gap={2} fontSize="11px">
+                    <Heading size="xs" color={colors.text} mb={3.5} display="flex" alignItems="center" gap={2} fontSize="13px">
                       📋 Tested User Flows & Spec Files Explorer
                     </Heading>
                     
@@ -733,7 +733,7 @@ export function InstanceDetailsPane({
                             style={{
                               width: "100%",
                               padding: "6px 8px",
-                              fontSize: "11px",
+                              fontSize: "13px",
                               borderRadius: "2px",
                               border: `1px solid ${isDark ? "#334155" : "#cbd5e1"}`,
                               backgroundColor: isDark ? "#09090b" : "#ffffff",
@@ -752,12 +752,12 @@ export function InstanceDetailsPane({
                             });
                             
                             return (
-                              <VStack align="stretch" gap={0} fontSize="11px">
+                              <VStack align="stretch" gap={0} fontSize="13px">
                                 {/* Folder Row */}
                                 <Flex align="center" gap={1.5} py={1.5} px={2} color={colors.text} fontWeight="semibold" userSelect="none">
                                   <span style={{ color: "#ec7211", fontSize: "12px" }}>📁</span>
-                                  <Text fontSize="11px">tests</Text>
-                                  <Badge variant="subtle" fontSize="9px" bg={isDark ? "zinc.800" : "gray.200"} color={colors.subtext} px={1} borderRadius="xs" ml="auto">
+                                  <Text fontSize="13px">tests</Text>
+                                  <Badge variant="subtle" fontSize="11px" bg={isDark ? "zinc.800" : "gray.200"} color={colors.subtext} px={1} borderRadius="xs" ml="auto">
                                     {filteredSpecs.length}
                                   </Badge>
                                 </Flex>
@@ -797,9 +797,9 @@ export function InstanceDetailsPane({
                                         onClick={() => setSelectedSpecFile(spec.file)}
                                       >
                                         <HStack gap={2} flex={1} overflow="hidden">
-                                          <span style={{ color: "#ec7211", fontSize: "11px", flexShrink: 0 }}>📄</span>
+                                          <span style={{ color: "#ec7211", fontSize: "12px", flexShrink: 0 }}>📄</span>
                                           <Text
-                                            fontSize="11px"
+                                            fontSize="13px"
                                             fontWeight={isSelected ? "bold" : "medium"}
                                             color={isSelected ? colors.text : colors.subtext}
                                             whiteSpace="nowrap"
@@ -817,7 +817,7 @@ export function InstanceDetailsPane({
                                     );
                                   })}
                                   {filteredSpecs.length === 0 && (
-                                    <Text fontSize="10px" color={colors.subtext} fontStyle="italic" py={2} pl={2}>
+                                    <Text fontSize="12px" color={colors.subtext} fontStyle="italic" py={2} pl={2}>
                                       No specs match filter
                                     </Text>
                                   )}
@@ -833,14 +833,14 @@ export function InstanceDetailsPane({
                         const spec = report.generatedSpecs.find(s => s.file === selectedSpecFile) || report.generatedSpecs[0];
                         if (!spec) return (
                           <Flex align="center" justify="center" h="100%" border="1px solid" borderColor={colors.border} borderRadius="sm">
-                            <Text fontSize="11px" color={colors.subtext}>Select a user flow to view details.</Text>
+                            <Text fontSize="13px" color={colors.subtext}>Select a user flow to view details.</Text>
                           </Flex>
                         );
                         
                         const name = spec.file.split("/").pop() ?? spec.file;
                         const flowId = name.replace(".spec.ts", "");
                         const matchedFlow = report.flows?.find(
-                          (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId)
+                           (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId)
                         );
                         const pairedNarrative = report.summary ? findNarrativeForSpec(name, report.summary) : undefined;
                         const testResult = report.results?.find(
@@ -875,7 +875,7 @@ export function InstanceDetailsPane({
                                   h="26px"
                                   px={3.5}
                                   borderRadius="xs"
-                                  fontSize="11px"
+                                  fontSize="13px"
                                   fontWeight="bold"
                                   color={rightPaneTab === "narrative" ? (isDark ? "white" : "black") : colors.subtext}
                                   bg={rightPaneTab === "narrative" ? (isDark ? "slate.900" : "white") : "transparent"}
@@ -895,7 +895,7 @@ export function InstanceDetailsPane({
                                   h="26px"
                                   px={3.5}
                                   borderRadius="xs"
-                                  fontSize="11px"
+                                  fontSize="13px"
                                   fontWeight="bold"
                                   color={rightPaneTab === "code" ? (isDark ? "white" : "black") : colors.subtext}
                                   bg={rightPaneTab === "code" ? (isDark ? "slate.900" : "white") : "transparent"}
@@ -912,14 +912,14 @@ export function InstanceDetailsPane({
                               </HStack>
                               
                               <HStack gap={2}>
-                                <Text fontSize="10px" color={colors.subtext} fontFamily="mono" display={{ base: "none", sm: "block" }}>
+                                <Text fontSize="12px" color={colors.subtext} fontFamily="mono" display={{ base: "none", sm: "block" }}>
                                   {name}
                                 </Text>
                                 {testResult && (
                                   <Badge
                                     colorPalette={OUTCOME_COLOR[testResult.outcome]}
                                     variant="solid"
-                                    fontSize="9px"
+                                    fontSize="11px"
                                     borderRadius="xs"
                                     px={2}
                                     py={0.5}
@@ -936,7 +936,7 @@ export function InstanceDetailsPane({
                                 <VStack align="stretch" gap={4}>
                                   {/* Flow Metadata Cards Grid */}
                                   <Box border="1px solid" borderColor={colors.border} borderRadius="sm" p={3} bg={isDark ? "white/5" : "gray.50"}>
-                                    <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap={3} fontSize="11px">
+                                    <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap={3} fontSize="13px">
                                       <HStack align="flex-start" gap={2}>
                                         <Text color={colors.subtext} fontWeight="semibold" w="80px" flexShrink={0}>Flow Name:</Text>
                                         <Text fontWeight="bold" color={colors.text}>
@@ -955,14 +955,14 @@ export function InstanceDetailsPane({
                                           <Badge
                                             colorPalette={OUTCOME_COLOR[testResult.outcome]}
                                             variant="solid"
-                                            fontSize="9px"
+                                            fontSize="11px"
                                             borderRadius="xs"
                                             px={1.5}
                                           >
                                             {testResult.outcome.toUpperCase()}
                                           </Badge>
                                         ) : (
-                                          <Badge colorPalette="gray" variant="solid" fontSize="9px" borderRadius="xs" px={1.5}>PENDING</Badge>
+                                          <Badge colorPalette="gray" variant="solid" fontSize="11px" borderRadius="xs" px={1.5}>PENDING</Badge>
                                         )}
                                       </HStack>
                                       <HStack align="flex-start" gap={2}>
@@ -986,10 +986,10 @@ export function InstanceDetailsPane({
                                       <Flex gap={2} align="flex-start">
                                         <span style={{ color: "#3b82f6", fontSize: "14px", marginTop: "-1px" }}>ℹ️</span>
                                         <VStack align="stretch" gap={1}>
-                                          <Text fontSize="11px" fontWeight="bold" color={colors.text}>
+                                          <Text fontSize="13px" fontWeight="bold" color={colors.text}>
                                             User Flow Narrative (What was verified)
                                           </Text>
-                                          <Text fontSize="11px" color={colors.text} lineHeight={1.5}>
+                                          <Text fontSize="13px" color={colors.text} lineHeight={1.5}>
                                             {pairedNarrative}
                                           </Text>
                                         </VStack>
@@ -1000,7 +1000,7 @@ export function InstanceDetailsPane({
                                   {/* Steps Visual List */}
                                   {matchedFlow && matchedFlow.steps && matchedFlow.steps.length > 0 && (
                                     <Box>
-                                      <Text fontSize="11px" fontWeight="bold" mb={2.5} color={colors.text}>
+                                      <Text fontSize="13px" fontWeight="bold" mb={2.5} color={colors.text}>
                                         📋 Action Timeline Steps (How it was tested)
                                       </Text>
                                       <VStack align="stretch" gap={3} pl={1}>
@@ -1016,11 +1016,11 @@ export function InstanceDetailsPane({
                                           
                                           return (
                                             <HStack key={idx} align="flex-start" gap={3} p={2} bg={isDark ? "white/2" : "gray.50"} borderRadius="xs" borderLeft="2px solid" borderColor={isDark ? "zinc.700" : "gray.300"}>
-                                              <Badge variant="solid" bg="slate.500" color="white" fontSize="9px" px={1.5} py={0.5} borderRadius="xs" flexShrink={0}>
+                                              <Badge variant="solid" bg="slate.500" color="white" fontSize="11px" px={1.5} py={0.5} borderRadius="xs" flexShrink={0}>
                                                 Step {idx + 1}
                                               </Badge>
                                               {stepIcon}
-                                              <Text fontSize="11px" color={colors.text} lineHeight={1.4}>
+                                              <Text fontSize="13px" color={colors.text} lineHeight={1.4}>
                                                 {step}
                                               </Text>
                                             </HStack>
@@ -1056,12 +1056,12 @@ export function InstanceDetailsPane({
                       <VStack align="stretch" gap={3}>
                         {report.flows.map((flow) => (
                           <Box key={flow.id} bg={isDark ? "white/3" : "white"} p={3} borderRadius="sm" borderLeft="3px solid" borderColor={AWS_COLORS.orange.main}>
-                            <Text fontSize="11px" fontWeight="bold" color={colors.text}>
-                              {flow.name || flow.id} (Check ID: <code style={{ fontSize: "10px" }}>{flow.id}</code>)
+                            <Text fontSize="13px" fontWeight="bold" color={colors.text}>
+                              {flow.name || flow.id} (Check ID: <code style={{ fontSize: "12px" }}>{flow.id}</code>)
                             </Text>
                             <VStack align="stretch" gap={1.5} mt={2.5} pl={3}>
                               {(flow.steps ?? []).map((step, idx) => (
-                                <Text key={idx} fontSize="11px" color={colors.subtext} lineHeight={1.4}>
+                                <Text key={idx} fontSize="13px" color={colors.subtext} lineHeight={1.4}>
                                   {idx + 1}. {step}
                                 </Text>
                               ))}
@@ -1082,13 +1082,13 @@ export function InstanceDetailsPane({
                     {report.issues && report.issues.length > 0 ? (
                       <VStack align="stretch" gap={2} pl={2}>
                         {report.issues.map((issue, idx) => (
-                          <Text key={idx} fontSize="11px" color={colors.text} lineHeight={1.5}>
+                          <Text key={idx} fontSize="13px" color={colors.text} lineHeight={1.5}>
                             • {issue}
                           </Text>
                         ))}
                       </VStack>
                     ) : (
-                      <Text fontSize="11px" color={colors.subtext} fontStyle="italic">No issues detected.</Text>
+                      <Text fontSize="13px" color={colors.subtext} fontStyle="italic">No issues detected.</Text>
                     )}
                   </Box>
 
@@ -1099,13 +1099,13 @@ export function InstanceDetailsPane({
                     {report.recommendations && report.recommendations.length > 0 ? (
                       <VStack align="stretch" gap={2} pl={2}>
                         {report.recommendations.map((rec, idx) => (
-                          <Text key={idx} fontSize="11px" color={colors.text} lineHeight={1.5}>
+                          <Text key={idx} fontSize="13px" color={colors.text} lineHeight={1.5}>
                             • {rec}
                           </Text>
                         ))}
                       </VStack>
                     ) : (
-                      <Text fontSize="11px" color={colors.subtext} fontStyle="italic">No recommendations at this time.</Text>
+                      <Text fontSize="13px" color={colors.subtext} fontStyle="italic">No recommendations at this time.</Text>
                     )}
                   </Box>
                 </Grid>
@@ -1116,12 +1116,12 @@ export function InstanceDetailsPane({
                 {run.status === "running" ? (
                   <>
                     <Spinner size="md" color={AWS_COLORS.orange.main} />
-                    <Text fontSize="11px" color={colors.subtext}>
+                    <Text fontSize="13px" color={colors.subtext}>
                       Agent pipeline is in progress. The narrative summary will be available once reporting is complete.
                     </Text>
                   </>
                 ) : (
-                  <Text fontSize="11px" color={colors.subtext} fontStyle="italic">
+                  <Text fontSize="13px" color={colors.subtext} fontStyle="italic">
                     No narrative available (Run stopped or failed before reporting completed).
                   </Text>
                 )}
@@ -1131,13 +1131,13 @@ export function InstanceDetailsPane({
 
           {/* TAB 3: MONITORING */}
           <Box display={activeDetailsTab === "monitoring" ? "block" : "none"}>
-            <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "repeat(4, 1fr)" }} gap={4} fontSize="11px">
+            <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "repeat(4, 1fr)" }} gap={4} fontSize="13px">
               <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} p={3.5} borderRadius="sm">
                 <Text color={colors.subtext} fontWeight="semibold" mb={1}>SUCCESS RATE</Text>
                 <Text fontSize="24px" fontWeight="black" color={report ? "green.500" : colors.subtext}>
                   {report ? `${Math.round(report.successRate.rate * 100)}%` : "N/A"}
                 </Text>
-                <Text fontSize="10px" color={colors.subtext} mt={1}>Passed tests / planned tests</Text>
+                <Text fontSize="12px" color={colors.subtext} mt={1}>Passed tests / planned tests</Text>
               </Box>
 
               <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} p={3.5} borderRadius="sm">
@@ -1145,7 +1145,7 @@ export function InstanceDetailsPane({
                 <Text fontSize="24px" fontWeight="black" color={AWS_COLORS.orange.main}>
                   {report ? report.claudeCallCount : 0} calls
                 </Text>
-                <Text fontSize="10px" color={colors.subtext} mt={1}>LLM planning & repair requests</Text>
+                <Text fontSize="12px" color={colors.subtext} mt={1}>LLM planning & repair requests</Text>
               </Box>
 
               <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} p={3.5} borderRadius="sm">
@@ -1153,7 +1153,7 @@ export function InstanceDetailsPane({
                 <Text fontSize="24px" fontWeight="black" color="orange.500">
                   {report ? `${Math.round(report.flakeRate * 100)}%` : "N/A"}
                 </Text>
-                <Text fontSize="10px" color={colors.subtext} mt={1}>Divergent results across re-runs</Text>
+                <Text fontSize="12px" color={colors.subtext} mt={1}>Divergent results across re-runs</Text>
               </Box>
 
               <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} p={3.5} borderRadius="sm">
@@ -1161,7 +1161,7 @@ export function InstanceDetailsPane({
                 <Text fontSize="24px" fontWeight="black" color="blue.500">
                   {report ? `${Math.round(report.healSuccessRate * 100)}%` : "N/A"}
                 </Text>
-                <Text fontSize="10px" color={colors.subtext} mt={1}>Failed locators healed by LLM</Text>
+                <Text fontSize="12px" color={colors.subtext} mt={1}>Failed locators healed by LLM</Text>
               </Box>
             </Box>
           </Box>
@@ -1169,12 +1169,12 @@ export function InstanceDetailsPane({
           {/* TAB 4: CONSOLE LOGS */}
           <Box display={activeDetailsTab === "logs" ? "block" : "none"}>
             <Flex justify="space-between" align="center" mb={2}>
-              <Text fontSize="11px" fontWeight="bold" color={colors.subtext}>
+              <Text fontSize="13px" fontWeight="bold" color={colors.subtext}>
                 Live System Log Stream (stdout)
               </Text>
               <HStack gap={2}>
                 <Box w="6px" h="6px" borderRadius="full" bg={run.status === "running" ? "green.500" : "slate.500"} className={run.status === "running" ? "animate-pulse" : ""} />
-                <Text fontSize="10px" color={colors.subtext} fontFamily="mono">
+                <Text fontSize="12px" color={colors.subtext} fontFamily="mono">
                   {run.status === "running" ? "STREAMING" : "STREAM CLOSED"}
                 </Text>
               </HStack>
@@ -1188,7 +1188,7 @@ export function InstanceDetailsPane({
               p={4}
               borderRadius="sm"
               fontFamily="mono"
-              fontSize="11px"
+              fontSize="13px"
               h={isMaximized ? "calc(100vh - 240px)" : "260px"}
               overflowY="auto"
               border="1px solid"
@@ -1238,7 +1238,7 @@ export function InstanceDetailsPane({
                     >
                       <HStack gap={2}>
                         <Code2 size={13} style={{ color: AWS_COLORS.orange.main }} />
-                        <Text fontSize="11px" fontWeight="bold">AI Spec Test Plan</Text>
+                        <Text fontSize="13px" fontWeight="bold">AI Spec Test Plan</Text>
                       </HStack>
                       {showPlan ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                     </Flex>
@@ -1249,7 +1249,7 @@ export function InstanceDetailsPane({
                         bg="black"
                         color="white"
                         fontFamily="mono"
-                        fontSize="11px"
+                        fontSize="13px"
                         maxH={isMaximized ? "600px" : "300px"}
                         overflowY="auto"
                         whiteSpace="pre-wrap"
@@ -1262,12 +1262,12 @@ export function InstanceDetailsPane({
 
                 {/* Generated Spec Files Tree */}
                 <Box>
-                  <Text fontSize="11px" fontWeight="bold" color={colors.subtext} mb={2}>
+                  <Text fontSize="13px" fontWeight="bold" color={colors.subtext} mb={2}>
                     Generated Spec Files ({report.generatedSpecs.length})
                   </Text>
                   
                   {report.generatedSpecs.length === 0 ? (
-                    <Text fontSize="11px" color={colors.subtext} fontStyle="italic">No spec files generated.</Text>
+                    <Text fontSize="13px" color={colors.subtext} fontStyle="italic">No spec files generated.</Text>
                   ) : (
                     <VStack align="stretch" gap={2}>
                       {report.generatedSpecs.map((spec) => {
@@ -1294,9 +1294,9 @@ export function InstanceDetailsPane({
                             >
                               <HStack gap={3}>
                                 <Code2 size={13} style={{ color: AWS_COLORS.orange.main }} />
-                                <Text fontSize="11px" fontWeight="bold" fontFamily="mono">{name}</Text>
+                                <Text fontSize="13px" fontWeight="bold" fontFamily="mono">{name}</Text>
                                 {matchedFlow && (
-                                  <Text fontSize="10px" color={colors.subtext} fontWeight="medium">
+                                  <Text fontSize="12px" color={colors.subtext} fontWeight="medium">
                                     — {matchedFlow.name}
                                   </Text>
                                 )}
@@ -1316,23 +1316,23 @@ export function InstanceDetailsPane({
                                   >
                                     {pairedNarrative && (
                                       <Box mb={matchedFlow ? 3 : 0}>
-                                        <Text fontSize="11px" fontWeight="bold" mb={1} color={colors.text}>
+                                        <Text fontSize="13px" fontWeight="bold" mb={1} color={colors.text}>
                                           📖 Narrative (What Was Tested):
                                         </Text>
-                                        <Text fontSize="11px" color={colors.text} mb={1}>
+                                        <Text fontSize="13px" color={colors.text} mb={1}>
                                           {pairedNarrative}
                                         </Text>
                                       </Box>
                                     )}
                                     {matchedFlow && (
                                       <Box>
-                                        <Text fontSize="11px" fontWeight="bold" mb={1} color={colors.text}>
+                                        <Text fontSize="13px" fontWeight="bold" mb={1} color={colors.text}>
                                           📋 Test Scenario Steps:
                                         </Text>
                                         {matchedFlow.steps && matchedFlow.steps.length > 0 && (
                                           <VStack align="stretch" gap={1} pl={2}>
                                             {matchedFlow.steps.map((step, idx) => (
-                                              <Text key={idx} fontSize="10px" color={colors.subtext}>
+                                              <Text key={idx} fontSize="12px" color={colors.subtext}>
                                                 {idx + 1}. {step}
                                               </Text>
                                             ))}
@@ -1362,7 +1362,7 @@ export function InstanceDetailsPane({
               </VStack>
             ) : (
               <Flex align="center" justify="center" h="150px">
-                <Text fontSize="11px" color={colors.subtext} fontStyle="italic">
+                <Text fontSize="13px" color={colors.subtext} fontStyle="italic">
                   Code and test plan will be displayed here once generated by the AI agent.
                 </Text>
               </Flex>

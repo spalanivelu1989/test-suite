@@ -261,25 +261,6 @@ export function RunView({ id }: { id: string }) {
       {/* ==================== DASHBOARD TAB ==================== */}
       <Box display={activeTab === "dashboard" ? "block" : "none"} width="100%">
         <VStack align="stretch" gap={6}>
-          {/* Health widget */}
-          <Flex
-            p={4}
-            bg={isDark ? "rgba(16, 185, 129, 0.08)" : "rgba(16, 185, 129, 0.05)"}
-            border="1px solid"
-            borderColor="green.500/20"
-            borderRadius="md"
-            gap={3}
-            align="center"
-          >
-            <Flex w="16px" h="16px" borderRadius="full" bg="green.500" alignItems="center" justifyContent="center">
-              <ShieldCheck size={11} style={{ color: "white" }} />
-            </Flex>
-            <VStack align="stretch" gap={0} flex={1}>
-              <Text fontSize="12px" fontWeight="bold" color={isDark ? "green.400" : "green.800"}>
-                Service Status: Operating Normally
-              </Text>
-            </VStack>
-          </Flex>
 
           {/* Resources Overview Grid */}
           <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" p={4}>
@@ -300,8 +281,8 @@ export function RunView({ id }: { id: string }) {
                 transition="border-color 0.15s ease"
               >
                 <Server size={18} style={{ color: AWS_COLORS.orange.main, marginBottom: "8px" }} />
-                <Text fontSize="10px" color={colors.subtext} fontWeight="semibold">Running Instances</Text>
-                <Text fontSize="22px" fontWeight="black" color={colors.text}>{runningCount}</Text>
+                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">Running Instances</Text>
+                <Text fontSize="24px" fontWeight="black" color={colors.text}>{runningCount}</Text>
               </Box>
 
               <Box
@@ -316,8 +297,8 @@ export function RunView({ id }: { id: string }) {
                 transition="border-color 0.15s ease"
               >
                 <Layers size={18} style={{ color: "teal", marginBottom: "8px" }} />
-                <Text fontSize="10px" color={colors.subtext} fontWeight="semibold">Total Instances</Text>
-                <Text fontSize="22px" fontWeight="black" color={colors.text}>{totalCount}</Text>
+                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">Total Instances</Text>
+                <Text fontSize="24px" fontWeight="black" color={colors.text}>{totalCount}</Text>
               </Box>
 
               <Box
@@ -332,8 +313,8 @@ export function RunView({ id }: { id: string }) {
                 transition="border-color 0.15s ease"
               >
                 <HardDrive size={18} style={{ color: "blue.500", marginBottom: "8px" }} />
-                <Text fontSize="10px" color={colors.subtext} fontWeight="semibold">EBS Volumes (Specs)</Text>
-                <Text fontSize="22px" fontWeight="black" color={colors.text}>{specVolumes.length}</Text>
+                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">EBS Volumes (Specs)</Text>
+                <Text fontSize="24px" fontWeight="black" color={colors.text}>{specVolumes.length}</Text>
               </Box>
 
               <Box
@@ -348,8 +329,8 @@ export function RunView({ id }: { id: string }) {
                 transition="border-color 0.15s ease"
               >
                 <AlertCircle size={18} style={{ color: "purple.500", marginBottom: "8px" }} />
-                <Text fontSize="10px" color={colors.subtext} fontWeight="semibold">Security Groups</Text>
-                <Text fontSize="22px" fontWeight="black" color={colors.text}>1</Text>
+                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">Security Groups</Text>
+                <Text fontSize="24px" fontWeight="black" color={colors.text}>1</Text>
               </Box>
 
               <Box
@@ -364,8 +345,8 @@ export function RunView({ id }: { id: string }) {
                 transition="border-color 0.15s ease"
               >
                 <KeyRound size={18} style={{ color: "orange.500", marginBottom: "8px" }} />
-                <Text fontSize="10px" color={colors.subtext} fontWeight="semibold">Key Pairs (API Keys)</Text>
-                <Text fontSize="22px" fontWeight="black" color={colors.text}>1</Text>
+                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">Key Pairs (API Keys)</Text>
+                <Text fontSize="24px" fontWeight="black" color={colors.text}>1</Text>
               </Box>
             </Grid>
           </Box>
@@ -426,7 +407,7 @@ export function RunView({ id }: { id: string }) {
       <Box display={activeTab === "amis" ? "block" : "none"} width="100%">
         <VStack align="stretch" gap={4}>
           <Heading size="sm" color={colors.text}>AMIs (Amazon Machine Images)</Heading>
-          <Text fontSize="11px" color={colors.subtext}>
+          <Text fontSize="13px" color={colors.subtext}>
             Pre-packaged templates with Playwright, crawl hooks, and locators recovery logic setup.
           </Text>
 
@@ -434,14 +415,14 @@ export function RunView({ id }: { id: string }) {
             <Table.Root size="sm" variant="outline" border="none">
               <Table.Header bg={isDark ? "white/5" : "gray.50"}>
                 <Table.Row borderColor={colors.border}>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">AMI Name</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">AMI ID</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Engine Platform</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Status</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Description</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">AMI Name</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">AMI ID</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Engine Platform</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Status</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Description</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
-              <Table.Body fontSize="11px">
+              <Table.Body fontSize="13px">
                 <Table.Row borderColor={colors.border}>
                   <Table.Cell fontWeight="bold">Playwright Chromium Image</Table.Cell>
                   <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>ami-chrome-v1.60.0</Table.Cell>
@@ -466,7 +447,7 @@ export function RunView({ id }: { id: string }) {
       <Box display={activeTab === "volumes" ? "block" : "none"} width="100%">
         <VStack align="stretch" gap={4}>
           <Heading size="sm" color={colors.text}>Elastic Block Store - Volumes (Generated Specs)</Heading>
-          <Text fontSize="11px" color={colors.subtext}>
+          <Text fontSize="13px" color={colors.subtext}>
             EBS Volumes store the generated test specifications (`.spec.ts` files) attached to completed instances.
           </Text>
 
@@ -475,14 +456,14 @@ export function RunView({ id }: { id: string }) {
               <Table.Root size="sm" variant="outline" border="none">
                 <Table.Header bg={isDark ? "white/5" : "gray.50"}>
                   <Table.Row borderColor={colors.border}>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="10px">Volume ID</Table.ColumnHeader>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="10px">File Path</Table.ColumnHeader>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="10px">Size</Table.ColumnHeader>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="10px">Attachment</Table.ColumnHeader>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="10px">Domain App</Table.ColumnHeader>
+                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Volume ID</Table.ColumnHeader>
+                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">File Path</Table.ColumnHeader>
+                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Size</Table.ColumnHeader>
+                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Attachment</Table.ColumnHeader>
+                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Domain App</Table.ColumnHeader>
                   </Table.Row>
                 </Table.Header>
-                <Table.Body fontSize="11px">
+                <Table.Body fontSize="13px">
                   {specVolumes.length === 0 ? (
                     <Table.Row>
                       <Table.Cell colSpan={5} textAlign="center" py={6} color={colors.subtext}>
@@ -519,10 +500,10 @@ export function RunView({ id }: { id: string }) {
               {selectedVolumeId ? (
                 (() => {
                   const vol = specVolumes.find((v) => v.id === selectedVolumeId);
-                  if (!vol) return <Text fontSize="11px" color={colors.subtext}>Volume not found.</Text>;
+                  if (!vol) return <Text fontSize="13px" color={colors.subtext}>Volume not found.</Text>;
                   return (
                     <VStack align="stretch" gap={3} flex={1} overflow="hidden">
-                      <VStack align="stretch" gap={1} fontSize="10px">
+                      <VStack align="stretch" gap={1} fontSize="12px">
                         <Flex justify="space-between">
                           <Text color={colors.subtext}>Attached File Path:</Text>
                           <Text fontWeight="bold" fontFamily="mono">{vol.file}</Text>
@@ -538,7 +519,7 @@ export function RunView({ id }: { id: string }) {
                         bg="black"
                         color="emerald.400"
                         fontFamily="mono"
-                        fontSize="10px"
+                        fontSize="12px"
                         maxH="320px"
                         overflowY="auto"
                         whiteSpace="pre-wrap"
@@ -553,7 +534,7 @@ export function RunView({ id }: { id: string }) {
                   );
                 })()
               ) : (
-                <Flex align="center" justify="center" h="200px" color={colors.subtext} fontSize="11px">
+                <Flex align="center" justify="center" h="200px" color={colors.subtext} fontSize="13px">
                   Select a volume to inspect its contents.
                 </Flex>
               )}
@@ -566,7 +547,7 @@ export function RunView({ id }: { id: string }) {
       <Box display={activeTab === "security-groups" ? "block" : "none"} width="100%">
         <VStack align="stretch" gap={4}>
           <Heading size="sm" color={colors.text}>Security Groups</Heading>
-          <Text fontSize="11px" color={colors.subtext}>
+          <Text fontSize="13px" color={colors.subtext}>
             Security groups act as a virtual firewall for your instances to control inbound and outbound traffic.
           </Text>
 
@@ -574,22 +555,46 @@ export function RunView({ id }: { id: string }) {
             <Table.Root size="sm" variant="outline" border="none">
               <Table.Header bg={isDark ? "white/5" : "gray.50"}>
                 <Table.Row borderColor={colors.border}>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Security Group ID</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Name</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Inbound Rules</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Outbound Rules</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Instance Bounds</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Security Group ID</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Name</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Inbound Rules</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Outbound Rules</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Instance Bounds</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
-              <Table.Body fontSize="11px">
+              <Table.Body fontSize="13px">
                 <Table.Row borderColor={colors.border}>
                   <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>sg-0default</Table.Cell>
                   <Table.Cell fontWeight="bold">default-agent-rules</Table.Cell>
                   <Table.Cell color="slate.500">None (Inbound blocked)</Table.Cell>
                   <Table.Cell>
                     <VStack align="flex-start" gap={1}>
-                      <Badge colorPalette="cyan">HTTP (80) {"->"} Anywhere</Badge>
-                      <Badge colorPalette="cyan">HTTPS (443) {"->"} Anywhere</Badge>
+                      <Badge
+                        variant="subtle"
+                        bg={isDark ? "rgba(6, 182, 212, 0.15)" : "rgba(6, 182, 212, 0.1)"}
+                        color={isDark ? "cyan.300" : "cyan.800"}
+                        borderColor={isDark ? "cyan.800/30" : "cyan.200"}
+                        borderWidth="1px"
+                        borderRadius="sm"
+                        px={1.5}
+                        py={0.5}
+                        fontSize="11.5px"
+                      >
+                        HTTP (80) {"->"} Anywhere
+                      </Badge>
+                      <Badge
+                        variant="subtle"
+                        bg={isDark ? "rgba(6, 182, 212, 0.15)" : "rgba(6, 182, 212, 0.1)"}
+                        color={isDark ? "cyan.300" : "cyan.800"}
+                        borderColor={isDark ? "cyan.800/30" : "cyan.200"}
+                        borderWidth="1px"
+                        borderRadius="sm"
+                        px={1.5}
+                        py={0.5}
+                        fontSize="11.5px"
+                      >
+                        HTTPS (443) {"->"} Anywhere
+                      </Badge>
                     </VStack>
                   </Table.Cell>
                   <Table.Cell>
@@ -609,7 +614,7 @@ export function RunView({ id }: { id: string }) {
       <Box display={activeTab === "key-pairs" ? "block" : "none"} width="100%">
         <VStack align="stretch" gap={4}>
           <Heading size="sm" color={colors.text}>Key Pairs (LLM & Runtime Credentials)</Heading>
-          <Text fontSize="11px" color={colors.subtext}>
+          <Text fontSize="13px" color={colors.subtext}>
             Key pairs secure credentials used by the AI Agent to issue API calls to Claude and connect to Playwright.
           </Text>
 
@@ -617,14 +622,14 @@ export function RunView({ id }: { id: string }) {
             <Table.Root size="sm" variant="outline" border="none">
               <Table.Header bg={isDark ? "white/5" : "gray.50"}>
                 <Table.Row borderColor={colors.border}>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Key Pair ID</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Key Name</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Type</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Key Fingerprint</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="10px">Status</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Key Pair ID</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Key Name</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Type</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Key Fingerprint</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Status</Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
-              <Table.Body fontSize="11px">
+              <Table.Body fontSize="13px">
                 <Table.Row borderColor={colors.border}>
                   <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>key-0claude</Table.Cell>
                   <Table.Cell fontWeight="bold">claude-anthropic-key</Table.Cell>

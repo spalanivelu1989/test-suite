@@ -194,7 +194,7 @@ export function ThreeProgressBar({
           )}
           <span style={{
             fontWeight: "600",
-            fontSize: "12px",
+            fontSize: "13px",
             letterSpacing: "0.05em",
             color: labelColor,
             textTransform: "uppercase",
@@ -206,7 +206,7 @@ export function ThreeProgressBar({
         </div>
         
         <span style={{
-          fontSize: "11px",
+          fontSize: "12px",
           fontFamily: "monospace",
           fontWeight: "bold",
           color: statusColor,

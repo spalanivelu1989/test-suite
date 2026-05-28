@@ -25,6 +25,7 @@ import {
   Trash2,
   X,
   AlertTriangle,
+  Plus,
 } from "lucide-react";
 import { getAWSColors, AWS_COLORS, getStatusStyle } from "@/app/theme/aws";
 import { useThemeMode } from "@/app/providers";
@@ -107,15 +108,28 @@ export function InstancesTable({
           {/* Launch instance button */}
           <Button
             size="xs"
-            bg={AWS_COLORS.orange.main}
+            bg="linear-gradient(135deg, #f88a2b 0%, #ec7211 100%)"
             color="white"
             fontWeight="bold"
             height="24px"
             px={3}
             cursor="pointer"
-            _hover={{ bg: AWS_COLORS.orange.hover }}
+            border="1px solid #d05e0a"
+            borderRadius="sm"
+            boxShadow="0 2px 4px rgba(236,114,17,0.2), inset 0 1px 0 rgba(255,255,255,0.2)"
+            transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+            _hover={{
+              bg: "linear-gradient(135deg, #ffa047 0%, #d05e0a 100%)",
+              transform: "translateY(-1px)",
+              boxShadow: "0 4px 12px rgba(236, 114, 17, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+            }}
+            _active={{
+              transform: "translateY(0)",
+              boxShadow: "0 2px 4px rgba(236, 114, 17, 0.2)",
+            }}
             onClick={onLaunchNew}
           >
+            <Plus size={11} style={{ marginRight: "4px" }} strokeWidth={2.5} />
             Launch instances
           </Button>
 
@@ -129,7 +143,22 @@ export function InstancesTable({
             height="24px"
             px={3}
             cursor={selectedRunId ? "pointer" : "not-allowed"}
-            _hover={selectedRunId ? { bg: colors.rowHover } : {}}
+            opacity={selectedRunId ? 1 : 0.6}
+            transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+            _hover={
+              selectedRunId
+                ? {
+                    bg: isDark ? "rgba(236,114,17,0.08)" : "rgba(236,114,17,0.04)",
+                    borderColor: AWS_COLORS.orange.main,
+                    color: AWS_COLORS.orange.main,
+                    transform: "translateY(-1px)",
+                    boxShadow: isDark
+                      ? "0 4px 12px rgba(236,114,17,0.15)"
+                      : "0 4px 12px rgba(0,0,0,0.05)",
+                  }
+                : {}
+            }
+            _active={selectedRunId ? { transform: "translateY(0)" } : {}}
             onClick={() => {
               if (selectedRunId) {
                 const run = runs.find((r) => r.id === selectedRunId);
@@ -147,13 +176,26 @@ export function InstancesTable({
           <Button
             size="xs"
             variant="outline"
-            borderColor={colors.border}
+            borderColor={selectedRunId ? "red.500/30" : colors.border}
             color={selectedRunId ? "red.500" : colors.subtext}
             disabled={!selectedRunId}
             height="24px"
             px={3}
             cursor={selectedRunId ? "pointer" : "not-allowed"}
-            _hover={selectedRunId ? { bg: "red.500/10", borderColor: "red.500/30" } : {}}
+            opacity={selectedRunId ? 1 : 0.6}
+            transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+            _hover={
+              selectedRunId
+                ? {
+                    bg: "red.500/10",
+                    borderColor: "red.500",
+                    color: isDark ? "red.300" : "red.600",
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 4px 12px rgba(239, 68, 68, 0.2)",
+                  }
+                : {}
+            }
+            _active={selectedRunId ? { transform: "translateY(0)" } : {}}
             onClick={() => {
               if (!selectedRunId) return;
               const target = runs.find((r) => r.id === selectedRunId);
@@ -171,23 +213,23 @@ export function InstancesTable({
         <Table.Root size="sm" variant="outline" border="none">
           <Table.Header bg={isDark ? "white/5" : "gray.50"}>
             <Table.Row borderColor={colors.border}>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2} w="40px" textAlign="center">
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2} w="40px" textAlign="center">
                 Select
               </Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2}>Instance ID</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2}>Name (Target URL)</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2}>Instance State</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2}>Instance Type</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2}>Status Checks</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2}>Alarm Status</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2}>Availability Zone</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="10px" py={2}>Launch Time</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Instance ID</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Name (Target URL)</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Instance State</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Instance Type</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Status Checks</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Alarm Status</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Availability Zone</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Launch Time</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {runs.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={9} textAlign="center" py={8} color={colors.subtext} fontSize="11px">
+                <Table.Cell colSpan={9} textAlign="center" py={8} color={colors.subtext} fontSize="13px">
                   No instances found. Launch an instance to get started.
                 </Table.Cell>
               </Table.Row>
@@ -226,21 +268,25 @@ export function InstancesTable({
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => {}} // Row click handles it
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          onSelectRun(isSelected ? null : run);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                         style={{ cursor: "pointer" }}
                       />
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontWeight="semibold" fontSize="11px" color={AWS_COLORS.orange.main} fontFamily="mono">
+                    <Table.Cell py={2.5} fontWeight="semibold" fontSize="13px" color={AWS_COLORS.orange.main} fontFamily="mono">
                       {shortId}
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="11px" color={colors.text} fontWeight="medium">
+                    <Table.Cell py={2.5} fontSize="13px" color={colors.text} fontWeight="medium">
                       {run.config.url}
                     </Table.Cell>
                     <Table.Cell py={2.5}>
                       <Badge
                         variant="subtle"
                         borderRadius="sm"
-                        fontSize="10px"
+                        fontSize="11.5px"
                         fontWeight="semibold"
                         display="inline-flex"
                         alignItems="center"
@@ -262,19 +308,19 @@ export function InstancesTable({
                         {statusStyle.label}
                       </Badge>
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="11px" color={colors.subtext} fontFamily="mono">
+                    <Table.Cell py={2.5} fontSize="13px" color={colors.subtext} fontFamily="mono">
                       t3.medium
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="11px" fontWeight="medium" color={checksColor === "green" ? "green.600" : checksColor === "red" ? "red.500" : colors.text}>
+                    <Table.Cell py={2.5} fontSize="13px" fontWeight="medium" color={checksColor === "green" ? "green.600" : checksColor === "red" ? "red.500" : colors.text}>
                       {checksText}
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="11px" color={alarmsText.includes("alarm") ? "red.500" : colors.subtext} fontWeight={alarmsText.includes("alarm") ? "bold" : "normal"}>
+                    <Table.Cell py={2.5} fontSize="13px" color={alarmsText.includes("alarm") ? "red.500" : colors.subtext} fontWeight={alarmsText.includes("alarm") ? "bold" : "normal"}>
                       {alarmsText}
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="11px" color={colors.subtext}>
+                    <Table.Cell py={2.5} fontSize="13px" color={colors.subtext}>
                       local-1a
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="11px" color={colors.subtext} fontFamily="mono">
+                    <Table.Cell py={2.5} fontSize="13px" color={colors.subtext} fontFamily="mono">
                       {new Date(run.createdAt).toLocaleString()}
                     </Table.Cell>
                   </Table.Row>
