@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { test } from "node:test";
 import { createWorkspace, readGeneratedSpecs, readPlan } from "./workspace";
 
@@ -52,6 +53,19 @@ test("readPlan returns null when no plan was saved", async () => {
   try {
     assert.equal(await readPlan(ws), null);
   } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("createWorkspace detects serverless environment and writes to tmpdir", async () => {
+  process.env.VERCEL = "1";
+  const id = `test-serverless-${randomUUID()}`;
+  const ws = await createWorkspace(id);
+  try {
+    assert.ok(ws.root.includes(tmpdir()));
+    assert.ok(existsSync(ws.seedPath));
+  } finally {
+    delete process.env.VERCEL;
     await rm(ws.root, { recursive: true, force: true });
   }
 });

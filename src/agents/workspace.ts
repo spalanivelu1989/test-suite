@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 // Isolated per-run workspace (D3). Agents run with cwd = workspace.root, save
 // the Markdown plan under specs/, and write generated specs under tests/. The UI
@@ -34,7 +35,9 @@ export async function createWorkspace(
   runId: string,
   baseDir = ".runs",
 ): Promise<Workspace> {
-  const root = join(process.cwd(), baseDir, runId);
+  const isServerless = !!(process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.NETLIFY);
+  const base = isServerless ? join(tmpdir(), baseDir) : join(process.cwd(), baseDir);
+  const root = join(base, runId);
   const specsDir = join(root, "specs");
   const testsDir = join(root, "tests");
   await mkdir(specsDir, { recursive: true });
