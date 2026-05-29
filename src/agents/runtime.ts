@@ -68,18 +68,10 @@ export interface RunAgentResult {
   isError: boolean;
 }
 
-const DEFAULT_MCP = {
-  "playwright-test": {
-    type: "stdio" as const,
-    command: "npx",
-    args: ["playwright", "run-test-mcp-server", "--headless"],
-  },
-};
-
 /**
- * T4: run a single Playwright agent definition via the Agent SDK against the
- * playwright-test MCP, streaming progress. One agent per call (D2 — the
- * orchestrator chains planner→generator→healer sequentially).
+ * T4: run a single Playwright agent definition via the Agent SDK,
+ * streaming progress. One agent per call (D2 — the orchestrator chains
+ * planner→generator→healer sequentially).
  */
 export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   const queryFn = opts.queryFn ?? sdkQuery;
@@ -92,16 +84,16 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     options: {
       systemPrompt: opts.agent.systemPrompt,
       cwd: opts.cwd,
-      mcpServers: DEFAULT_MCP,
       allowedTools: opts.agent.tools,
       model: opts.agent.model,
-      // Agents make many MCP browser calls per test; 60 was too low (a real
+      // Agents make many browser calls per test; 60 was too low (a real
       // multi-flow run exhausted it mid-generation). 150 gives headroom.
       maxTurns: opts.maxTurns ?? 150,
       permissionMode: "bypassPermissions",
       abortController: opts.abortController,
     },
   });
+
 
   try {
     for await (const msg of iterator) {

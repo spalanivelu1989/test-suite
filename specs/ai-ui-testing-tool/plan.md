@@ -16,9 +16,8 @@ Keep the v0.1.0 **Next.js hybrid shell** (web UI + API + run store + SSE) but
 **replace the bespoke prompt pipeline with the Playwright Agents pattern**. A run
 executes four sequential stages: **Planner → Generator → Healer → Reporter**. The
 first three are the official Playwright agent definitions, run programmatically
-via **`@anthropic-ai/claude-agent-sdk`** `query()` against the
-**`playwright run-test-mcp-server`** MCP (live browser, `planner_save_plan`,
-`generator_write_test`, `test_run`/`test_debug`). The Reporter is ours: it
+via **`@anthropic-ai/claude-agent-sdk`** `query()` using terminal-based
+**`playwright-cli`** commands (live browser, file writes, test execution). The Reporter is ours: it
 computes the success rate + buckets deterministically and uses a Claude call to
 write fix prompts, issues, and recommendations. Each run gets an isolated
 workspace (`.runs/<id>/` with `seed.spec.ts`, the Markdown plan, and generated
@@ -105,8 +104,8 @@ ai-ui-testing-tool/
 
 ## Dependencies & integration points
 
-- **`@anthropic-ai/claude-agent-sdk`** — programmatic agent runner (stdio MCP, streaming).
-- **`playwright run-test-mcp-server`** (ships with Playwright) — the agent tool surface.
+- **`@anthropic-ai/claude-agent-sdk`** — programmatic agent runner (streaming).
+- **`@playwright/cli`** — the agent browser automation tool surface (requires running `npx playwright-cli install --skills` to install skills locally).
 - Official agent defs copied from `/Users/senthilpalanivelu/Downloads/test/.claude/agents`.
 - Reused v0.1.0: Next.js app, run store, SSE, validation, coverage calc, flake, Claude client.
 - Anthropic API key (DEP1), Playwright browsers (DEP2), tarento.com (DEP3), curated fixture (DEP4).
@@ -115,8 +114,8 @@ ai-ui-testing-tool/
 
 | ID  | Decision                                                                       | Rationale                                                                                      | Driven by     |
 | --- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | ------------- |
-| D1  | Adopt official Playwright Agents (copy defs + `.mcp.json` + seed)              | Faithful to the reference pattern the user requires                                            | C7, R12       |
-| D2  | Run agents via `@anthropic-ai/claude-agent-sdk` `query()`, 3 sequential calls  | SDK supports custom prompt + stdio MCP + streaming; sequential keeps planner→gen→heal context  | Q8, R12       |
+| D1  | Adopt official Playwright Agents (copy defs + seed)                              | Faithful to the reference pattern the user requires                                            | C7, R12       |
+| D2  | Run agents via `@anthropic-ai/claude-agent-sdk` `query()`, 3 sequential calls  | SDK supports custom prompt + streaming; sequential keeps planner→gen→heal context             | Q8, R12       |
 | D3  | Per-run workspace `.runs/<id>/` (gitignored)                                   | Agents need a real filesystem to read the plan + write specs; UI reads them back for code-view | R13, R14, R17 |
 | D4  | Reporter = deterministic metrics + Claude narrative (reuse `claude/client.ts`) | Success rate is math; fix prompts/recommendations need reasoning; no browser needed            | R16           |
 | D5  | Keep Next.js shell + run store + SSE + report endpoints; rebuild reporter rich | Q10 = replace pipeline, keep shell; minimizes thrown-away work                                 | Q10, R8       |
@@ -129,11 +128,11 @@ ai-ui-testing-tool/
 | ID  | Risk                                                                  | Likelihood | Impact | Mitigation                                                                           |
 | --- | --------------------------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------ |
 | RK1 | Agent + browser runs are slow/expensive (3 agent loops + MCP browser) | High       | Med    | Bound crawl/plan scope; document cost; reuse v1's small caps for tests/demo          |
-| RK2 | Agent SDK / MCP API drift vs. docs                                    | Med        | High   | Pin versions; T1/T3 smoke tests up front before building on them                     |
+| RK2 | Agent SDK / CLI API drift vs. docs                                    | Med        | High   | Pin versions; T1/T3 smoke tests up front before building on them                     |
 | RK3 | Long-running job hits Next route timeout                              | Med        | Med    | Background job + SSE (D8); never run in the request lifecycle                        |
 | RK4 | `test.fixme()` tests leak into "passed"                               | Med        | High   | D7 success-rate rule + a dedicated test (AC15)                                       |
-| RK5 | Brittle parsing of agent outputs (plan path, spec files, results)     | Med        | Med    | Read deterministically from the workspace; rely on MCP's known write tools/paths     |
-| RK6 | MCP server not installed/bootable in env                              | Low        | High   | T3 smoke test; clear setup error path; document `npx playwright run-test-mcp-server` |
+| RK5 | Brittle parsing of agent outputs (plan path, spec files, results)     | Med        | Med    | Read deterministically from the workspace; rely on standard file writes              |
+| RK6 | `playwright-cli` or skills not installed/bootable in env              | Low        | High   | Verify `@playwright/cli` package is installed and `npx playwright-cli install --skills` is run |
 
 ---
 

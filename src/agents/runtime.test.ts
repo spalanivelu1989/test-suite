@@ -5,7 +5,7 @@ import { type AgentEvent, parseAgentFile, runAgent } from "./runtime";
 const SAMPLE = `---
 name: playwright-test-planner
 description: Plans tests
-tools: Read, mcp__playwright-test__browser_navigate, mcp__playwright-test__planner_save_plan
+tools: Read, Bash, Write
 model: sonnet
 ---
 
@@ -17,8 +17,8 @@ test("parseAgentFile splits frontmatter and body", () => {
   assert.equal(def.model, "sonnet");
   assert.deepEqual(def.tools, [
     "Read",
-    "mcp__playwright-test__browser_navigate",
-    "mcp__playwright-test__planner_save_plan",
+    "Bash",
+    "Write",
   ]);
   assert.match(def.systemPrompt, /You are a planner/);
 });
@@ -45,8 +45,8 @@ test("runAgent streams events, collects tool calls and result", async () => {
       message: {
         content: [
           { type: "text", text: "exploring" },
-          { type: "tool_use", name: "mcp__playwright-test__browser_navigate" },
-          { type: "tool_use", name: "mcp__playwright-test__planner_save_plan" },
+          { type: "tool_use", name: "Bash" },
+          { type: "tool_use", name: "Write" },
         ],
       },
     },
@@ -64,8 +64,8 @@ test("runAgent streams events, collects tool calls and result", async () => {
   assert.equal(out.isError, false);
   assert.equal(out.resultText, "plan saved");
   assert.deepEqual(out.toolCalls, [
-    "mcp__playwright-test__browser_navigate",
-    "mcp__playwright-test__planner_save_plan",
+    "Bash",
+    "Write",
   ]);
   assert.ok(events.some((e) => e.kind === "tool"));
   assert.ok(events.some((e) => e.kind === "result" && !e.isError));
@@ -83,7 +83,7 @@ test("runAgent survives a thrown iterator (maxTurns), preserving partial work", 
           content: [
             {
               type: "tool_use",
-              name: "mcp__playwright-test__generator_write_test",
+              name: "Write",
             },
           ],
         },
@@ -106,7 +106,7 @@ test("runAgent survives a thrown iterator (maxTurns), preserving partial work", 
   assert.equal(out.isError, true);
   assert.match(out.resultText, /maximum number of turns/);
   assert.deepEqual(out.toolCalls, [
-    "mcp__playwright-test__generator_write_test",
+    "Write",
   ]);
   assert.ok(events.some((e) => e.kind === "result" && e.isError));
 });

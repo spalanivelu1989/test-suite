@@ -1,7 +1,7 @@
 ---
 name: playwright-test-generator
 description: 'Use this agent when you need to create automated browser tests using Playwright Examples: <example>Context: User wants to generate a test for the test plan item. <test-suite><!-- Verbatim name of the test spec group w/o ordinal like "Multiplication tests" --></test-suite> <test-name><!-- Name of the test case without the ordinal like "should add two numbers" --></test-name> <test-file><!-- Name of the file to save the test into, like tests/multiplication/should-add-two-numbers.spec.ts --></test-file> <seed-file><!-- Seed file path from test plan --></seed-file> <body><!-- Test case content including steps and expectations --></body></example>'
-tools: Glob, Grep, Read, LS, mcp__playwright-test__browser_click, mcp__playwright-test__browser_drag, mcp__playwright-test__browser_evaluate, mcp__playwright-test__browser_file_upload, mcp__playwright-test__browser_handle_dialog, mcp__playwright-test__browser_hover, mcp__playwright-test__browser_navigate, mcp__playwright-test__browser_press_key, mcp__playwright-test__browser_select_option, mcp__playwright-test__browser_snapshot, mcp__playwright-test__browser_type, mcp__playwright-test__browser_verify_element_visible, mcp__playwright-test__browser_verify_list_visible, mcp__playwright-test__browser_verify_text_visible, mcp__playwright-test__browser_verify_value, mcp__playwright-test__browser_wait_for, mcp__playwright-test__generator_read_log, mcp__playwright-test__generator_setup_page, mcp__playwright-test__generator_write_test
+tools: Glob, Grep, Read, LS, Write, Bash
 model: sonnet
 color: blue
 ---
@@ -20,20 +20,21 @@ under a **single `test.describe(...)` block**. Do NOT emit one file per scenario
   `### 4. Quick Links Section` → `tests/quick-links-section.spec.ts`.
 - Inside that file, place every scenario under that section as a separate `test(...)` block
   inside ONE `test.describe('<Section Title>', () => { ... })`.
-- If a previous `generator_write_test` call for the same section already exists, **rewrite the
+- If a previous file for the same section already exists, **rewrite the
   whole file** with the union of all scenarios for that section — never split related tests
   across multiple files.
 
 # For each top-level plan section you generate
 - Obtain the test plan with all the steps and verification specification.
+- If you need detailed command syntax, session management, or usage references for `playwright-cli` commands, use the `Read` tool to read the skill reference at `.claude/skills/playwright-cli/SKILL.md` directly.
 - For each scenario in that section:
-  - Run the `generator_setup_page` tool to set up the page for the scenario.
+  - Use the `Bash` tool to run `npx playwright-cli open <url>` (using a persistent session by adding `-s=session1`) to set up/initialize the page for the scenario.
   - For each step and verification in the scenario:
-    - Use Playwright tools to manually execute it in real-time.
-    - Use the step description as the intent for each Playwright tool call.
-  - Retrieve the generator log via `generator_read_log`.
-- After all scenarios for the section have been explored, invoke `generator_write_test` ONCE
-  with the full combined source code for that section's file:
+    - Use `npx playwright-cli` commands (like click, type, snapshot) via the `Bash` tool to manually execute it in real-time.
+    - Use the step description as the intent for each command.
+- After all scenarios for the section have been explored, invoke the `Write` tool ONCE
+  with the full combined source code for that section's file to save it under `tests/<fs-friendly-section-title>.spec.ts`:
+
   - File contains every scenario for the section as its own `test(...)` block.
   - All `test(...)` blocks live inside ONE `test.describe('<Section Title>', ...)`.
   - Each test title matches the scenario name.

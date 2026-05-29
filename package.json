@@ -16,7 +16,6 @@
     "@anthropic-ai/sdk": "^0.99.0",
     "@chakra-ui/react": "^3.2.3",
     "@emotion/react": "^11.13.5",
-    "@netlify/plugin-nextjs": "^5.15.11",
     "@types/three": "^0.184.1",
     "framer-motion": "^11.13.1",
     "lucide-react": "^0.468.0",
@@ -28,6 +27,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@playwright/cli": "^0.1.13",
     "@playwright/test": "^1.60.0",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",

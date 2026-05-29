@@ -104,9 +104,9 @@ export async function planTests(
 
   const prompt = [
     `Create a comprehensive Playwright test plan for the web application at ${url}.`,
-    "Call planner_setup_page first, then explore the app and identify the primary",
+    "Open the browser with playwright-cli first, then explore the app and identify the primary",
     "user flows (navigation, key content pages, forms, search). Save the finished",
-    "plan as a Markdown file under the specs/ directory using planner_save_plan.",
+    "plan as a Markdown file directly under the specs/ directory (e.g. specs/plan.md) using the Write tool.",
     ...constraintLines,
   ].join(" ");
 
@@ -210,8 +210,8 @@ export async function generateTests(
     "Group tests by narrative: produce ONE spec file per top-level plan section",
     "(### N. <Section Title>), with every scenario in that section as a separate test()",
     "inside a single test.describe('<Section Title>', ...) block.",
-    "For each scenario, call generator_setup_page and execute its steps with the browser tools.",
-    "After all scenarios for a section have been explored, call generator_write_test ONCE to save",
+    "For each scenario, open the page using playwright-cli and execute its steps using the CLI commands via Bash.",
+    "After all scenarios for a section have been explored, use the Write tool ONCE to save",
     "the combined file as tests/<fs-friendly-section-title>.spec.ts (e.g. 'Quick Links Section'",
     "→ tests/quick-links-section.spec.ts). Use seed.spec.ts as the seed.",
     "Do NOT emit one file per scenario.",
@@ -246,9 +246,9 @@ export async function healTests(
   const agent = await load("playwright-test-healer");
 
   const prompt = [
-    "Run the generated test suite with test_run. For each failing test, debug it with",
-    "test_debug, fix the spec (resilient locators, corrected assertions) and re-run until",
-    "it passes. If a test cannot be fixed and you are confident it is a genuine failure,",
+    "Run the generated test suite by executing npx playwright test via Bash. For each failing test, debug it by",
+    "running it specifically or inspecting the page using playwright-cli, fix the spec (resilient locators, corrected assertions)",
+    "using Edit/Write tools, and re-run until it passes. If a test cannot be fixed and you are confident it is a genuine failure,",
     "mark it test.fixme() with a comment explaining what is happening. Do not ask questions.",
   ].join(" ");
 

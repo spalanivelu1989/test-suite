@@ -30,11 +30,11 @@ test("planTests returns the saved plan markdown on success", async () => {
       );
       opts.onEvent?.({
         kind: "tool",
-        tool: "mcp__playwright-test__planner_save_plan",
+        tool: "Write",
       });
       return {
         resultText: "saved",
-        toolCalls: ["planner_save_plan"],
+        toolCalls: ["Write"],
         isError: false,
       };
     };
@@ -84,11 +84,11 @@ test("generateTests reads back one spec per scenario the agent wrote", async () 
       );
       opts.onEvent?.({
         kind: "tool",
-        tool: "mcp__playwright-test__generator_write_test",
+        tool: "Write",
       });
       return {
         resultText: "done",
-        toolCalls: ["generator_write_test"],
+        toolCalls: ["Write"],
         isError: false,
       };
     };
@@ -154,10 +154,10 @@ test("healTests runs the healer agent and reports tool usage", async () => {
         "import {test} from '@playwright/test';\n// could not heal\ntest.fixme('broken', async () => {});",
         "utf8",
       );
-      opts.onEvent?.({ kind: "tool", tool: "mcp__playwright-test__test_run" });
+      opts.onEvent?.({ kind: "tool", tool: "Bash" });
       return {
         resultText: "healed",
-        toolCalls: ["test_run", "test_debug"],
+        toolCalls: ["Bash"],
         isError: false,
       };
     };
@@ -166,7 +166,7 @@ test("healTests runs the healer agent and reports tool usage", async () => {
       loadAgentFn: async () => fakeAgent,
     });
     assert.equal(res.isError, false);
-    assert.ok(res.toolCalls.includes("test_run"));
+    assert.ok(res.toolCalls.includes("Bash"));
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
@@ -181,7 +181,7 @@ test("planTests injects direct-mode constraint (no other pages)", async () => {
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
       capturedPrompt = opts.prompt;
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
-      return { resultText: "saved", toolCalls: ["planner_save_plan"], isError: false };
+      return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
     await planTests(ws, "https://example.com", undefined, {
       runner, loadAgentFn: async () => fakeAgent,
@@ -202,7 +202,7 @@ test("planTests injects standard-mode depth-1 constraint", async () => {
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
       capturedPrompt = opts.prompt;
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
-      return { resultText: "saved", toolCalls: ["planner_save_plan"], isError: false };
+      return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
     await planTests(ws, "https://example.com", undefined, {
       runner, loadAgentFn: async () => fakeAgent,
@@ -223,7 +223,7 @@ test("planTests injects deep-mode constraint with correct depth and page cap", a
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
       capturedPrompt = opts.prompt;
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
-      return { resultText: "saved", toolCalls: ["planner_save_plan"], isError: false };
+      return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
     await planTests(ws, "https://example.com", undefined, {
       runner, loadAgentFn: async () => fakeAgent,

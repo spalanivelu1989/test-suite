@@ -90,7 +90,7 @@ The reasoning engine (Claude), browser engine (Playwright), reference app
 | C4  | Report must be available human-readable (Markdown + HTML) and machine-readable (JSON).                                                                                                                                                            |
 | C5  | Delivered as a **hybrid**: agents do the work; a Next.js web app triggers runs and renders the report.                                                                                                                                            |
 | C6  | Must respect `CONSTITUTION.md`: Spec-as-contract, ship-only-when-verified, simplicity, determinism over flakiness.                                                                                                                                |
-| C7  | Adopt the **Playwright Agents** architecture: planner/generator/healer/reporter agents using the `playwright run-test-mcp-server` MCP for live-browser actions (ref: the agent defs in `/Users/senthilpalanivelu/Downloads/test/.claude/agents`). |
+| C7  | Adopt the **Playwright Agents** architecture: planner/generator/healer/reporter agents using `playwright-cli` (npx playwright-cli) for browser actions (ref: the agent defs in `/Users/senthilpalanivelu/Downloads/test/.claude/agents`). |
 
 ## Dependencies
 
@@ -100,7 +100,7 @@ The reasoning engine (Claude), browser engine (Playwright), reference app
 | DEP2 | Playwright runtime + browser binaries                                                                       | Technical  | Team  | Done (v1)                              |
 | DEP3 | Reference app = **tarento.com** (public, no login)                                                          | External   | User  | Confirmed                              |
 | DEP4 | Curated list of "primary flows" for tarento.com (M1 denominator)                                            | Sequencing | Team  | Done (fixture; reconcile w/ live site) |
-| DEP5 | `playwright run-test-mcp-server` MCP server + its tool surface                                              | Technical  | Team  | Open                                   |
+| DEP5 | `@playwright/cli` package + agent skills installed via `npx playwright-cli install --skills`                 | Technical  | Team  | Done                                   |
 | DEP6 | Agent invocation runtime (Agent SDK / Claude Code subagents vs. in-app orchestration) — decided in Assemble | Technical  | Team  | Open                                   |
 
 ## Success metrics
