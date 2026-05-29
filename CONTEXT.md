@@ -13,11 +13,13 @@ the manual effort of writing and maintaining brittle UI test scripts.
 
 ## Key terms
 
-| Term    | Definition                                                                                      |
-| ------- | ----------------------------------------------------------------------------------------------- |
-| UI test | An automated check that drives a front-end interface and asserts on its behavior or appearance. |
-| Flake   | A test that passes and fails non-deterministically without code changes.                        |
-| Run     | A single execution of one or more UI tests producing pass/fail results.                         |
+| Term          | Definition                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI test       | An automated check that drives a front-end interface and asserts on its behavior or appearance.                                                                                                                                                                                                                                                                                                                      |
+| Flake         | A test that passes and fails non-deterministically without code changes.                                                                                                                                                                                                                                                                                                                                             |
+| Run           | A single execution of one or more UI tests producing pass/fail results.                                                                                                                                                                                                                                                                                                                                              |
+| Run Manager   | The single module that owns a run's whole life: start, cancel, remove, look-up, and list. It coordinates the in-memory record, the per-run stop-buttons (abort controllers), and disk persistence behind one small interface, guaranteeing the three stay in sync. Callers never touch those records directly.                                                                                                       |
+| Run Workspace | The module that owns a run's on-disk contract: the per-run directory layout, the filenames we read/write ourselves (results.json, plan.md), and running the generated Playwright suite. Filenames are defined once; callers get behavioral operations (writePlan, readPlan, readSpecs, runSuite) instead of hardcoded paths. Distinct from the Run Manager, which owns run _status_; the Workspace owns run _files_. |
 
 ## Stakeholders / users
 
@@ -31,9 +33,12 @@ scripting.
 
 <!-- Anything a new team member would need to know to not make wrong assumptions. -->
 
-- Project is greenfield — no existing code as of 2026-05-27.
-- Scope, tech stack, and target front-end frameworks are not yet defined; these
-  will be settled in Clarify and Record.
+- Shipped v0.1.0, then re-architected to v0.2.0: a four-agent pipeline
+  (Planner → Generator → Healer → Reporter) driven by the Claude Agent SDK +
+  Playwright, fronted by a Next.js app that triggers runs and renders a rich
+  report. (CONTEXT was last greenfield on 2026-05-27; updated 2026-05-29.)
+- Stack: Next.js + React 19 + TypeScript, Chakra UI; in-memory run store
+  (no DB) with best-effort disk persistence under `.runs/`.
 
 ---
 

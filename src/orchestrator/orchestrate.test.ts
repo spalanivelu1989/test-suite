@@ -89,9 +89,9 @@ test("runPipeline runs the four stages in order and builds a rich report", async
         curatedFlows: [{ id: "home", name: "Home" }],
         emit: (e: Omit<ProgressEvent, "at">) => events.push(e.stage),
         stageDeps,
-        suiteExec: exec,
         reruns: 2,
-        makeWorkspace: async () => ws,
+        // The workspace now owns running the suite; override it with the fake.
+        makeWorkspace: async () => ({ ...ws, runSuite: exec }),
       },
     );
 
@@ -150,8 +150,10 @@ test("runPipeline throws when the planner produces no plan", async () => {
           claude: narrativeClient(),
           curatedFlows: [],
           stageDeps,
-          suiteExec: async () => ({ suites: [] }),
-          makeWorkspace: async () => ws,
+          makeWorkspace: async () => ({
+            ...ws,
+            runSuite: async () => ({ suites: [] }),
+          }),
         },
       ),
     );

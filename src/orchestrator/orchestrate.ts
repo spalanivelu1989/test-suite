@@ -11,7 +11,6 @@ import {
   assessSuiteFlakiness,
   captureResults,
   reconcileHealing,
-  type SuiteExecutor,
 } from "../results/parse";
 import { buildReport } from "../reporter/report";
 import { generateNarrative } from "../reporter/narrative";
@@ -25,8 +24,6 @@ export interface OrchestratorDeps {
   emit?: (event: Omit<ProgressEvent, "at">) => void;
   /** Injected stage runner/agent loader (tests stub these). */
   stageDeps?: StageDeps;
-  /** Injected suite executor for results/flake (tests stub this). */
-  suiteExec?: SuiteExecutor;
   reruns?: number;
   /** Override workspace creation in tests. */
   makeWorkspace?: (runId: string) => Promise<Workspace>;
@@ -58,15 +55,18 @@ export async function runPipeline(
     message: string,
     data?: Record<string, unknown>,
   ) => deps.emit?.({ stage, message, data });
-  const onAgent = (stage: ProgressEvent["stage"], label: string) => (e: { kind: string; tool?: string; text?: string }) => {
-    if (e.kind === "tool" && e.tool) {
-      emit(stage, `[${label}] tool: ${e.tool}`);
-    } else if (e.kind === "text" && e.text) {
-      // Truncate long text to keep the log readable (first 200 chars).
-      const snippet = e.text.length > 200 ? e.text.slice(0, 200) + "…" : e.text;
-      emit(stage, `[${label}] ${snippet}`);
-    }
-  };
+  const onAgent =
+    (stage: ProgressEvent["stage"], label: string) =>
+    (e: { kind: string; tool?: string; text?: string }) => {
+      if (e.kind === "tool" && e.tool) {
+        emit(stage, `[${label}] tool: ${e.tool}`);
+      } else if (e.kind === "text" && e.text) {
+        // Truncate long text to keep the log readable (first 200 chars).
+        const snippet =
+          e.text.length > 200 ? e.text.slice(0, 200) + "…" : e.text;
+        emit(stage, `[${label}] ${snippet}`);
+      }
+    };
 
   // Abort early at every checkpoint so a stopped run doesn't start more work.
   const checkCancelled = () => {
@@ -74,7 +74,6 @@ export async function runPipeline(
   };
 
   const ws = await (deps.makeWorkspace ?? createWorkspace)(runId);
-  const exec = deps.suiteExec;
   const stageDeps: StageDeps = {
     ...deps.stageDeps,
     abortController: deps.abortController,
@@ -105,7 +104,10 @@ export async function runPipeline(
     { crawlMode: config.crawlMode, maxPages: config.maxPages },
   );
   if (gen.trimmedCount > 0) {
-    emit("generating", `Plan trimmed: ${gen.trimmedCount} scenario(s) removed to stay within budget`);
+    emit(
+      "generating",
+      `Plan trimmed: ${gen.trimmedCount} scenario(s) removed to stay within budget`,
+    );
   }
   agentRuns++;
   checkCancelled();
@@ -113,7 +115,7 @@ export async function runPipeline(
 
   // 3. Initial run (pre-heal), then Healer, then re-run for flake + heal reconciliation
   emit("running", "Running generated tests");
-  const initial = await captureResults(ws, exec);
+  const initial = await captureResults(ws);
   checkCancelled();
 
   emit("healing", "Healer: repairing failures and quarantining the unfixable");
@@ -122,7 +124,7 @@ export async function runPipeline(
   checkCancelled();
 
   emit("flake-check", "Re-running to check reliability");
-  const flake = await assessSuiteFlakiness(ws, deps.reruns ?? 3, exec);
+  const flake = await assessSuiteFlakiness(ws, deps.reruns ?? 3);
   checkCancelled();
   const { results, healSuccessRate } = reconcileHealing(initial, flake.results);
 

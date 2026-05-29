@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRunStore } from "@/src/runStore/store";
-import { cancelRun } from "@/src/orchestrator/runService";
+import { getRunManager } from "@/src/runManager/manager";
 
 export const runtime = "nodejs";
 
@@ -10,12 +9,13 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const run = getRunStore().get(id);
+  const manager = getRunManager();
+  const run = await manager.get(id);
   if (!run) {
     return NextResponse.json({ error: "run not found" }, { status: 404 });
   }
 
-  const cancelled = cancelRun(id);
+  const cancelled = manager.cancel(id);
   if (!cancelled) {
     // Already finished — nothing to stop. Report the terminal status so the UI
     // can reconcile instead of treating it as an error.

@@ -54,17 +54,16 @@ test("parsePlaywrightResults maps passed/failed and detects fixme", () => {
   assert.equal(byFlow["Search"], "fixme");
 });
 
-test("captureResults runs the suite via the injected executor", async () => {
-  const results = await captureResults(
-    {
-      root: "/tmp/x",
-      specsDir: "",
-      testsDir: "",
-      seedPath: "",
-      configPath: "",
-    },
-    async () => report,
-  );
+test("captureResults runs the suite via the workspace", async () => {
+  const results = await captureResults({
+    root: "/tmp/x",
+    specsDir: "",
+    testsDir: "",
+    seedPath: "",
+    configPath: "",
+    runSuite: async () => report,
+    writePlan: async () => {},
+  });
   assert.equal(results.length, 3);
 });
 
@@ -87,14 +86,7 @@ test("reconcileHealing marks failed→passed as healed and computes M3", () => {
 
 test("assessSuiteFlakiness flags a test whose result diverges across re-runs", async () => {
   let call = 0;
-  const ws = {
-    root: "/tmp/x",
-    specsDir: "",
-    testsDir: "",
-    seedPath: "",
-    configPath: "",
-  };
-  const exec = async (): Promise<PlaywrightJsonReport> => {
+  const runSuite = async (): Promise<PlaywrightJsonReport> => {
     call += 1;
     return {
       suites: [
@@ -119,7 +111,16 @@ test("assessSuiteFlakiness flags a test whose result diverges across re-runs", a
       ],
     };
   };
-  const { results, flakeRate } = await assessSuiteFlakiness(ws, 3, exec);
+  const ws = {
+    root: "/tmp/x",
+    specsDir: "",
+    testsDir: "",
+    seedPath: "",
+    configPath: "",
+    runSuite,
+    writePlan: async () => {},
+  };
+  const { results, flakeRate } = await assessSuiteFlakiness(ws, 3);
   assert.equal(call, 3);
   assert.equal(results.find((r) => r.flowId === "Home")?.outcome, "flaky");
   assert.equal(flakeRate, 0.5);

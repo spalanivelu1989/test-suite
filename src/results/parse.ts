@@ -1,6 +1,3 @@
-import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { Workspace } from "../agents/workspace";
 import { detectFlakes } from "../flake/flake";
 import type { TestResult } from "../types";
@@ -77,36 +74,9 @@ export function parsePlaywrightResults(
   });
 }
 
-export type SuiteExecutor = (ws: Workspace) => Promise<PlaywrightJsonReport>;
-
-async function defaultExecutor(ws: Workspace): Promise<PlaywrightJsonReport> {
-  await new Promise<void>((resolve) => {
-    // No --reporter flag: the CLI flag overrides the config's reporter and the
-    // built-in json reporter then writes to stdout, not a file. The workspace
-    // config already declares `['json', { outputFile: 'results.json' }]`, so
-    // letting it apply is what actually produces results.json on disk.
-    const child = spawn("npx", ["playwright", "test"], {
-      cwd: ws.root,
-      env: { ...process.env },
-    });
-    child.stdout.on("data", () => {});
-    child.stderr.on("data", () => {});
-    child.on("close", () => resolve());
-  });
-  try {
-    const raw = await readFile(join(ws.root, "results.json"), "utf8");
-    return JSON.parse(raw) as PlaywrightJsonReport;
-  } catch {
-    return { suites: [] };
-  }
-}
-
 /** Run the healed suite in the workspace and parse results (T9). */
-export async function captureResults(
-  ws: Workspace,
-  exec: SuiteExecutor = defaultExecutor,
-): Promise<TestResult[]> {
-  const report = await exec(ws);
+export async function captureResults(ws: Workspace): Promise<TestResult[]> {
+  const report = await ws.runSuite();
   return parsePlaywrightResults(report);
 }
 
@@ -141,11 +111,10 @@ export function reconcileHealing(
 export async function assessSuiteFlakiness(
   ws: Workspace,
   reruns = 3,
-  exec: SuiteExecutor = defaultExecutor,
 ): Promise<{ results: TestResult[]; flakeRate: number }> {
   const runs: TestResult[][] = [];
   for (let i = 0; i < Math.max(1, reruns); i++) {
-    runs.push(await captureResults(ws, exec));
+    runs.push(await captureResults(ws));
   }
   return detectFlakes(runs);
 }

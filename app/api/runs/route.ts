@@ -1,29 +1,17 @@
 import { NextResponse } from "next/server";
 import { parseRunRequest } from "@/src/api/validation";
-import { startRun } from "@/src/orchestrator/runService";
-import { getRunStore } from "@/src/runStore/store";
-import { listPersistedRuns } from "@/src/agents/workspace";
-import type { Run } from "@/src/types";
+import { getRunManager } from "@/src/runManager/manager";
 
 // Crawl + Playwright + Claude must run in the Node.js runtime (not edge).
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/runs — list runs from the in-memory store merged with anything
- * persisted under .runs/ (so previous runs survive server restarts). In-memory
- * entries win on conflict because they hold the freshest state.
+ * GET /api/runs — list runs (in-memory + disk-persisted, merged by the Run
+ * Manager so previous runs survive server restarts and live state stays freshest).
  */
 export async function GET() {
-  const store = getRunStore();
-  const liveRuns = store.list();
-  const persistedRuns = await listPersistedRuns();
-
-  const byId = new Map<string, Run>();
-  for (const r of persistedRuns) byId.set(r.id, r);
-  for (const r of liveRuns) byId.set(r.id, r); // overwrite stale disk copy
-
-  const runs = [...byId.values()]
+  const runs = (await getRunManager().list())
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     .map((run) => ({
       id: run.id,
@@ -60,7 +48,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const runId = startRun(parsed.config);
+  const runId = getRunManager().start(parsed.config);
   return NextResponse.json({ runId }, { status: 202 });
 }
-

@@ -1,7 +1,6 @@
 import { reportToJson } from "@/src/reporter/report";
 import { renderHtml, renderMarkdown } from "@/src/reporter/render";
-import { getRunStore } from "@/src/runStore/store";
-import { listPersistedRuns } from "@/src/agents/workspace";
+import { getRunManager } from "@/src/runManager/manager";
 
 export const runtime = "nodejs";
 
@@ -11,12 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  let run = getRunStore().get(id);
-  if (!run) {
-    // Fall back to disk so previously-persisted runs survive server restart.
-    const persisted = await listPersistedRuns();
-    run = persisted.find((r) => r.id === id);
-  }
+  // get() checks memory then disk, so reports survive a server restart.
+  const run = await getRunManager().get(id);
   if (!run) return new Response("run not found", { status: 404 });
   if (!run.report) {
     return new Response("report not ready", { status: 409 });

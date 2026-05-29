@@ -1,4 +1,4 @@
-import { getRunStore } from "@/src/runStore/store";
+import { getRunManager } from "@/src/runManager/manager";
 
 export const runtime = "nodejs";
 
@@ -18,8 +18,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const store = getRunStore();
-  if (!store.get(id)) {
+  const manager = getRunManager();
+  // peek() is the in-memory-only, synchronous view — right for the tight poll
+  // loop below, which only ever streams a still-live (in-memory) run.
+  if (!manager.peek(id)) {
     return new Response("run not found", { status: 404 });
   }
 
@@ -44,7 +46,7 @@ export async function GET(
       let lastWrite = Date.now();
 
       const tick = () => {
-        const run = store.get(id);
+        const run = manager.peek(id);
         if (!run) {
           controller.close();
           clearInterval(timer);

@@ -46,6 +46,18 @@ test("readPlan and readGeneratedSpecs read back what agents write", async () => 
   }
 });
 
+test("writePlan saves a plan that readPlan reads back", async () => {
+  const id = `test-${randomUUID()}`;
+  const ws = await createWorkspace(id);
+  try {
+    await ws.writePlan("# Trimmed Plan\n\n#### 1.1 Home");
+    const plan = await readPlan(ws);
+    assert.match(plan ?? "", /# Trimmed Plan/);
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
 test("readPlan returns null when no plan was saved", async () => {
   const id = `test-${randomUUID()}`;
   const ws = await createWorkspace(id);

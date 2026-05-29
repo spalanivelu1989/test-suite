@@ -39,7 +39,11 @@ export interface PlanOptions {
  * planner prompt.  Each mode gets an unambiguous, concrete directive so the LLM
  * cannot "interpret" it loosely.
  */
-function buildPlannerConstraints(crawlMode: CrawlMode, maxPages: number, url: string): string[] {
+function buildPlannerConstraints(
+  crawlMode: CrawlMode,
+  maxPages: number,
+  url: string,
+): string[] {
   const depth = CRAWL_MODE_DEPTH[crawlMode];
   const scenariosPerPage = CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode];
   const maxScenarios = maxPages * scenariosPerPage;
@@ -110,7 +114,13 @@ export async function planTests(
     ...constraintLines,
   ].join(" ");
 
-  const res = await run({ agent, prompt, cwd: ws.root, onEvent, abortController: deps.abortController });
+  const res = await run({
+    agent,
+    prompt,
+    cwd: ws.root,
+    onEvent,
+    abortController: deps.abortController,
+  });
   const planMarkdown = await readPlan(ws);
   return {
     planMarkdown,
@@ -196,9 +206,7 @@ export async function generateTests(
         text: `⚠️  Plan trimmed: ${removed} scenario(s) removed (budget: ${maxScenarios} max for ${crawlMode} mode with ${maxPages} pages).`,
       });
       // Write the trimmed plan back so the generator reads it from the workspace.
-      const { writeFile } = await import("node:fs/promises");
-      const { join } = await import("node:path");
-      await writeFile(join(ws.specsDir, "plan.md"), trimmed, "utf8");
+      await ws.writePlan(trimmed);
     }
   }
 
@@ -217,7 +225,14 @@ export async function generateTests(
     "Do NOT emit one file per scenario.",
   ].join(" ");
 
-  const res = await run({ agent, prompt, cwd: ws.root, onEvent, abortController: deps.abortController, maxTurns });
+  const res = await run({
+    agent,
+    prompt,
+    cwd: ws.root,
+    onEvent,
+    abortController: deps.abortController,
+    maxTurns,
+  });
   const specs = await readGeneratedSpecs(ws);
   return {
     specs,
@@ -252,6 +267,12 @@ export async function healTests(
     "mark it test.fixme() with a comment explaining what is happening. Do not ask questions.",
   ].join(" ");
 
-  const res = await run({ agent, prompt, cwd: ws.root, onEvent, abortController: deps.abortController });
+  const res = await run({
+    agent,
+    prompt,
+    cwd: ws.root,
+    onEvent,
+    abortController: deps.abortController,
+  });
   return { toolCalls: res.toolCalls, isError: res.isError };
 }

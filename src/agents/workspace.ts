@@ -1,15 +1,23 @@
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Run } from "../types";
+import { getRunsRoot } from "../runManager/persistence";
+import type { PlaywrightJsonReport } from "../results/parse";
 
-// Isolated per-run workspace (D3). Agents run with cwd = workspace.root, save
-// the Markdown plan under specs/, and write generated specs under tests/. The UI
-// reads the plan + specs back from here for the code-view tab (R17).
+// Isolated per-run workspace (D3). This module owns a run's on-disk contract:
+// the directory layout, the filenames we read/write ourselves, and running the
+// generated suite. Agents run with cwd = workspace.root and write the plan/specs
+// out-of-process via their own tools, so the directory paths stay on the
+// interface; but the filenames *we* depend on (results.json, plan.md) and the
+// suite launch live here once, behind behavioral operations — callers never
+// hardcode a path or import node:fs to talk to the workspace.
+//
+// Run-state persistence (run.json) lives in runManager/persistence.ts, not here.
 
-/** Absolute path to the runs-root directory. Shared by createWorkspace + persistence. */
-export function getRunsRoot(baseDir = ".runs"): string {
-  return join(process.cwd(), baseDir);
-}
+/** The Playwright JSON reporter's output file — written by CONFIG, read by runSuite. */
+const RESULTS_FILE = "results.json";
+/** The Markdown plan filename the Generator reads (the Planner saves a plan here). */
+const PLAN_FILE = "plan.md";
 
 export interface Workspace {
   root: string;
@@ -17,6 +25,10 @@ export interface Workspace {
   testsDir: string;
   seedPath: string;
   configPath: string;
+  /** Run the generated suite in this workspace and return Playwright's raw JSON report. */
+  runSuite(): Promise<PlaywrightJsonReport>;
+  /** Write (or overwrite) the Markdown plan the Generator will read. */
+  writePlan(markdown: string): Promise<void>;
 }
 
 const SEED = `import { test, expect } from '@playwright/test';
@@ -31,10 +43,35 @@ test.describe('Test group', () => {
 const CONFIG = `import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
-  reporter: [['json', { outputFile: 'results.json' }], ['line']],
+  reporter: [['json', { outputFile: '${RESULTS_FILE}' }], ['line']],
   use: { headless: true, ...devices['Desktop Chrome'] },
 });
 `;
+
+/**
+ * Run `npx playwright test` in the workspace and parse the JSON report it writes.
+ * No `--reporter` flag: the CLI flag would override the config's reporter and the
+ * built-in json reporter would then write to stdout, not a file. The workspace
+ * config already declares `['json', { outputFile: '${RESULTS_FILE}' }]`, so
+ * letting it apply is what actually produces the results file on disk.
+ */
+async function runSuiteAt(root: string): Promise<PlaywrightJsonReport> {
+  await new Promise<void>((resolve) => {
+    const child = spawn("npx", ["playwright", "test"], {
+      cwd: root,
+      env: { ...process.env },
+    });
+    child.stdout.on("data", () => {});
+    child.stderr.on("data", () => {});
+    child.on("close", () => resolve());
+  });
+  try {
+    const raw = await readFile(join(root, RESULTS_FILE), "utf8");
+    return JSON.parse(raw) as PlaywrightJsonReport;
+  } catch {
+    return { suites: [] };
+  }
+}
 
 export async function createWorkspace(
   runId: string,
@@ -49,7 +86,16 @@ export async function createWorkspace(
   const configPath = join(root, "playwright.config.ts");
   await writeFile(seedPath, SEED, "utf8");
   await writeFile(configPath, CONFIG, "utf8");
-  return { root, specsDir, testsDir, seedPath, configPath };
+  return {
+    root,
+    specsDir,
+    testsDir,
+    seedPath,
+    configPath,
+    runSuite: () => runSuiteAt(root),
+    writePlan: (markdown: string) =>
+      writeFile(join(specsDir, PLAN_FILE), markdown, "utf8"),
+  };
 }
 
 /** Read the Markdown test plan the Planner saved (first .md under specs/). */
@@ -62,125 +108,6 @@ export async function readPlan(ws: Workspace): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-/**
- * Persist a Run's state to disk so the Instances list can show it after server
- * restart. Writes `.runs/{id}/run.json` (or the serverless equivalent). Failures
- * are logged but never thrown — persistence is best-effort.
- */
-export async function persistRun(run: Run, baseDir = ".runs"): Promise<void> {
-  const runDir = join(getRunsRoot(baseDir), run.id);
-  try {
-    await mkdir(runDir, { recursive: true });
-    await writeFile(
-      join(runDir, "run.json"),
-      JSON.stringify(run, null, 2),
-      "utf8",
-    );
-  } catch (err) {
-    console.error(`Failed to persist run ${run.id}:`, err);
-  }
-}
-
-/**
- * Scan the runs-root for previously-recorded runs. Reads run.json when present;
- * for legacy folders without metadata, synthesises a minimal Run by inspecting
- * the workspace contents (results.json → completed, otherwise pending) and
- * pulling the URL from the saved plan if possible.
- */
-export async function listPersistedRuns(baseDir = ".runs"): Promise<Run[]> {
-  const root = getRunsRoot(baseDir);
-  let entries: import("node:fs").Dirent[];
-  try {
-    entries = await readdir(root, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  const out: Run[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const runDir = join(root, entry.name);
-    const run = await loadOrInferRun(runDir, entry.name);
-    if (run) out.push(run);
-  }
-  return out;
-}
-
-async function loadOrInferRun(
-  runDir: string,
-  id: string,
-): Promise<Run | null> {
-  // Preferred: read the run.json metadata we wrote during the run.
-  try {
-    const raw = await readFile(join(runDir, "run.json"), "utf8");
-    return JSON.parse(raw) as Run;
-  } catch {
-    // Fall through to inference for legacy folders.
-  }
-
-  // Skip directories that don't look like a run workspace at all.
-  let dirStat: import("node:fs").Stats;
-  try {
-    dirStat = await stat(runDir);
-  } catch {
-    return null;
-  }
-
-  const hasResults = await fileExists(join(runDir, "results.json"));
-  const url = (await inferRunUrl(runDir)) ?? "(unknown)";
-  const createdAt = dirStat.birthtime?.toISOString?.() ??
-    dirStat.mtime.toISOString();
-  const updatedAt = dirStat.mtime.toISOString();
-  return {
-    id,
-    config: { url },
-    status: hasResults ? "completed" : "pending",
-    stage: hasResults ? "done" : "queued",
-    events: [],
-    createdAt,
-    updatedAt,
-  };
-}
-
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Best-effort URL recovery for legacy runs: grep page.goto() from any spec. */
-async function inferRunUrl(runDir: string): Promise<string | null> {
-  const testsDir = join(runDir, "tests");
-  let stack: string[] = [testsDir];
-  while (stack.length) {
-    const dir = stack.pop()!;
-    let entries: import("node:fs").Dirent[];
-    try {
-      entries = await readdir(dir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const e of entries) {
-      const abs = join(dir, e.name);
-      if (e.isDirectory()) {
-        stack.push(abs);
-        continue;
-      }
-      if (!e.name.endsWith(".spec.ts")) continue;
-      try {
-        const code = await readFile(abs, "utf8");
-        const match = code.match(/page\.goto\(\s*['"`]([^'"`]+)['"`]/);
-        if (match) return match[1];
-      } catch {
-        /* keep scanning */
-      }
-    }
-  }
-  return null;
 }
 
 /** Read generated spec sources for the report's code-view tab (R17). */
