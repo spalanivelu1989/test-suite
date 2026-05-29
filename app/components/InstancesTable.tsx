@@ -314,7 +314,12 @@ export function InstancesTable({
                     <Table.Cell py={2.5} fontSize="13px" fontWeight="medium" color={checksColor === "green" ? "green.600" : checksColor === "red" ? "red.500" : colors.text}>
                       {checksText}
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="13px" color={alarmsText.includes("alarm") ? "red.500" : colors.subtext} fontWeight={alarmsText.includes("alarm") ? "bold" : "normal"}>
+                    <Table.Cell
+                      py={2.5}
+                      fontSize="13px"
+                      color={alarmsText === "No alarms" ? (isDark ? "#d9a700" : "#8a6d00") : "red.500"}
+                      fontWeight={alarmsText === "No alarms" ? "normal" : "bold"}
+                    >
                       {alarmsText}
                     </Table.Cell>
                     <Table.Cell py={2.5} fontSize="13px" color={colors.subtext}>

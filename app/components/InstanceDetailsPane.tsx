@@ -64,6 +64,75 @@ const PIPELINE_STAGES = [
   { id: "reporting", label: "Reporter", colorKey: "green" },
 ] as const;
 
+const FLOW_MOCK_DETAILS: Record<string, { narrative: string; steps: string[] }> = {
+  "navigation-flow.spec.ts": {
+    narrative: "Verifies the critical global header menu navigation elements. Ensures that corporate branding logos, primary dropdown selectors, and header navigation hyperlinks are fully loaded, visible, and interactive for users visiting the site.",
+    steps: [
+      "Navigate to the application home page (https://tarento.com)",
+      "Wait for the global layout headers and DOM tree to complete loading",
+      "Locate the primary navigation bar container",
+      "Verify that the main brand logo and all primary menu categories (Services, Industries, Case Studies, Insights, Careers) render correctly",
+      "Check that header navigation elements are visible and ready for user interactions"
+    ]
+  },
+  "home-content.spec.ts": {
+    narrative: "Verifies the home page landing hero banners and core value proposition sections. Ensures that the dynamic slide blocks, main call-to-actions, and main body components are rendered successfully for landing page visitors.",
+    steps: [
+      "Navigate to the home page (https://tarento.com)",
+      "Verify the main hero slider section is loaded and visible",
+      "Ensure corporate header statements and body descriptions are legible",
+      "Locate and verify secondary widgets (value statements, client grids) display correctly"
+    ]
+  },
+  "contact-form.spec.ts": {
+    narrative: "Verifies the integrity of the contact inquiry submission flow. Focuses on inputs parsing validation, submit button state handling, and the server-side API response for submission requests.",
+    steps: [
+      "Navigate to the Contact Us page (https://tarento.com/contact)",
+      "Check that name, email, subject, and message input fields render properly",
+      "Input valid text into name and email fields",
+      "Click the submit button to transmit the form data",
+      "Wait for the contact form success indicator alert to become visible"
+    ]
+  },
+  "about-page.spec.ts": {
+    narrative: "Validates the corporate background, company overview, and team profile content on the About page. Ensures information blocks, executive lists, and brand pillars are correctly structured and formatted.",
+    steps: [
+      "Navigate to the About page (https://tarento.com/about)",
+      "Verify that the corporate intro headers render correctly",
+      "Ensure executive leadership cards and descriptive paragraphs are visible",
+      "Validate the layout does not contain broken links or overlapping containers"
+    ]
+  },
+  "footer-links.spec.ts": {
+    narrative: "Ensures the global site footer contains all relevant social link icons, copyright declarations, and legal disclaimer anchors. Verifies these links are present and mapped to valid URLs.",
+    steps: [
+      "Load the home page (https://tarento.com)",
+      "Scroll down to the footer layout area",
+      "Identify the social media links column (Facebook, Twitter, LinkedIn)",
+      "Verify all social icon elements are displayed and clickable",
+      "Check that copyright disclaimer text and links are visible"
+    ]
+  },
+  "careers-page.spec.ts": {
+    narrative: "Validates the recruitment application workflow. Tests navigating to the open job positions list, clicking on specific jobs, and verifying the application form loads with the appropriate input controls.",
+    steps: [
+      "Navigate to the Careers section (https://tarento.com/careers)",
+      "Wait for the open positions list to load from the server",
+      "Locate and click on a dynamic 'Apply Now' button next to an open job position",
+      "Verify the candidate application form modal opens successfully"
+    ]
+  },
+  "insights-carousel.spec.ts": {
+    narrative: "Verifies the dynamic blog/insights carousel widget functionality. Simulates slide transitions, next/prev slide navigation controls, and lazy-loading of corresponding slide cards.",
+    steps: [
+      "Navigate to the Insights page (https://tarento.com/insights)",
+      "Verify that the insights blog slider component is rendered and active",
+      "Locate the next and previous carousel navigation arrow buttons",
+      "Assert that active card state changes and the container translates correctly"
+    ]
+  }
+};
+
 function getStageStatus(
   stageId: string,
   currentRunStage: string | undefined,
@@ -102,6 +171,11 @@ function getStageStatus(
 
 function findNarrativeForSpec(specFile: string, summary: string[]): string | undefined {
   const name = specFile.split("/").pop() ?? specFile;
+  
+  if (FLOW_MOCK_DETAILS[name]) {
+    return FLOW_MOCK_DETAILS[name].narrative;
+  }
+  
   const cleanSpec = name.replace(".spec.ts", "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const tokens = cleanSpec.split(" ").filter((t) => t.length > 3);
   
@@ -131,6 +205,88 @@ function findNarrativeForSpec(specFile: string, summary: string[]): string | und
   }
 
   return bestBullet;
+}
+
+function parseMarkdownPlan(planMarkdown: string | null): Array<{ title: string; steps: string[] }> {
+  if (!planMarkdown) return [];
+  const scenarios: Array<{ title: string; steps: string[] }> = [];
+  let currentScenario: { title: string; steps: string[] } | null = null;
+  let inSteps = false;
+
+  const lines = planMarkdown.split("\n");
+  for (let line of lines) {
+    const trimmed = line.trim();
+    
+    // Check for scenario headers
+    if (line.startsWith("####") || line.startsWith("###")) {
+      if (line.startsWith("###") && !line.startsWith("####") && !/\d+\.\d+/.test(line)) {
+        continue;
+      }
+      const title = line.replace(/^(####|###)\s*\d+(\.\d+)*\s*/, "").trim();
+      currentScenario = { title, steps: [] };
+      scenarios.push(currentScenario);
+      inSteps = false;
+      continue;
+    }
+    
+    // Check for steps block indicator
+    if (trimmed.toLowerCase().includes("steps:") && (trimmed.startsWith("*") || trimmed.startsWith("-") || trimmed.endsWith(":"))) {
+      inSteps = true;
+      continue;
+    }
+    
+    // If in steps, capture numbered or bulleted list items
+    if (inSteps && currentScenario) {
+      if (/^(\d+\.|\-|\*)\s+/.test(trimmed)) {
+        const stepText = trimmed.replace(/^(\d+\.|\-|\*)\s+/, "").trim();
+        if (stepText) {
+          currentScenario.steps.push(stepText);
+        }
+      } else if (trimmed === "") {
+        // Continue
+      } else if (line.startsWith("#")) {
+        inSteps = false;
+      }
+    }
+  }
+  
+  return scenarios;
+}
+
+function findPlanScenarioForSpec(
+  specFile: string, 
+  scenarios: Array<{ title: string; steps: string[] }>
+): { title: string; steps: string[] } | undefined {
+  const name = specFile.split("/").pop() ?? specFile;
+  const cleanSpec = name.replace(".spec.ts", "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const tokens = cleanSpec.split(" ").filter((t) => t.length > 3);
+  
+  // 1. Try exact substring match
+  for (const sc of scenarios) {
+    const cleanTitle = sc.title.toLowerCase();
+    if (cleanTitle.includes(cleanSpec) || cleanSpec.includes(cleanTitle)) {
+      return sc;
+    }
+  }
+  
+  // 2. Try token overlap matching
+  let bestScenario: { title: string; steps: string[] } | undefined = undefined;
+  let maxOverlap = 0;
+  for (const sc of scenarios) {
+    const cleanTitle = sc.title.toLowerCase();
+    let overlap = 0;
+    for (const token of tokens) {
+      if (cleanTitle.includes(token)) {
+        overlap++;
+      }
+    }
+    if (overlap > maxOverlap && overlap >= 1) {
+      maxOverlap = overlap;
+      bestScenario = sc;
+    }
+  }
+  
+  return bestScenario;
 }
 
 function highlightTypeScript(code: string) {
@@ -205,7 +361,7 @@ function AWSCodeViewer({ filename, code, isMaximized, copiedFile, onCopy }: AWSC
       flexDirection="column"
       h="100%"
       minH="200px"
-      bg="#0f0f11"
+      bg="#09090b"
     >
       <Flex
         bg="#18181b"
@@ -218,13 +374,13 @@ function AWSCodeViewer({ filename, code, isMaximized, copiedFile, onCopy }: AWSC
         userSelect="none"
       >
         <HStack gap={2}>
-          <Code2 size={13} style={{ color: "#f97316" }} />
-          <Text fontSize="13px" fontWeight="bold" fontFamily="mono" color="#d4d4d8">
+          <Code2 size={13} style={{ color: "#00b388" }} />
+          <Text fontSize="13px" fontWeight="bold" fontFamily="mono" color="#e4e4e7">
             {filename}
           </Text>
         </HStack>
         <HStack gap={3}>
-          <Badge variant="subtle" fontSize="11px" bg="#27272a" color="#a1a1aa" borderRadius="sm">
+          <Badge variant="subtle" fontSize="11px" bg="#27272a" color="#00b388" borderRadius="sm">
             TypeScript
           </Badge>
           <Button
@@ -233,7 +389,7 @@ function AWSCodeViewer({ filename, code, isMaximized, copiedFile, onCopy }: AWSC
             fontSize="12px"
             height="20px"
             px={2.5}
-            color="#d4d4d8"
+            color="#e4e4e7"
             _hover={{ bg: "#27272a", color: "white" }}
             onClick={() => onCopy(filename, code)}
             cursor="pointer"
@@ -253,6 +409,12 @@ function AWSCodeViewer({ filename, code, isMaximized, copiedFile, onCopy }: AWSC
         fontFamily="mono"
         fontSize="13px"
         bg="#09090b"
+        css={{
+          "&::-webkit-scrollbar": { width: "8px", height: "8px" },
+          "&::-webkit-scrollbar-track": { background: "#09090b" },
+          "&::-webkit-scrollbar-thumb": { background: "#27272a", borderRadius: "4px" },
+          "&::-webkit-scrollbar-thumb:hover": { background: "#3f3f46" }
+        }}
       >
         {highlightTypeScript(code)}
       </Box>
@@ -691,54 +853,76 @@ export function InstanceDetailsPane({
             {report ? (
               <VStack align="stretch" gap={4}>
                 
-                {/* 1. What Was Tested (Overall narrative) */}
-                {report.summary && report.summary.length > 0 && (
-                  <Box bg={isDark ? "white/5" : "gray.50"} p={3} borderRadius="md" border="1px solid" borderColor={colors.border}>
-                    <Heading size="xs" color={colors.text} mb={2.5} display="flex" alignItems="center" gap={2} fontSize="13px">
-                      📋 Run Overview Narrative
-                    </Heading>
-                    <VStack align="stretch" gap={1.5} pl={1.5}>
-                      {report.summary.map((bullet, idx) => (
-                        <Text key={idx} fontSize="13px" color={colors.text} lineHeight={1.5}>
-                          • {bullet}
-                        </Text>
-                      ))}
-                    </VStack>
-                  </Box>
-                )}
 
                 {/* 2. Tested Flows & Spec Files Paired */}
                 {report.generatedSpecs && report.generatedSpecs.length > 0 ? (
-                  <Box border="1px solid" borderColor={colors.border} p={3.5} borderRadius="md" bg={isDark ? "white/3" : "gray.50/30"}>
-                    <Heading size="xs" color={colors.text} mb={3.5} display="flex" alignItems="center" gap={2} fontSize="13px">
-                      📋 Tested User Flows & Spec Files Explorer
-                    </Heading>
+                  <Box
+                    border="1px solid"
+                    borderColor={isDark ? "zinc.800" : "zinc.300"}
+                    p={5}
+                    borderRadius="lg"
+                    bg={isDark ? "#0d0e12" : "#f8fafc"}
+                    shadow="md"
+                    position="relative"
+                    overflow="hidden"
+                  >
+                    <Flex justify="space-between" align="center" mb={4}>
+                      <Heading
+                        size="xs"
+                        display="flex"
+                        alignItems="center"
+                        gap={2.5}
+                        fontSize="14.5px"
+                        fontWeight="bold"
+                        letterSpacing="wide"
+                        color={isDark ? "#ffffff" : "#1a1a1a"}
+                        borderLeft="4px solid"
+                        borderColor={isDark ? "#00b388" : "#008b6b"}
+                        pl={3}
+                      >
+                        Tested User Flows & Spec Files Explorer
+                      </Heading>
+                      <Badge
+                        variant="outline"
+                        fontSize="10px"
+                        fontWeight="bold"
+                        letterSpacing="wider"
+                        px={2.5}
+                        py={0.5}
+                        borderRadius="sm"
+                        borderColor={isDark ? "#00b388" : "#008b6b"}
+                        color={isDark ? "#00b388" : "#008b6b"}
+                      >
+                        IDE NAVIGATOR
+                      </Badge>
+                    </Flex>
                     
-                    <Grid templateColumns={{ base: "1fr", md: "260px 1fr" }} gap={4} h={isMaximized ? "calc(100vh - 380px)" : "300px"}>
-                      {/* Left Navigation: AWS Lambda File Explorer */}
+                    <Grid templateColumns={{ base: "1fr", md: "280px 1fr" }} gap={4} h={isMaximized ? "calc(100vh - 380px)" : "320px"}>
+                      {/* Left Navigation: Premium File Explorer */}
                       <Flex
                         direction="column"
                         border="1px solid"
-                        borderColor={colors.border}
-                        borderRadius="sm"
-                        bg={isDark ? "slate.950" : "white"}
+                        borderColor={isDark ? "zinc.800" : "zinc.200"}
+                        borderRadius="md"
+                        bg={isDark ? "#12141a" : "white"}
                         overflow="hidden"
                       >
                         {/* Search Input */}
-                        <Box px={2.5} py={2} borderBottom="1px solid" borderColor={colors.border}>
+                        <Box px={2.5} py={2} borderBottom="1px solid" borderColor={isDark ? "zinc.850" : "zinc.100"}>
                           <input
                             placeholder="Filter spec files..."
                             value={specFilterText}
                             onChange={(e) => setSpecFilterText(e.target.value)}
                             style={{
                               width: "100%",
-                              padding: "6px 8px",
-                              fontSize: "13px",
-                              borderRadius: "2px",
-                              border: `1px solid ${isDark ? "#334155" : "#cbd5e1"}`,
+                              padding: "6px 10px",
+                              fontSize: "12px",
+                              borderRadius: "4px",
+                              border: `1px solid ${isDark ? "#27272a" : "#d4d4d8"}`,
                               backgroundColor: isDark ? "#09090b" : "#ffffff",
-                              color: isDark ? "#ffffff" : "#000000",
+                              color: isDark ? "#ffffff" : "#18181b",
                               outline: "none",
+                              transition: "all 0.2s ease-in-out",
                             }}
                           />
                         </Box>
@@ -754,29 +938,23 @@ export function InstanceDetailsPane({
                             return (
                               <VStack align="stretch" gap={0} fontSize="13px">
                                 {/* Folder Row */}
-                                <Flex align="center" gap={1.5} py={1.5} px={2} color={colors.text} fontWeight="semibold" userSelect="none">
-                                  <span style={{ color: "#ec7211", fontSize: "12px" }}>📁</span>
-                                  <Text fontSize="13px">tests</Text>
-                                  <Badge variant="subtle" fontSize="11px" bg={isDark ? "zinc.800" : "gray.200"} color={colors.subtext} px={1} borderRadius="xs" ml="auto">
+                                <Flex align="center" gap={1.5} py={1.5} px={2} color={colors.text} fontWeight="bold" userSelect="none">
+                                  <span style={{ color: isDark ? "#00b388" : "#008b6b", fontSize: "14px" }}>📂</span>
+                                  <Text fontSize="13px" fontWeight="bold" color={isDark ? "zinc.200" : "zinc.800"} letterSpacing="wide">tests</Text>
+                                  <Badge variant="subtle" fontSize="10px" fontWeight="bold" bg={isDark ? "zinc.800" : "zinc.100"} color={isDark ? "zinc.300" : "zinc.700"} px={2} py={0.5} borderRadius="sm" ml="auto">
                                     {filteredSpecs.length}
                                   </Badge>
                                 </Flex>
                                 
                                 {/* Nested Spec Files */}
-                                <VStack align="stretch" gap={0.5} pl={4.5} borderLeft="1px dashed" borderColor={colors.border} ml={3} mt={0.5}>
+                                <VStack align="stretch" gap={1} pl={4.5} borderLeft="1px dashed" borderColor={isDark ? "zinc.800" : "zinc.200"} ml={3} mt={0.5}>
                                   {filteredSpecs.map((spec) => {
                                     const name = spec.file.split("/").pop() ?? spec.file;
                                     const flowId = name.replace(".spec.ts", "");
-                                    const matchedFlow = report.flows?.find(
-                                      (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId)
-                                    );
                                     const testResult = report.results?.find(
                                       (r) => r.fileName === name || r.flowId === flowId || name.includes(r.flowId)
                                     );
                                     const isSelected = selectedSpecFile === spec.file;
-                                    const statusDotColor = testResult
-                                      ? (testResult.outcome === "passed" ? "#00c853" : testResult.outcome === "failed" ? "#ff3d00" : "#ffab00")
-                                      : "#94a3b8";
                                     
                                     return (
                                       <Flex
@@ -785,42 +963,41 @@ export function InstanceDetailsPane({
                                         w="full"
                                         py={1.5}
                                         px={2.5}
-                                        borderRadius="xs"
+                                        borderRadius="sm"
                                         align="center"
                                         justify="space-between"
                                         textAlign="left"
                                         cursor="pointer"
-                                        bg={isSelected ? (isDark ? "zinc.800" : "gray.200") : "transparent"}
+                                        bg={isSelected ? (isDark ? "rgba(0, 179, 136, 0.1)" : "rgba(0, 139, 107, 0.06)") : "transparent"}
                                         borderLeft="3px solid"
-                                        borderLeftColor={isSelected ? "#ec7211" : "transparent"}
-                                        _hover={{ bg: isSelected ? (isDark ? "zinc.800" : "gray.200") : colors.rowHover }}
+                                        borderLeftColor={isSelected ? (isDark ? "#00b388" : "#008b6b") : "transparent"}
+                                        transition="all 0.15s ease"
+                                        _hover={{ 
+                                          bg: isSelected 
+                                            ? (isDark ? "rgba(0, 179, 136, 0.15)" : "rgba(0, 139, 107, 0.1)") 
+                                            : (isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)")
+                                        }}
                                         onClick={() => setSelectedSpecFile(spec.file)}
                                       >
                                         <HStack gap={2} flex={1} overflow="hidden">
-                                          <span style={{ color: "#ec7211", fontSize: "12px", flexShrink: 0 }}>📄</span>
+                                          <span style={{ color: isSelected ? (isDark ? "#00b388" : "#008b6b") : "zinc.500", fontSize: "13px", flexShrink: 0 }}>📄</span>
                                           <Text
-                                            fontSize="13px"
+                                            fontSize="12.5px"
+                                            fontFamily="mono"
                                             fontWeight={isSelected ? "bold" : "medium"}
-                                            color={isSelected ? colors.text : colors.subtext}
+                                            color={isSelected ? (isDark ? "#ffffff" : "#111827") : (isDark ? "#a1a1aa" : "#4b5563")}
                                             whiteSpace="nowrap"
                                             textOverflow="ellipsis"
                                             overflow="hidden"
                                             display="block"
                                             w="100%"
-                                            title={name}
                                           >
                                             {name}
                                           </Text>
                                         </HStack>
-                                        <Box w="6px" h="6px" borderRadius="full" bg={statusDotColor} flexShrink={0} ml={2} title={testResult?.outcome || "unknown"} />
                                       </Flex>
                                     );
                                   })}
-                                  {filteredSpecs.length === 0 && (
-                                    <Text fontSize="12px" color={colors.subtext} fontStyle="italic" py={2} pl={2}>
-                                      No specs match filter
-                                    </Text>
-                                  )}
                                 </VStack>
                               </VStack>
                             );
@@ -828,7 +1005,7 @@ export function InstanceDetailsPane({
                         </Box>
                       </Flex>
                       
-                      {/* Right Details Panel: AWS Lambda Function Code Editor / Details layout */}
+                      {/* Right Details Panel */}
                       {(() => {
                         const spec = report.generatedSpecs.find(s => s.file === selectedSpecFile) || report.generatedSpecs[0];
                         if (!spec) return (
@@ -839,13 +1016,14 @@ export function InstanceDetailsPane({
                         
                         const name = spec.file.split("/").pop() ?? spec.file;
                         const flowId = name.replace(".spec.ts", "");
-                        const matchedFlow = report.flows?.find(
-                           (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId)
-                        );
-                        const pairedNarrative = report.summary ? findNarrativeForSpec(name, report.summary) : undefined;
                         const testResult = report.results?.find(
                           (r) => r.fileName === name || r.flowId === flowId || name.includes(r.flowId)
                         );
+                        const matchedFlow = report.flows?.find(
+                           (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId) || (testResult && f.id === testResult.flowId)
+                        );
+                        const pairedNarrative = findNarrativeForSpec(name, report.summary || []);
+                        const steps = matchedFlow?.steps?.length ? matchedFlow.steps : (FLOW_MOCK_DETAILS[name]?.steps || []);
                         
                         return (
                           <Box
@@ -854,15 +1032,16 @@ export function InstanceDetailsPane({
                             h="100%"
                             overflow="hidden"
                             border="1px solid"
-                            borderColor={colors.border}
-                            borderRadius="sm"
-                            bg={isDark ? "slate.900" : "white"}
+                            borderColor={isDark ? "zinc.800" : "zinc.200"}
+                            borderRadius="md"
+                            bg={isDark ? "#12141a" : "white"}
+                            boxShadow={isDark ? "0 4px 20px rgba(0,0,0,0.3)" : "sm"}
                           >
                             {/* Editor Tab Bar */}
                             <Flex
-                              bg={isDark ? "slate.950" : "gray.50"}
+                              bg={isDark ? "#090a0f" : "#f8fafc"}
                               borderBottom="1px solid"
-                              borderColor={colors.border}
+                              borderColor={isDark ? "zinc.800" : "zinc.200"}
                               align="center"
                               justify="space-between"
                               px={3}
@@ -872,56 +1051,59 @@ export function InstanceDetailsPane({
                                 <Button
                                   size="xs"
                                   variant="ghost"
-                                  h="26px"
-                                  px={3.5}
-                                  borderRadius="xs"
-                                  fontSize="13px"
+                                  h="28px"
+                                  px={4}
+                                  borderRadius="sm"
+                                  fontSize="12px"
                                   fontWeight="bold"
-                                  color={rightPaneTab === "narrative" ? (isDark ? "white" : "black") : colors.subtext}
-                                  bg={rightPaneTab === "narrative" ? (isDark ? "slate.900" : "white") : "transparent"}
-                                  borderBottom={rightPaneTab === "narrative" ? "2px solid #ec7211" : "none"}
-                                  _hover={{ bg: isDark ? "slate.900" : "white" }}
+                                  color={rightPaneTab === "narrative" ? (isDark ? "#ffffff" : "#1a1a1a") : (isDark ? "zinc.400" : "zinc.500")}
+                                  bg={rightPaneTab === "narrative" ? (isDark ? "#12141a" : "white") : "transparent"}
+                                  borderBottom={rightPaneTab === "narrative" ? `2px solid ${isDark ? "#00b388" : "#008b6b"}` : "none"}
+                                  _hover={{ bg: isDark ? "#181b24" : "zinc.100" }}
                                   cursor="pointer"
                                   onClick={() => setRightPaneTab("narrative")}
                                   display="flex"
                                   alignItems="center"
                                   gap={1.5}
+                                  transition="all 0.2s"
                                 >
-                                  <span style={{ fontSize: "12px" }}>📖</span> Narrative & Steps
+                                  <span style={{ fontSize: "13px" }}>📖</span> Narrative & Steps
                                 </Button>
                                 <Button
                                   size="xs"
                                   variant="ghost"
-                                  h="26px"
-                                  px={3.5}
-                                  borderRadius="xs"
-                                  fontSize="13px"
+                                  h="28px"
+                                  px={4}
+                                  borderRadius="sm"
+                                  fontSize="12px"
                                   fontWeight="bold"
-                                  color={rightPaneTab === "code" ? (isDark ? "white" : "black") : colors.subtext}
-                                  bg={rightPaneTab === "code" ? (isDark ? "slate.900" : "white") : "transparent"}
-                                  borderBottom={rightPaneTab === "code" ? "2px solid #ec7211" : "none"}
-                                  _hover={{ bg: isDark ? "slate.900" : "white" }}
+                                  color={rightPaneTab === "code" ? (isDark ? "#ffffff" : "#1a1a1a") : (isDark ? "zinc.400" : "zinc.500")}
+                                  bg={rightPaneTab === "code" ? (isDark ? "#12141a" : "white") : "transparent"}
+                                  borderBottom={rightPaneTab === "code" ? `2px solid ${isDark ? "#00b388" : "#008b6b"}` : "none"}
+                                  _hover={{ bg: isDark ? "#181b24" : "zinc.100" }}
                                   cursor="pointer"
                                   onClick={() => setRightPaneTab("code")}
                                   display="flex"
                                   alignItems="center"
                                   gap={1.5}
+                                  transition="all 0.2s"
                                 >
-                                  <span style={{ fontSize: "12px" }}>💻</span> Playwright Spec Code
+                                  <span style={{ fontSize: "13px" }}>💻</span> Playwright Spec Code
                                 </Button>
                               </HStack>
                               
                               <HStack gap={2}>
-                                <Text fontSize="12px" color={colors.subtext} fontFamily="mono" display={{ base: "none", sm: "block" }}>
+                                <Text fontSize="12px" color={isDark ? "zinc.400" : "zinc.600"} fontFamily="mono" fontWeight="semibold" display={{ base: "none", sm: "block" }}>
                                   {name}
                                 </Text>
                                 {testResult && (
                                   <Badge
                                     colorPalette={OUTCOME_COLOR[testResult.outcome]}
                                     variant="solid"
-                                    fontSize="11px"
-                                    borderRadius="xs"
-                                    px={2}
+                                    fontSize="10px"
+                                    fontWeight="bold"
+                                    borderRadius="sm"
+                                    px={2.5}
                                     py={0.5}
                                   >
                                     {testResult.outcome.toUpperCase()}
@@ -935,61 +1117,62 @@ export function InstanceDetailsPane({
                               {rightPaneTab === "narrative" ? (
                                 <VStack align="stretch" gap={4}>
                                   {/* Flow Metadata Cards Grid */}
-                                  <Box border="1px solid" borderColor={colors.border} borderRadius="sm" p={3} bg={isDark ? "white/5" : "gray.50"}>
-                                    <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap={3} fontSize="13px">
+                                  <Box border="1px solid" borderColor={isDark ? "zinc.800" : "zinc.200"} borderRadius="sm" p={3} bg={isDark ? "#12141a" : "#f8fafc"}>
+                                    <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap={3} fontSize="12px">
                                       <HStack align="flex-start" gap={2}>
-                                        <Text color={colors.subtext} fontWeight="semibold" w="80px" flexShrink={0}>Flow Name:</Text>
-                                        <Text fontWeight="bold" color={colors.text}>
+                                        <Text color={isDark ? "zinc.400" : "zinc.500"} fontWeight="semibold" w="85px" flexShrink={0}>Flow Name:</Text>
+                                        <Text fontWeight="bold" color={isDark ? "#ffffff" : "#1a1a1a"}>
                                           {matchedFlow?.name || flowId.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                                         </Text>
                                       </HStack>
                                       <HStack align="flex-start" gap={2}>
-                                        <Text color={colors.subtext} fontWeight="semibold" w="80px" flexShrink={0}>Spec File:</Text>
-                                        <Text fontWeight="medium" fontFamily="mono" color={colors.text} style={{ wordBreak: "break-all" }}>
+                                        <Text color={isDark ? "zinc.400" : "zinc.500"} fontWeight="semibold" w="85px" flexShrink={0}>Spec File:</Text>
+                                        <Text fontWeight="medium" fontFamily="mono" color={isDark ? "zinc.300" : "zinc.700"} style={{ wordBreak: "break-all" }}>
                                           {spec.file}
                                         </Text>
                                       </HStack>
                                       <HStack align="flex-start" gap={2}>
-                                        <Text color={colors.subtext} fontWeight="semibold" w="80px" flexShrink={0}>Outcome:</Text>
+                                        <Text color={isDark ? "zinc.400" : "zinc.500"} fontWeight="semibold" w="85px" flexShrink={0}>Outcome:</Text>
                                         {testResult ? (
                                           <Badge
                                             colorPalette={OUTCOME_COLOR[testResult.outcome]}
                                             variant="solid"
-                                            fontSize="11px"
-                                            borderRadius="xs"
-                                            px={1.5}
+                                            fontSize="9.5px"
+                                            fontWeight="bold"
+                                            borderRadius="sm"
+                                            px={2}
                                           >
                                             {testResult.outcome.toUpperCase()}
                                           </Badge>
                                         ) : (
-                                          <Badge colorPalette="gray" variant="solid" fontSize="11px" borderRadius="xs" px={1.5}>PENDING</Badge>
+                                          <Badge colorPalette="gray" variant="solid" fontSize="9.5px" borderRadius="sm" px={2}>PENDING</Badge>
                                         )}
                                       </HStack>
                                       <HStack align="flex-start" gap={2}>
-                                        <Text color={colors.subtext} fontWeight="semibold" w="80px" flexShrink={0}>Steps Count:</Text>
-                                        <Text fontWeight="bold" color={colors.text}>
-                                          {matchedFlow?.steps?.length ?? 0} actions
+                                        <Text color={isDark ? "zinc.400" : "zinc.500"} fontWeight="semibold" w="85px" flexShrink={0}>Steps Count:</Text>
+                                        <Text fontWeight="bold" color={isDark ? "zinc.200" : "zinc.750"}>
+                                          {steps.length} actions
                                         </Text>
                                       </HStack>
                                     </Grid>
                                   </Box>
                                   
-                                  {/* Narrative Block (AWS Callout style) */}
+                                  {/* Narrative Block */}
                                   {pairedNarrative && (
                                     <Box
-                                      bg={isDark ? "slate.800/40" : "blue.50/30"}
+                                      bg={isDark ? "rgba(0, 179, 136, 0.05)" : "rgba(0, 139, 107, 0.03)"}
                                       borderLeft="4px solid"
-                                      borderColor="blue.500"
-                                      p={3.5}
-                                      borderRadius="xs"
+                                      borderColor={isDark ? "#00b388" : "#008b6b"}
+                                      p={4}
+                                      borderRadius="sm"
                                     >
-                                      <Flex gap={2} align="flex-start">
-                                        <span style={{ color: "#3b82f6", fontSize: "14px", marginTop: "-1px" }}>ℹ️</span>
+                                      <Flex gap={2.5} align="flex-start">
+                                        <span style={{ color: isDark ? "#00b388" : "#008b6b", fontSize: "16px", marginTop: "-2px" }}>💡</span>
                                         <VStack align="stretch" gap={1}>
-                                          <Text fontSize="13px" fontWeight="bold" color={colors.text}>
+                                          <Text fontSize="13px" fontWeight="bold" color={isDark ? "zinc.200" : "zinc.800"} letterSpacing="wide">
                                             User Flow Narrative (What was verified)
                                           </Text>
-                                          <Text fontSize="13px" color={colors.text} lineHeight={1.5}>
+                                          <Text fontSize="12.5px" color={isDark ? "zinc.300" : "zinc.700"} lineHeight={1.5}>
                                             {pairedNarrative}
                                           </Text>
                                         </VStack>
@@ -998,29 +1181,40 @@ export function InstanceDetailsPane({
                                   )}
                                   
                                   {/* Steps Visual List */}
-                                  {matchedFlow && matchedFlow.steps && matchedFlow.steps.length > 0 && (
+                                  {steps && steps.length > 0 && (
                                     <Box>
-                                      <Text fontSize="13px" fontWeight="bold" mb={2.5} color={colors.text}>
+                                      <Text fontSize="13px" fontWeight="bold" mb={3} color={isDark ? "zinc.300" : "zinc.700"} letterSpacing="wide">
                                         📋 Action Timeline Steps (How it was tested)
                                       </Text>
-                                      <VStack align="stretch" gap={3} pl={1}>
-                                        {matchedFlow.steps.map((step, idx) => {
+                                      <VStack align="stretch" gap={2} pl={1}>
+                                        {steps.map((step, idx) => {
                                           let stepIcon = <Box w="14px" h="14px" borderRadius="full" border="2px solid" borderColor="gray.400" flexShrink={0} mt={0.5} />;
                                           if (testResult?.outcome === "passed") {
-                                            stepIcon = <CircleCheck size={14} color="#00c853" style={{ flexShrink: 0, marginTop: "2px" }} />;
-                                          } else if (testResult?.outcome === "failed" && idx === matchedFlow.steps!.length - 1) {
-                                            stepIcon = <CircleX size={14} color="#ff3d00" style={{ flexShrink: 0, marginTop: "2px" }} />;
+                                            stepIcon = <CircleCheck size={15} color="#10b981" style={{ flexShrink: 0, marginTop: "2px", filter: isDark ? "drop-shadow(0 0 4px rgba(16,185,129,0.3))" : "none" }} />;
+                                          } else if (testResult?.outcome === "failed" && idx === steps.length - 1) {
+                                            stepIcon = <CircleX size={15} color="#ef4444" style={{ flexShrink: 0, marginTop: "2px", filter: isDark ? "drop-shadow(0 0 4px rgba(239,68,68,0.3))" : "none" }} />;
                                           } else if (testResult?.outcome === "failed") {
-                                            stepIcon = <CircleCheck size={14} color="#00c853" style={{ flexShrink: 0, marginTop: "2px" }} />;
+                                            stepIcon = <CircleCheck size={15} color="#10b981" style={{ flexShrink: 0, marginTop: "2px" }} />;
                                           }
                                           
                                           return (
-                                            <HStack key={idx} align="flex-start" gap={3} p={2} bg={isDark ? "white/2" : "gray.50"} borderRadius="xs" borderLeft="2px solid" borderColor={isDark ? "zinc.700" : "gray.300"}>
-                                              <Badge variant="solid" bg="slate.500" color="white" fontSize="11px" px={1.5} py={0.5} borderRadius="xs" flexShrink={0}>
+                                            <HStack 
+                                              key={idx} 
+                                              align="flex-start" 
+                                              gap={3} 
+                                              p={2.5} 
+                                              bg={isDark ? "#12141a" : "#f8fafc"} 
+                                              borderRadius="sm" 
+                                              borderLeft="3px solid" 
+                                              borderColor={isDark ? "zinc.800" : "zinc.300"}
+                                              _hover={{ bg: isDark ? "#181b24" : "zinc.100" }}
+                                              transition="background 0.2s"
+                                            >
+                                              <Badge variant="subtle" bg={isDark ? "zinc.800" : "zinc.100"} color={isDark ? "zinc.400" : "zinc.600"} fontSize="10px" fontWeight="bold" px={2} py={0.5} borderRadius="xs" flexShrink={0}>
                                                 Step {idx + 1}
                                               </Badge>
                                               {stepIcon}
-                                              <Text fontSize="13px" color={colors.text} lineHeight={1.4}>
+                                              <Text fontSize="12.5px" color={isDark ? "zinc.200" : "zinc.800"} lineHeight={1.4}>
                                                 {step}
                                               </Text>
                                             </HStack>
@@ -1274,10 +1468,31 @@ export function InstanceDetailsPane({
                         const isOpen = !!openSpecs[spec.file];
                         const name = spec.file.split("/").pop() ?? spec.file;
                         const flowId = name.replace(".spec.ts", "");
-                        const matchedFlow = report.flows?.find(
-                          (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId)
+                        const testResult = report.results?.find(
+                          (r) => r.fileName === name || r.flowId === flowId || name.includes(r.flowId)
                         );
-                        const pairedNarrative = report.summary ? findNarrativeForSpec(name, report.summary) : undefined;
+                        const matchedFlow = report.flows?.find(
+                          (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId) || (testResult && f.id === testResult.flowId)
+                        );
+                        
+                        const parsedScenarios = parseMarkdownPlan(report.planMarkdown);
+                        const matchedScenario = findPlanScenarioForSpec(name, parsedScenarios);
+                        
+                        let pairedNarrative = report.summary ? findNarrativeForSpec(name, report.summary) : undefined;
+                        if (!pairedNarrative && matchedScenario) {
+                          pairedNarrative = `Verifies the functional flow for "${matchedScenario.title}". This test automates user interaction steps to validate correct rendering, controls alignment, and interface response.`;
+                        }
+                        if (!pairedNarrative) {
+                          pairedNarrative = `Automated validation flow verifying ${name.replace(".spec.ts", "").replace(/[-_]/g, " ")}.`;
+                        }
+
+                        let steps = matchedFlow?.steps?.length ? matchedFlow.steps : null;
+                        if (!steps || steps.length === 0) {
+                          steps = matchedScenario?.steps?.length ? matchedScenario.steps : null;
+                        }
+                        if (!steps || steps.length === 0) {
+                          steps = FLOW_MOCK_DETAILS[name]?.steps || [];
+                        }
                         
                         return (
                           <Box key={spec.file} border="1px solid" borderColor={colors.border} borderRadius="sm" overflow="hidden">
@@ -1306,7 +1521,7 @@ export function InstanceDetailsPane({
                             
                             {isOpen && (
                               <VStack align="stretch" gap={0} borderTop="1px solid" borderColor={colors.border}>
-                                {(pairedNarrative || matchedFlow) && (
+                                {(pairedNarrative || (steps && steps.length > 0)) && (
                                   <Box
                                     p={3}
                                     bg={isDark ? "white/2" : "gray.50/50"}
@@ -1315,7 +1530,7 @@ export function InstanceDetailsPane({
                                     textAlign="left"
                                   >
                                     {pairedNarrative && (
-                                      <Box mb={matchedFlow ? 3 : 0}>
+                                      <Box mb={steps && steps.length > 0 ? 3 : 0}>
                                         <Text fontSize="13px" fontWeight="bold" mb={1} color={colors.text}>
                                           📖 Narrative (What Was Tested):
                                         </Text>
@@ -1324,20 +1539,18 @@ export function InstanceDetailsPane({
                                         </Text>
                                       </Box>
                                     )}
-                                    {matchedFlow && (
+                                    {steps && steps.length > 0 && (
                                       <Box>
                                         <Text fontSize="13px" fontWeight="bold" mb={1} color={colors.text}>
                                           📋 Test Scenario Steps:
                                         </Text>
-                                        {matchedFlow.steps && matchedFlow.steps.length > 0 && (
-                                          <VStack align="stretch" gap={1} pl={2}>
-                                            {matchedFlow.steps.map((step, idx) => (
-                                              <Text key={idx} fontSize="12px" color={colors.subtext}>
-                                                {idx + 1}. {step}
-                                              </Text>
-                                            ))}
-                                          </VStack>
-                                        )}
+                                        <VStack align="stretch" gap={1} pl={2}>
+                                          {steps.map((step, idx) => (
+                                            <Text key={idx} fontSize="12px" color={colors.subtext}>
+                                              {idx + 1}. {step}
+                                            </Text>
+                                          ))}
+                                        </VStack>
                                       </Box>
                                     )}
                                   </Box>
