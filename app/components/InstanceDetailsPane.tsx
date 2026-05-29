@@ -171,14 +171,14 @@ function getStageStatus(
 
 function findNarrativeForSpec(specFile: string, summary: string[]): string | undefined {
   const name = specFile.split("/").pop() ?? specFile;
-  
+
   if (FLOW_MOCK_DETAILS[name]) {
     return FLOW_MOCK_DETAILS[name].narrative;
   }
-  
+
   const cleanSpec = name.replace(".spec.ts", "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const tokens = cleanSpec.split(" ").filter((t) => t.length > 3);
-  
+
   // 1. Try substring match
   for (const bullet of summary) {
     const cleanBullet = bullet.toLowerCase();
@@ -216,7 +216,7 @@ function parseMarkdownPlan(planMarkdown: string | null): Array<{ title: string; 
   const lines = planMarkdown.split("\n");
   for (let line of lines) {
     const trimmed = line.trim();
-    
+
     // Check for scenario headers
     if (line.startsWith("####") || line.startsWith("###")) {
       if (line.startsWith("###") && !line.startsWith("####") && !/\d+\.\d+/.test(line)) {
@@ -228,13 +228,13 @@ function parseMarkdownPlan(planMarkdown: string | null): Array<{ title: string; 
       inSteps = false;
       continue;
     }
-    
+
     // Check for steps block indicator
     if (trimmed.toLowerCase().includes("steps:") && (trimmed.startsWith("*") || trimmed.startsWith("-") || trimmed.endsWith(":"))) {
       inSteps = true;
       continue;
     }
-    
+
     // If in steps, capture numbered or bulleted list items
     if (inSteps && currentScenario) {
       if (/^(\d+\.|\-|\*)\s+/.test(trimmed)) {
@@ -249,18 +249,18 @@ function parseMarkdownPlan(planMarkdown: string | null): Array<{ title: string; 
       }
     }
   }
-  
+
   return scenarios;
 }
 
 function findPlanScenarioForSpec(
-  specFile: string, 
+  specFile: string,
   scenarios: Array<{ title: string; steps: string[] }>
 ): { title: string; steps: string[] } | undefined {
   const name = specFile.split("/").pop() ?? specFile;
   const cleanSpec = name.replace(".spec.ts", "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const tokens = cleanSpec.split(" ").filter((t) => t.length > 3);
-  
+
   // 1. Try exact substring match
   for (const sc of scenarios) {
     const cleanTitle = sc.title.toLowerCase();
@@ -268,7 +268,7 @@ function findPlanScenarioForSpec(
       return sc;
     }
   }
-  
+
   // 2. Try token overlap matching
   let bestScenario: { title: string; steps: string[] } | undefined = undefined;
   let maxOverlap = 0;
@@ -285,7 +285,7 @@ function findPlanScenarioForSpec(
       bestScenario = sc;
     }
   }
-  
+
   return bestScenario;
 }
 
@@ -296,23 +296,23 @@ function highlightTypeScript(code: string) {
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
-    
+
     html = html.replace(/(["'`])(.*?)\1/g, '<span style="color: #a3e635;">$1$2$1</span>');
-    
+
     const keywords = [
-      "import", "from", "const", "let", "var", "await", "async", 
-      "function", "class", "return", "export", "default", 
+      "import", "from", "const", "let", "var", "await", "async",
+      "function", "class", "return", "export", "default",
       "if", "else", "for", "while", "new", "type", "interface", "as"
     ];
     const kwRegex = new RegExp(`\\b(${keywords.join("|")})\\b`, "g");
     html = html.replace(kwRegex, '<span style="color: #c084fc; font-weight: bold;">$1</span>');
-    
+
     const testTerms = ["test", "expect", "describe", "beforeAll", "beforeEach", "afterEach", "goto", "click", "fill", "locator"];
     const termRegex = new RegExp(`\\b(${testTerms.join("|")})\\b`, "g");
     html = html.replace(termRegex, '<span style="color: #60a5fa;">$1</span>');
-    
+
     html = html.replace(/(\/\/.*)$/g, '<span style="color: #71717a; font-style: italic;">$1</span>');
-    
+
     return (
       <Flex key={idx} align="flex-start" py={0.5} fontFamily="mono" fontSize="13px">
         <Text
@@ -350,7 +350,7 @@ interface AWSCodeViewerProps {
 
 function AWSCodeViewer({ filename, code, isMaximized, copiedFile, onCopy }: AWSCodeViewerProps) {
   const isCopied = copiedFile === filename;
-  
+
   return (
     <Box
       border="1px solid"
@@ -637,8 +637,8 @@ export function InstanceDetailsPane({
         <Box flex={1} overflowY="auto" p={4} bg={colors.subBg}>
           {/* TAB 1: DETAILS */}
           <Box display={activeDetailsTab === "details" ? "block" : "none"}>
-            <Box display="grid" gridTemplateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={6} fontSize="13px">
-              <VStack align="stretch" gap={3}>
+            <Flex direction={{ base: "column", md: "row" }} gap={6} fontSize="13px" align="stretch">
+              <VStack align="stretch" gap={3} flex={1}>
                 <Heading size="xs" color={colors.text} borderBottom="1px solid" borderColor={colors.border} pb={1.5}>
                   Instance Summary
                 </Heading>
@@ -660,7 +660,9 @@ export function InstanceDetailsPane({
                 </Flex>
               </VStack>
 
-              <VStack align="stretch" gap={3}>
+              <Box borderLeft="1px solid" borderColor={colors.border} display={{ base: "none", md: "block" }} />
+
+              <VStack align="stretch" gap={3} flex={1}>
                 <Heading size="xs" color={colors.text} borderBottom="1px solid" borderColor={colors.border} pb={1.5}>
                   Crawl & Agent Settings
                 </Heading>
@@ -675,11 +677,11 @@ export function InstanceDetailsPane({
                   <Text fontWeight="bold">
                     {run.config.crawlMode
                       ? ({
-                          direct: "Direct page only (depth 0)",
-                          standard: "Standard depth (depth 1)",
-                          deep: "Deep crawl (depth 3)",
-                          aggressive: "Aggressive crawl (depth 10)",
-                        })[run.config.crawlMode] ?? run.config.crawlMode
+                        direct: "Direct page only (depth 0)",
+                        standard: "Standard depth (depth 1)",
+                        deep: "Deep crawl (depth 3)",
+                        aggressive: "Aggressive crawl (depth 10)",
+                      })[run.config.crawlMode] ?? run.config.crawlMode
                       : "Standard depth (depth 1)"}
                   </Text>
                 </Flex>
@@ -693,7 +695,9 @@ export function InstanceDetailsPane({
                 </Flex>
               </VStack>
 
-              <VStack align="stretch" gap={3}>
+              <Box borderLeft="1px solid" borderColor={colors.border} display={{ base: "none", md: "block" }} />
+
+              <VStack align="stretch" gap={3} flex={1}>
                 <Heading size="xs" color={colors.text} borderBottom="1px solid" borderColor={colors.border} pb={1.5}>
                   Storage Paths
                 </Heading>
@@ -714,13 +718,13 @@ export function InstanceDetailsPane({
                   <Text fontWeight="bold" fontFamily="mono">playwright.config.ts</Text>
                 </Flex>
               </VStack>
-            </Box>
+            </Flex>
           </Box>
 
           {/* TAB 2: STATUS CHECKS & REPORT */}
           <Box display={activeDetailsTab === "status-checks" ? "block" : "none"}>
             <VStack align="stretch" gap={5}>
-              
+
               {/* Stepper progress bars */}
               <Box>
                 <Text fontSize="13px" fontWeight="bold" color={colors.subtext} mb={3}>
@@ -733,9 +737,9 @@ export function InstanceDetailsPane({
                     if (status === "active") {
                       const targetStages =
                         st.id === "planning" ? ["planning"] :
-                        st.id === "generating" ? ["generating"] :
-                        st.id === "healing" ? ["running", "healing"] :
-                        st.id === "reporting" ? ["flake-check", "reporting"] : [];
+                          st.id === "generating" ? ["generating"] :
+                            st.id === "healing" ? ["running", "healing"] :
+                              st.id === "reporting" ? ["flake-check", "reporting"] : [];
                       const startEvent = events.find((ev) => targetStages.includes(ev.stage));
                       activeStartAt = startEvent?.at ?? run.createdAt;
                     }
@@ -852,20 +856,11 @@ export function InstanceDetailsPane({
           <Box display={activeDetailsTab === "narrative" ? "block" : "none"}>
             {report ? (
               <VStack align="stretch" gap={4}>
-                
+
 
                 {/* 2. Tested Flows & Spec Files Paired */}
                 {report.generatedSpecs && report.generatedSpecs.length > 0 ? (
-                  <Box
-                    border="1px solid"
-                    borderColor={isDark ? "zinc.800" : "zinc.300"}
-                    p={5}
-                    borderRadius="lg"
-                    bg={isDark ? "#0d0e12" : "#f8fafc"}
-                    shadow="md"
-                    position="relative"
-                    overflow="hidden"
-                  >
+                  <Box position="relative">
                     <Flex justify="space-between" align="center" mb={4}>
                       <Heading
                         size="xs"
@@ -876,9 +871,6 @@ export function InstanceDetailsPane({
                         fontWeight="bold"
                         letterSpacing="wide"
                         color={isDark ? "#ffffff" : "#1a1a1a"}
-                        borderLeft="4px solid"
-                        borderColor={isDark ? "#00b388" : "#008b6b"}
-                        pl={3}
                       >
                         Tested User Flows & Spec Files Explorer
                       </Heading>
@@ -896,7 +888,7 @@ export function InstanceDetailsPane({
                         IDE NAVIGATOR
                       </Badge>
                     </Flex>
-                    
+
                     <Grid templateColumns={{ base: "1fr", md: "280px 1fr" }} gap={4} h={isMaximized ? "calc(100vh - 380px)" : "320px"}>
                       {/* Left Navigation: Premium File Explorer */}
                       <Flex
@@ -926,7 +918,7 @@ export function InstanceDetailsPane({
                             }}
                           />
                         </Box>
-                        
+
                         {/* File Tree Explorer */}
                         <Box overflowY="auto" flex={1} p={2}>
                           {(() => {
@@ -934,7 +926,7 @@ export function InstanceDetailsPane({
                               const name = spec.file.split("/").pop() ?? spec.file;
                               return name.toLowerCase().includes(specFilterText.toLowerCase());
                             });
-                            
+
                             return (
                               <VStack align="stretch" gap={0} fontSize="13px">
                                 {/* Folder Row */}
@@ -945,7 +937,7 @@ export function InstanceDetailsPane({
                                     {filteredSpecs.length}
                                   </Badge>
                                 </Flex>
-                                
+
                                 {/* Nested Spec Files */}
                                 <VStack align="stretch" gap={1} pl={4.5} borderLeft="1px dashed" borderColor={isDark ? "zinc.800" : "zinc.200"} ml={3} mt={0.5}>
                                   {filteredSpecs.map((spec) => {
@@ -955,7 +947,7 @@ export function InstanceDetailsPane({
                                       (r) => r.fileName === name || r.flowId === flowId || name.includes(r.flowId)
                                     );
                                     const isSelected = selectedSpecFile === spec.file;
-                                    
+
                                     return (
                                       <Flex
                                         key={spec.file}
@@ -972,9 +964,9 @@ export function InstanceDetailsPane({
                                         borderLeft="3px solid"
                                         borderLeftColor={isSelected ? (isDark ? "#00b388" : "#008b6b") : "transparent"}
                                         transition="all 0.15s ease"
-                                        _hover={{ 
-                                          bg: isSelected 
-                                            ? (isDark ? "rgba(0, 179, 136, 0.15)" : "rgba(0, 139, 107, 0.1)") 
+                                        _hover={{
+                                          bg: isSelected
+                                            ? (isDark ? "rgba(0, 179, 136, 0.15)" : "rgba(0, 139, 107, 0.1)")
                                             : (isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)")
                                         }}
                                         onClick={() => setSelectedSpecFile(spec.file)}
@@ -1004,7 +996,7 @@ export function InstanceDetailsPane({
                           })()}
                         </Box>
                       </Flex>
-                      
+
                       {/* Right Details Panel */}
                       {(() => {
                         const spec = report.generatedSpecs.find(s => s.file === selectedSpecFile) || report.generatedSpecs[0];
@@ -1013,18 +1005,18 @@ export function InstanceDetailsPane({
                             <Text fontSize="13px" color={colors.subtext}>Select a user flow to view details.</Text>
                           </Flex>
                         );
-                        
+
                         const name = spec.file.split("/").pop() ?? spec.file;
                         const flowId = name.replace(".spec.ts", "");
                         const testResult = report.results?.find(
                           (r) => r.fileName === name || r.flowId === flowId || name.includes(r.flowId)
                         );
                         const matchedFlow = report.flows?.find(
-                           (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId) || (testResult && f.id === testResult.flowId)
+                          (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId) || (testResult && f.id === testResult.flowId)
                         );
                         const pairedNarrative = findNarrativeForSpec(name, report.summary || []);
                         const steps = matchedFlow?.steps?.length ? matchedFlow.steps : (FLOW_MOCK_DETAILS[name]?.steps || []);
-                        
+
                         return (
                           <Box
                             display="flex"
@@ -1067,7 +1059,7 @@ export function InstanceDetailsPane({
                                   gap={1.5}
                                   transition="all 0.2s"
                                 >
-                                  <span style={{ fontSize: "13px" }}>📖</span> Narrative & Steps
+                                  Narrative & Steps
                                 </Button>
                                 <Button
                                   size="xs"
@@ -1088,10 +1080,10 @@ export function InstanceDetailsPane({
                                   gap={1.5}
                                   transition="all 0.2s"
                                 >
-                                  <span style={{ fontSize: "13px" }}>💻</span> Playwright Spec Code
+                                  Playwright Spec Code
                                 </Button>
                               </HStack>
-                              
+
                               <HStack gap={2}>
                                 <Text fontSize="12px" color={isDark ? "zinc.400" : "zinc.600"} fontFamily="mono" fontWeight="semibold" display={{ base: "none", sm: "block" }}>
                                   {name}
@@ -1111,13 +1103,13 @@ export function InstanceDetailsPane({
                                 )}
                               </HStack>
                             </Flex>
-                            
+
                             {/* Tab Content Panel */}
                             <Box flex={1} overflowY="auto" p={4}>
                               {rightPaneTab === "narrative" ? (
                                 <VStack align="stretch" gap={4}>
                                   {/* Flow Metadata Cards Grid */}
-                                  <Box border="1px solid" borderColor={isDark ? "zinc.800" : "zinc.200"} borderRadius="sm" p={3} bg={isDark ? "#12141a" : "#f8fafc"}>
+                                  <Box border="1px solid" borderColor={isDark ? "#27272a" : "#e4e4e7"} borderRadius="sm" p={3} bg="transparent">
                                     <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap={3} fontSize="12px">
                                       <HStack align="flex-start" gap={2}>
                                         <Text color={isDark ? "zinc.400" : "zinc.500"} fontWeight="semibold" w="85px" flexShrink={0}>Flow Name:</Text>
@@ -1156,18 +1148,17 @@ export function InstanceDetailsPane({
                                       </HStack>
                                     </Grid>
                                   </Box>
-                                  
+
                                   {/* Narrative Block */}
                                   {pairedNarrative && (
                                     <Box
-                                      bg={isDark ? "rgba(0, 179, 136, 0.05)" : "rgba(0, 139, 107, 0.03)"}
-                                      borderLeft="4px solid"
-                                      borderColor={isDark ? "#00b388" : "#008b6b"}
+                                      bg={isDark ? "rgba(0, 179, 136, 0.03)" : "rgba(0, 139, 107, 0.015)"}
+                                      border="1px solid"
+                                      borderColor={isDark ? "#27272a" : "#e4e4e7"}
                                       p={4}
                                       borderRadius="sm"
                                     >
                                       <Flex gap={2.5} align="flex-start">
-                                        <span style={{ color: isDark ? "#00b388" : "#008b6b", fontSize: "16px", marginTop: "-2px" }}>💡</span>
                                         <VStack align="stretch" gap={1}>
                                           <Text fontSize="13px" fontWeight="bold" color={isDark ? "zinc.200" : "zinc.800"} letterSpacing="wide">
                                             User Flow Narrative (What was verified)
@@ -1179,14 +1170,20 @@ export function InstanceDetailsPane({
                                       </Flex>
                                     </Box>
                                   )}
-                                  
+
                                   {/* Steps Visual List */}
                                   {steps && steps.length > 0 && (
                                     <Box>
                                       <Text fontSize="13px" fontWeight="bold" mb={3} color={isDark ? "zinc.300" : "zinc.700"} letterSpacing="wide">
-                                        📋 Action Timeline Steps (How it was tested)
+                                        Action Timeline Steps (How it was tested)
                                       </Text>
-                                      <VStack align="stretch" gap={2} pl={1}>
+                                      <Box
+                                        border="1px solid"
+                                        borderColor={isDark ? "#27272a" : "#e4e4e7"}
+                                        borderRadius="sm"
+                                        bg="transparent"
+                                        overflow="hidden"
+                                      >
                                         {steps.map((step, idx) => {
                                           let stepIcon = <Box w="14px" h="14px" borderRadius="full" border="2px solid" borderColor="gray.400" flexShrink={0} mt={0.5} />;
                                           if (testResult?.outcome === "passed") {
@@ -1196,17 +1193,15 @@ export function InstanceDetailsPane({
                                           } else if (testResult?.outcome === "failed") {
                                             stepIcon = <CircleCheck size={15} color="#10b981" style={{ flexShrink: 0, marginTop: "2px" }} />;
                                           }
-                                          
+
                                           return (
-                                            <HStack 
-                                              key={idx} 
-                                              align="flex-start" 
-                                              gap={3} 
-                                              p={2.5} 
-                                              bg={isDark ? "#12141a" : "#f8fafc"} 
-                                              borderRadius="sm" 
-                                              borderLeft="3px solid" 
-                                              borderColor={isDark ? "zinc.800" : "zinc.300"}
+                                            <HStack
+                                              key={idx}
+                                              align="flex-start"
+                                              gap={3}
+                                              p={3}
+                                              borderBottom={idx < steps.length - 1 ? "1px solid" : "none"}
+                                              borderColor={isDark ? "#27272a" : "#e4e4e7"}
                                               _hover={{ bg: isDark ? "#181b24" : "zinc.100" }}
                                               transition="background 0.2s"
                                             >
@@ -1220,7 +1215,7 @@ export function InstanceDetailsPane({
                                             </HStack>
                                           );
                                         })}
-                                      </VStack>
+                                      </Box>
                                     </Box>
                                   )}
                                 </VStack>
@@ -1270,8 +1265,8 @@ export function InstanceDetailsPane({
                 {/* 3. Issues Found & Recommendations */}
                 <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
                   <Box bg={isDark ? "white/5" : "gray.50"} p={4} borderRadius="md" border="1px solid" borderColor={colors.border}>
-                    <Heading size="xs" color="red.500" mb={3} display="flex" alignItems="center" gap={2}>
-                      🔍 Issues Found
+                    <Heading size="xs" color={isDark ? "red.400" : "red.600"} mb={3} display="flex" alignItems="center" gap={2}>
+                      Issues Found
                     </Heading>
                     {report.issues && report.issues.length > 0 ? (
                       <VStack align="stretch" gap={2} pl={2}>
@@ -1287,8 +1282,8 @@ export function InstanceDetailsPane({
                   </Box>
 
                   <Box bg={isDark ? "white/5" : "gray.50"} p={4} borderRadius="md" border="1px solid" borderColor={colors.border}>
-                    <Heading size="xs" color="orange.500" mb={3} display="flex" alignItems="center" gap={2}>
-                      💡 Recommendations
+                    <Heading size="xs" color={isDark ? "#e6b800" : "#805e02"} mb={3} display="flex" alignItems="center" gap={2}>
+                      Recommendations
                     </Heading>
                     {report.recommendations && report.recommendations.length > 0 ? (
                       <VStack align="stretch" gap={2} pl={2}>
@@ -1415,7 +1410,7 @@ export function InstanceDetailsPane({
           <Box display={activeDetailsTab === "code" ? "block" : "none"}>
             {report ? (
               <VStack align="stretch" gap={4}>
-                
+
                 {/* AI Plan Section */}
                 {report.planMarkdown && (
                   <Box border="1px solid" borderColor={colors.border} borderRadius="sm" overflow="hidden">
@@ -1459,7 +1454,7 @@ export function InstanceDetailsPane({
                   <Text fontSize="13px" fontWeight="bold" color={colors.subtext} mb={2}>
                     Generated Spec Files ({report.generatedSpecs.length})
                   </Text>
-                  
+
                   {report.generatedSpecs.length === 0 ? (
                     <Text fontSize="13px" color={colors.subtext} fontStyle="italic">No spec files generated.</Text>
                   ) : (
@@ -1474,10 +1469,10 @@ export function InstanceDetailsPane({
                         const matchedFlow = report.flows?.find(
                           (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId) || (testResult && f.id === testResult.flowId)
                         );
-                        
+
                         const parsedScenarios = parseMarkdownPlan(report.planMarkdown);
                         const matchedScenario = findPlanScenarioForSpec(name, parsedScenarios);
-                        
+
                         let pairedNarrative = report.summary ? findNarrativeForSpec(name, report.summary) : undefined;
                         if (!pairedNarrative && matchedScenario) {
                           pairedNarrative = `Verifies the functional flow for "${matchedScenario.title}". This test automates user interaction steps to validate correct rendering, controls alignment, and interface response.`;
@@ -1493,7 +1488,7 @@ export function InstanceDetailsPane({
                         if (!steps || steps.length === 0) {
                           steps = FLOW_MOCK_DETAILS[name]?.steps || [];
                         }
-                        
+
                         return (
                           <Box key={spec.file} border="1px solid" borderColor={colors.border} borderRadius="sm" overflow="hidden">
                             <Flex
@@ -1518,7 +1513,7 @@ export function InstanceDetailsPane({
                               </HStack>
                               {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                             </Flex>
-                            
+
                             {isOpen && (
                               <VStack align="stretch" gap={0} borderTop="1px solid" borderColor={colors.border}>
                                 {(pairedNarrative || (steps && steps.length > 0)) && (
