@@ -112,7 +112,7 @@ export function Providers({ children }: { children: ReactNode }) {
       root.style.setProperty("--aws-header-search-bg", "rgba(20, 31, 51, 0.6)");
       root.style.setProperty("--aws-header-border", "rgba(38, 54, 74, 0.4)");
       
-      document.body.style.backgroundImage = "radial-gradient(circle at 85% 15%, rgba(34, 211, 238, 0.15), transparent 35%), radial-gradient(circle at 18% 82%, rgba(37, 99, 235, 0.18), transparent 40%), linear-gradient(162deg, rgba(4, 11, 24, 1) 0%, rgba(9, 20, 40, 1) 55%, rgba(7, 17, 34, 1) 100%)";
+      document.body.style.backgroundImage = "radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.08), transparent 45%), radial-gradient(circle at 15% 80%, rgba(99, 102, 241, 0.08), transparent 45%), linear-gradient(160deg, #070a13 0%, #0d1224 60%, #070a13 100%)";
       document.body.style.color = "#eff2f5";
     } else {
       root.style.setProperty("--aws-orange-main", "#3b82f6");
@@ -123,7 +123,7 @@ export function Providers({ children }: { children: ReactNode }) {
       root.style.setProperty("--aws-header-search-bg", "rgba(226, 232, 240, 0.6)");
       root.style.setProperty("--aws-header-border", "rgba(203, 213, 225, 0.4)");
       
-      document.body.style.backgroundImage = "radial-gradient(circle at 86% 16%, rgba(56, 189, 248, 0.15), transparent 30%), radial-gradient(circle at 16% 82%, rgba(59, 130, 246, 0.12), transparent 36%), linear-gradient(160deg, rgba(248, 251, 255, 1) 0%, rgba(233, 242, 251, 1) 58%, rgba(228, 240, 250, 1) 100%)";
+      document.body.style.backgroundImage = "radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.06), transparent 35%), linear-gradient(160deg, #f1f5f9 0%, #e2e8f0 100%)";
       document.body.style.color = "#1a263b";
     }
     document.body.style.backgroundAttachment = "fixed";
@@ -152,6 +152,24 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <ChakraProvider value={customConfig}>
+        <style dangerouslySetInnerHTML={{ __html: `
+          * {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+          }
+          button, button *, input, select, textarea, a, a *, svg, svg *, [role="button"], [role="button"] *, [role="checkbox"], [role="checkbox"] *, [type="checkbox"], [type="checkbox"] * {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+          }
+          ::selection {
+            background-color: rgba(6, 182, 212, 0.35) !important;
+            color: #ffffff !important;
+          }
+          ::-moz-selection {
+            background-color: rgba(6, 182, 212, 0.35) !important;
+            color: #ffffff !important;
+          }
+        ` }} />
         {children}
       </ChakraProvider>
     </ThemeContext.Provider>

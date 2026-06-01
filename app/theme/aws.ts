@@ -23,24 +23,24 @@ export const AWS_COLORS = {
   dark: {
     bg: "transparent", // background image handled in body layout
     sidebarBg: "rgba(13, 23, 42, 0.65)",
-    cardBg: "rgba(20, 31, 51, 0.6)",
-    subBg: "rgba(7, 12, 26, 0.7)",
+    cardBg: "rgba(11, 19, 36, 0.9)",
+    subBg: "rgba(7, 11, 22, 0.85)",
     text: "#eff2f5",
     subtext: "#94a3b8",
-    border: "rgba(38, 54, 74, 0.5)",
-    rowHover: "rgba(29, 42, 58, 0.45)",
+    border: "rgba(56, 189, 248, 0.25)",
+    rowHover: "rgba(56, 189, 248, 0.08)",
     tabSelectedBg: "rgba(29, 42, 58, 0.75)",
   },
 
   light: {
     bg: "transparent",
     sidebarBg: "rgba(255, 255, 255, 0.65)",
-    cardBg: "rgba(255, 255, 255, 0.75)",
-    subBg: "rgba(241, 245, 249, 0.7)",
+    cardBg: "rgba(255, 255, 255, 0.95)",
+    subBg: "rgba(241, 245, 249, 0.9)",
     text: "#1a263b",
     subtext: "#64748b",
-    border: "rgba(226, 232, 240, 0.8)",
-    rowHover: "rgba(224, 242, 254, 0.5)",
+    border: "rgba(15, 23, 42, 0.08)",
+    rowHover: "rgba(59, 130, 246, 0.05)",
     tabSelectedBg: "rgba(224, 242, 254, 0.75)",
   }
 } as const;

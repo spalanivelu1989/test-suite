@@ -81,18 +81,25 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
     >
       {/* Left panel: configurations */}
       <VStack align="stretch" gap={5} pb="200px">
-        {/* Section 1: Name and tags */}
+        {/* Section 1: Target URL */}
         <Box
-          bg={colors.cardBg}
+          position="relative"
+          bg={isDark ? "rgba(13, 23, 42, 0.35)" : "rgba(255, 255, 255, 0.45)"}
           border="1px solid"
           borderColor={colors.border}
           borderRadius="xl"
-          p={4}
-          backdropFilter="blur(16px)"
-          shadow="md"
+          p={5}
+          backdropFilter="blur(12px)"
+          transition="all 0.25s ease"
+          _hover={{
+            borderColor: "rgba(6, 182, 212, 0.4)",
+            boxShadow: isDark 
+              ? "0 4px 20px rgba(6, 182, 212, 0.08)" 
+              : "0 4px 20px rgba(6, 182, 212, 0.04)"
+          }}
         >
-          <VStack align="stretch" gap={2}>
-            <Text fontSize="12.5px" fontWeight="bold" color={colors.text}>
+          <VStack align="stretch" gap={3}>
+            <Text fontSize="13px" fontWeight="extrabold" color={colors.text} letterSpacing="0.03em" fontFamily="mono" textTransform="uppercase">
               Target URL
             </Text>
             <Input
@@ -100,99 +107,103 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               onChange={(e) => setUrl(e.target.value)}
               placeholder="e.g. https://www.tarento.com"
               fontSize="13px"
-              bg={isDark ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.5)"}
+              bg={isDark ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.7)"}
               borderColor={colors.border}
               borderRadius="md"
               size="sm"
+              height="36px"
               disabled={submitting}
               autoFocus
+              _focus={{
+                borderColor: "#06b6d4",
+                boxShadow: "0 0 0 1px #06b6d4"
+              }}
             />
-            <Text fontSize="12px" color={colors.subtext}>
-              The AI agent will crawl this URL, planning and executing test
-              suites.
+            <Text fontSize="11.5px" color={colors.subtext}>
+              The AI agent will crawl this URL, planning and executing test suites automatically.
             </Text>
           </VStack>
         </Box>
 
-        {/* Section 4: Network and crawl settings */}
+        {/* Section 4: Crawl Parameters */}
         <Box
-          bg={colors.cardBg}
+          position="relative"
+          bg={isDark ? "rgba(13, 23, 42, 0.35)" : "rgba(255, 255, 255, 0.45)"}
           border="1px solid"
           borderColor={colors.border}
           borderRadius="xl"
-          p={4}
-          backdropFilter="blur(16px)"
-          shadow="md"
+          p={5}
+          backdropFilter="blur(12px)"
+          transition="all 0.25s ease"
+          _hover={{
+            borderColor: "rgba(6, 182, 212, 0.4)",
+            boxShadow: isDark 
+              ? "0 4px 20px rgba(6, 182, 212, 0.08)" 
+              : "0 4px 20px rgba(6, 182, 212, 0.04)"
+          }}
         >
-          <Heading
-            size="xs"
-            color={colors.text}
-            mb={3}
-            borderBottom="1px solid"
-            borderColor={colors.border}
-            pb={2}
-          >
-            Crawl Parameters
-          </Heading>
+          <VStack align="stretch" gap={4}>
+            <Text fontSize="13px" fontWeight="extrabold" color={colors.text} letterSpacing="0.03em" fontFamily="mono" textTransform="uppercase" borderBottom="1px solid" borderColor={colors.border} pb={2.5}>
+              Crawl Parameters
+            </Text>
 
-          <HStack gap={4} wrap="wrap">
-            <VStack align="stretch" gap={1.5} flex={1} minW="150px">
-              <Text fontSize="12.5px" fontWeight="bold" color={colors.text}>
-                Maximum Crawl Depth
-              </Text>
-              <NativeSelect.Root size="sm">
-                <NativeSelect.Field
-                  value={crawlMode}
-                  onChange={(e) => setCrawlMode(e.target.value)}
-                  fontSize="13px"
-                  bg={
-                    isDark ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.5)"
-                  }
-                  borderColor={colors.border}
-                  borderRadius="md"
-                >
-                  <option value="direct">Direct page only (depth 0)</option>
-                  <option value="standard">
-                    Standard depth — links of entry (depth 1)
-                  </option>
-                  <option value="deep">Deep — 3 levels down</option>
-                  <option value="aggressive">
-                    Aggressive crawl (depth 10)
-                  </option>
-                </NativeSelect.Field>
-              </NativeSelect.Root>
-            </VStack>
+            <HStack gap={4} wrap="wrap">
+              <VStack align="stretch" gap={1.5} flex={1} minW="150px">
+                <Text fontSize="12px" fontWeight="bold" color={colors.subtext}>
+                  Maximum Crawl Depth
+                </Text>
+                <NativeSelect.Root size="sm">
+                  <NativeSelect.Field
+                    value={crawlMode}
+                    onChange={(e) => setCrawlMode(e.target.value)}
+                    fontSize="13px"
+                    height="36px"
+                    bg={isDark ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.7)"}
+                    borderColor={colors.border}
+                    borderRadius="md"
+                  >
+                    <option value="direct">Direct page only (depth 0)</option>
+                    <option value="standard">
+                      Standard depth — links of entry (depth 1)
+                    </option>
+                    <option value="deep">Deep — 3 levels down</option>
+                    <option value="aggressive">
+                      Aggressive crawl (depth 10)
+                    </option>
+                  </NativeSelect.Field>
+                </NativeSelect.Root>
+              </VStack>
 
-            <VStack align="stretch" gap={1.5} flex={1} minW="150px">
-              <Text fontSize="12.5px" fontWeight="bold" color={colors.text}>
-                Maximum Crawl Pages
-              </Text>
-              <NativeSelect.Root size="sm" disabled={crawlMode === "direct"}>
-                <NativeSelect.Field
-                  value={maxPages}
-                  onChange={(e) => setMaxPages(e.target.value)}
-                  opacity={crawlMode === "direct" ? 0.5 : 1}
-                  title={
-                    crawlMode === "direct"
-                      ? "Direct mode tests only the entry page; page count does not apply."
-                      : undefined
-                  }
-                  fontSize="13px"
-                  bg={
-                    isDark ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.5)"
-                  }
-                  borderColor={colors.border}
-                  borderRadius="md"
-                >
-                  <option value="5">5 pages (Quick test)</option>
-                  <option value="10">10 pages (Standard)</option>
-                  <option value="20">20 pages</option>
-                  <option value="50">50 pages (Thorough)</option>
-                  <option value="100">100 pages (Large suite)</option>
-                </NativeSelect.Field>
-              </NativeSelect.Root>
-            </VStack>
-          </HStack>
+              <VStack align="stretch" gap={1.5} flex={1} minW="150px">
+                <Text fontSize="12px" fontWeight="bold" color={colors.subtext}>
+                  Maximum Crawl Pages
+                </Text>
+                <NativeSelect.Root size="sm" disabled={crawlMode === "direct"}>
+                  <NativeSelect.Field
+                    value={maxPages}
+                    onChange={(e) => setMaxPages(e.target.value)}
+                    opacity={crawlMode === "direct" ? 0.5 : 1}
+                    title={
+                      crawlMode === "direct"
+                        ? "Direct mode tests only the entry page; page count does not apply."
+                        : undefined
+                    }
+                    fontSize="13px"
+                    height="36px"
+                    bg={isDark ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.7)"}
+                    borderColor={colors.border}
+                    borderRadius="md"
+                  >
+                    <option value="5">5 pages (Quick test)</option>
+                    <option value="10">10 pages (Standard)</option>
+                    <option value="20">20 pages</option>
+                    <option value="50">50 pages (Thorough)</option>
+                    <option value="100">100 pages (Large suite)</option>
+                  </NativeSelect.Field>
+                </NativeSelect.Root>
+              </VStack>
+            </HStack>
+          </VStack>
         </Box>
       </VStack>
 
@@ -256,38 +267,49 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             type="submit"
             disabled={submitting}
             w="full"
-            bg="linear-gradient(135deg, var(--aws-orange-light) 0%, var(--aws-orange-main) 100%)"
+            bg={isDark 
+              ? "linear-gradient(180deg, #06b6d4 0%, #0891b2 100%)" 
+              : "linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)"}
             color="white"
-            fontSize="13px"
-            fontWeight="bold"
-            py={3}
-            h="auto"
-            borderRadius="md"
+            fontSize="12px"
+            fontWeight="black"
+            letterSpacing="0.06em"
+            textTransform="uppercase"
+            py={4}
+            h="42px"
+            borderRadius="lg"
             cursor={submitting ? "not-allowed" : "pointer"}
-            border="none"
-            boxShadow="0 2px 8px rgba(6, 182, 212, 0.25)"
-            transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+            border="1px solid"
+            borderColor={isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)"}
+            boxShadow={isDark 
+              ? "inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(6, 182, 212, 0.3)" 
+              : "inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 4px 14px rgba(59, 130, 246, 0.2)"}
+            transition="all 0.15s cubic-bezier(0.4, 0, 0.2, 1)"
             _hover={
               submitting
                 ? {}
                 : {
-                    bg: "linear-gradient(135deg, var(--aws-orange-light) 30%, var(--aws-orange-hover) 100%)",
                     transform: "translateY(-1px)",
-                    boxShadow: "0 4px 12px rgba(6, 182, 212, 0.4)",
+                    boxShadow: isDark
+                      ? "inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(6, 182, 212, 0.45)"
+                      : "inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 6px 20px rgba(59, 130, 246, 0.35)",
+                    filter: "brightness(1.05)"
                   }
             }
             _active={
               submitting
                 ? {}
                 : {
-                    transform: "translateY(0)",
-                    boxShadow: "0 2px 4px rgba(6, 182, 212, 0.2)",
+                    transform: "translateY(0.5px)",
+                    boxShadow: isDark
+                      ? "inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px rgba(6, 182, 212, 0.2)"
+                      : "inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 8px rgba(59, 130, 246, 0.15)"
                   }
             }
             display="flex"
             alignItems="center"
             justifyContent="center"
-            gap={2}
+            gap={2.5}
           >
             {submitting ? (
               <>

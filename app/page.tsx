@@ -264,51 +264,226 @@ export default function HomePage() {
         <VStack align="stretch" gap={6}>
 
           {/* Resources Overview Grid */}
-          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="xl" p={4} backdropFilter="blur(16px)" shadow="lg">
-            <Heading size="xs" color={colors.text} mb={4} borderBottom="1px solid" borderColor={colors.border} pb={2}>
-              Resources Overview
-            </Heading>
+          <Box
+            position="relative"
+            bg={colors.cardBg}
+            border="1px solid"
+            borderColor={colors.border}
+            borderRadius="xl"
+            p={5}
+            backdropFilter="blur(16px)"
+            overflow="hidden"
+            style={{
+              boxShadow: isDark
+                ? `inset 1px 1px 0px rgba(255, 255, 255, 0.35),
+                   inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                   1px 1px 0px rgba(6, 182, 212, 0.2),
+                   2px 2px 0px rgba(6, 182, 212, 0.18),
+                   3px 3px 1px rgba(6, 182, 212, 0.15),
+                   4px 4px 2px rgba(13, 148, 136, 0.12),
+                   6px 6px 4px rgba(3, 105, 161, 0.1),
+                   8px 8px 8px rgba(3, 105, 161, 0.08),
+                   12px 12px 16px rgba(0, 0, 0, 0.25),
+                   20px 20px 24px rgba(0, 0, 0, 0.3)`
+                : `inset 1px 1px 0px rgba(255, 255, 255, 0.7),
+                   inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+                   1px 1px 0px rgba(6, 182, 212, 0.12),
+                   2px 2px 0px rgba(6, 182, 212, 0.1),
+                   3px 3px 1px rgba(15, 23, 42, 0.06),
+                   4px 4px 2px rgba(15, 23, 42, 0.05),
+                   6px 6px 4px rgba(15, 23, 42, 0.04),
+                   8px 8px 8px rgba(15, 23, 42, 0.03),
+                   12px 12px 12px rgba(15, 23, 42, 0.02)`
+            }}
+          >
+            <HStack justify="space-between" align="center" mb={4}>
+              <HStack gap={2}>
+                <Box w="6px" h="6px" borderRadius="full" bg={runningCount > 0 ? "#22c55e" : "#64748b"} boxShadow={runningCount > 0 ? "0 0 8px #22c55e" : "none"} />
+                <Text fontSize="11px" fontWeight="extrabold" color={colors.text} letterSpacing="0.08em" fontFamily="mono">
+                  OVERVIEW
+                </Text>
+              </HStack>
+            </HStack>
             
-            <Grid templateColumns={{ base: "repeat(2, 1fr)" }} gap={4}>
+            <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={5}>
+              {/* Active Runs Card */}
               <Box
-                p={3.5}
-                bg={colors.subBg}
+                position="relative"
+                p={5}
+                bg={isDark 
+                  ? "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(6, 182, 212, 0.12) 100%)" 
+                  : "linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, rgba(6, 182, 212, 0.06) 100%)"
+                }
                 border="1px solid"
-                borderColor={colors.border}
-                borderRadius="lg"
+                borderColor={runningCount > 0 ? "rgba(6, 182, 212, 0.3)" : colors.border}
+                borderRadius="xl"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
-                _hover={{ borderColor: "var(--aws-orange-main)", boxShadow: "0 4px 12px rgba(6, 182, 212, 0.15)" }}
-                transition="all 0.2s ease"
+                overflow="hidden"
+                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+                _hover={{
+                  transform: "translateY(-1px)",
+                  borderColor: "rgba(6, 182, 212, 0.5)",
+                  boxShadow: isDark
+                    ? "0 4px 12px rgba(6, 182, 212, 0.12), inset 0 0 8px rgba(6, 182, 212, 0.08)"
+                    : "0 4px 12px rgba(6, 182, 212, 0.06)",
+                }}
               >
-                <Server size={18} style={{ color: "var(--aws-orange-main)", marginBottom: "8px" }} />
-                <Text fontSize="12.5px" color={colors.subtext} fontWeight="bold">Active Runs</Text>
-                <Text fontSize="26px" fontWeight="black" color={colors.text}>{runningCount}</Text>
+                {/* Background glow when active */}
+                {runningCount > 0 && (
+                  <Box
+                    position="absolute"
+                    top="-20px"
+                    right="-20px"
+                    w="100px"
+                    h="100px"
+                    bg="radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%)"
+                    pointerEvents="none"
+                  />
+                )}
+
+                <Flex justify="space-between" align="start">
+                  <VStack align="start" gap={1}>
+                    <Text fontSize="11px" fontWeight="bold" color={colors.subtext} letterSpacing="0.05em" textTransform="uppercase">
+                      Active Runs
+                    </Text>
+                    <HStack align="baseline" gap={2}>
+                      <Text
+                        fontSize="36px"
+                        fontWeight="900"
+                        lineHeight="1"
+                        color="transparent"
+                        letterSpacing="-0.5px"
+                        style={{
+                          background: "linear-gradient(to right, #8b5cf6, #06b6d4)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent"
+                        }}
+                      >
+                        {runningCount}
+                      </Text>
+                      {runningCount > 0 && (
+                        <Badge
+                          variant="subtle"
+                          bg="rgba(34, 197, 94, 0.12)"
+                          color="#22c55e"
+                          borderColor="rgba(34, 197, 94, 0.25)"
+                          borderWidth="1px"
+                          borderRadius="full"
+                          fontSize="9px"
+                          fontWeight="bold"
+                          px={2}
+                          py={0.5}
+                          display="inline-flex"
+                          alignItems="center"
+                          gap={1}
+                        >
+                          <Box w="5px" h="5px" borderRadius="full" bg="#22c55e" style={{ animation: "pulse-glow-run 1.2s infinite" }} />
+                          LIVE
+                        </Badge>
+                      )}
+                    </HStack>
+                  </VStack>
+                </Flex>
+
+                <Text fontSize="11.5px" color={colors.subtext} mt={3} fontWeight="medium">
+                  {runningCount > 0
+                    ? `${runningCount} test run${runningCount > 1 ? "s" : ""} actively running now`
+                    : "No test executions currently active"}
+                </Text>
               </Box>
 
+              {/* Total Runs Card */}
               <Box
-                p={3.5}
-                bg={colors.subBg}
+                position="relative"
+                p={5}
+                bg={isDark 
+                  ? "linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(139, 92, 246, 0.12) 100%)" 
+                  : "linear-gradient(135deg, rgba(236, 72, 153, 0.04) 0%, rgba(139, 92, 246, 0.06) 100%)"
+                }
                 border="1px solid"
                 borderColor={colors.border}
-                borderRadius="lg"
+                borderRadius="xl"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
-                _hover={{ borderColor: "var(--aws-orange-main)", boxShadow: "0 4px 12px rgba(6, 182, 212, 0.15)" }}
-                transition="all 0.2s ease"
+                overflow="hidden"
+                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+                _hover={{
+                  transform: "translateY(-1px)",
+                  borderColor: "rgba(236, 72, 153, 0.5)",
+                  boxShadow: isDark
+                    ? "0 4px 12px rgba(236, 72, 153, 0.1), inset 0 0 8px rgba(139, 92, 246, 0.08)"
+                    : "0 4px 12px rgba(236, 72, 153, 0.05)",
+                }}
               >
-                <Layers size={18} style={{ color: "teal.400", marginBottom: "8px" }} />
-                <Text fontSize="12.5px" color={colors.subtext} fontWeight="bold">Total Runs</Text>
-                <Text fontSize="26px" fontWeight="black" color={colors.text}>{totalCount}</Text>
+                <Flex justify="space-between" align="start">
+                  <VStack align="start" gap={1}>
+                    <Text fontSize="11px" fontWeight="bold" color={colors.subtext} letterSpacing="0.05em" textTransform="uppercase">
+                      Total Runs
+                    </Text>
+                    <Text
+                      fontSize="36px"
+                      fontWeight="900"
+                      lineHeight="1"
+                      color="transparent"
+                      letterSpacing="-0.5px"
+                      style={{
+                        background: "linear-gradient(to right, #ec4899, #8b5cf6)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent"
+                      }}
+                    >
+                      {totalCount}
+                    </Text>
+                  </VStack>
+                </Flex>
+
+                <Text fontSize="11.5px" color={colors.subtext} mt={3} fontWeight="medium">
+                  {totalCount > 0
+                    ? `${totalCount} suite execution${totalCount > 1 ? "s" : ""} recorded in history`
+                    : "Ready to launch your first test suite run"}
+                </Text>
               </Box>
             </Grid>
           </Box>
 
           {/* Launch Wizard Form Panel */}
-          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="xl" p={4} backdropFilter="blur(16px)" shadow="lg">
-            <Heading size="sm" color={colors.text} mb={4} borderBottom="1px solid" borderColor={colors.border} pb={2}>
-              Launch Test (Launch New AI Crawler & Tester Run)
+          <Box
+            position="relative"
+            bg={colors.cardBg}
+            border="1px solid"
+            borderColor={colors.border}
+            borderRadius="xl"
+            p={5}
+            backdropFilter="blur(16px)"
+            overflow="hidden"
+            style={{
+              boxShadow: isDark
+                ? `inset 1px 1px 0px rgba(255, 255, 255, 0.35),
+                   inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                   1px 1px 0px rgba(6, 182, 212, 0.2),
+                   2px 2px 0px rgba(6, 182, 212, 0.18),
+                   3px 3px 1px rgba(6, 182, 212, 0.15),
+                   4px 4px 2px rgba(13, 148, 136, 0.12),
+                   6px 6px 4px rgba(3, 105, 161, 0.1),
+                   8px 8px 8px rgba(3, 105, 161, 0.08),
+                   12px 12px 16px rgba(0, 0, 0, 0.25),
+                   20px 20px 24px rgba(0, 0, 0, 0.3)`
+                : `inset 1px 1px 0px rgba(255, 255, 255, 0.7),
+                   inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+                   1px 1px 0px rgba(6, 182, 212, 0.12),
+                   2px 2px 0px rgba(6, 182, 212, 0.1),
+                   3px 3px 1px rgba(15, 23, 42, 0.06),
+                   4px 4px 2px rgba(15, 23, 42, 0.05),
+                   6px 6px 4px rgba(15, 23, 42, 0.04),
+                   8px 8px 8px rgba(15, 23, 42, 0.03),
+                   12px 12px 12px rgba(15, 23, 42, 0.02)`
+            }}
+          >
+            <Heading size="sm" color={colors.text} mb={4} fontWeight="extrabold" letterSpacing="0.02em">
+              Launch Test
             </Heading>
+            
             <LaunchWizard onLaunchSuccess={handleLaunchSuccess} />
           </Box>
         </VStack>

@@ -16,9 +16,10 @@ import {
   Server,
   Sun,
   Moon,
-  Columns2,
   Workflow,
   Database,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors } from "@/app/theme/aws";
@@ -77,48 +78,69 @@ export function ConsoleLayout({
           borderBottom="1px solid"
           borderColor="rgba(255, 255, 255, 0.08)"
           align="center"
-          justify="space-between"
+          justify={sidebarOpen ? "space-between" : "center"}
           flexShrink={0}
         >
-          <HStack gap={2} overflow="hidden">
-            <Box color="#38bdf8" flexShrink={0}>
-              <Workflow size={20} strokeWidth={2.5} />
-            </Box>
-            {sidebarOpen && (
-              <Text fontWeight="extrabold" fontSize="14.5px" color="white" letterSpacing="0.3px">
-                Test Suite
-              </Text>
-            )}
-          </HStack>
+          {sidebarOpen ? (
+            <>
+              <HStack gap={2} overflow="hidden">
+                <Box color="#38bdf8" flexShrink={0}>
+                  <Workflow size={20} strokeWidth={2.5} />
+                </Box>
+                <Text fontWeight="extrabold" fontSize="14.5px" color="white" letterSpacing="0.3px">
+                  Test Suite
+                </Text>
+              </HStack>
 
-          <HStack gap={0.5} flexShrink={0}>
+              <IconButton
+                aria-label="Collapse Sidebar"
+                variant="ghost"
+                color="rgba(255, 255, 255, 0.65)"
+                size="xs"
+                h="26px"
+                w="26px"
+                cursor="pointer"
+                borderRadius="md"
+                border="1px solid rgba(255, 255, 255, 0.12)"
+                bg="rgba(255, 255, 255, 0.03)"
+                _hover={{
+                  color: "white",
+                  bg: "rgba(255, 255, 255, 0.15)",
+                  borderColor: "#38bdf8",
+                  boxShadow: "0 0 8px rgba(56, 189, 248, 0.3)"
+                }}
+                transition="all 0.2s ease"
+                onClick={() => setSidebarOpen(false)}
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft size={16} strokeWidth={2.5} />
+              </IconButton>
+            </>
+          ) : (
             <IconButton
-              aria-label="Toggle Theme"
+              aria-label="Expand Sidebar"
               variant="ghost"
               color="rgba(255, 255, 255, 0.65)"
               size="xs"
-              h="24px"
-              w="24px"
+              h="32px"
+              w="32px"
               cursor="pointer"
-              _hover={{ color: "white", bg: "rgba(255, 255, 255, 0.1)" }}
-              onClick={toggleTheme}
+              borderRadius="md"
+              border="1px solid rgba(255, 255, 255, 0.12)"
+              bg="rgba(255, 255, 255, 0.03)"
+              _hover={{
+                color: "white",
+                bg: "rgba(255, 255, 255, 0.15)",
+                borderColor: "#38bdf8",
+                boxShadow: "0 0 10px rgba(56, 189, 248, 0.4)"
+              }}
+              transition="all 0.2s ease"
+              onClick={() => setSidebarOpen(true)}
+              title="Expand Sidebar"
             >
-              {isDark ? <Sun size={14} /> : <Moon size={14} />}
+              <ChevronRight size={16} strokeWidth={2.5} />
             </IconButton>
-            <IconButton
-              aria-label="Toggle Sidebar"
-              variant="ghost"
-              color="rgba(255, 255, 255, 0.65)"
-              size="xs"
-              h="24px"
-              w="24px"
-              cursor="pointer"
-              _hover={{ color: "white", bg: "rgba(255, 255, 255, 0.1)" }}
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <Columns2 size={14} />
-            </IconButton>
-          </HStack>
+          )}
         </Flex>
 
         {/* User profile details block */}
@@ -214,6 +236,32 @@ export function ConsoleLayout({
             );
           })}
         </VStack>
+
+        {/* Sidebar Footer with Theme Toggle */}
+        <Box mt="auto" p={sidebarOpen ? 3 : 2} borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.08)">
+          <Flex align="center" justify={sidebarOpen ? "space-between" : "center"} gap={2}>
+            {sidebarOpen && (
+              <Text fontSize="11px" color="rgba(255, 255, 255, 0.4)" fontWeight="medium">
+                Test Suite v1.0.0
+              </Text>
+            )}
+            <IconButton
+              aria-label="Toggle Theme"
+              variant="ghost"
+              color="rgba(255, 255, 255, 0.65)"
+              size="xs"
+              h="28px"
+              w={sidebarOpen ? "28px" : "32px"}
+              cursor="pointer"
+              borderRadius="md"
+              _hover={{ color: "white", bg: "rgba(255, 255, 255, 0.1)" }}
+              onClick={toggleTheme}
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            </IconButton>
+          </Flex>
+        </Box>
       </Box>
 
       {/* Main Content Area */}
