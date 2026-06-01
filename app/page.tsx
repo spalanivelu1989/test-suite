@@ -265,36 +265,12 @@ export default function HomePage() {
 
           {/* Resources Overview Grid */}
           <Box
-            position="relative"
             bg={colors.cardBg}
             border="1px solid"
             borderColor={colors.border}
             borderRadius="xl"
             p={5}
-            backdropFilter="blur(16px)"
-            overflow="hidden"
-            style={{
-              boxShadow: isDark
-                ? `inset 1px 1px 0px rgba(255, 255, 255, 0.35),
-                   inset 2px 2px 4px rgba(255, 255, 255, 0.1),
-                   1px 1px 0px rgba(6, 182, 212, 0.2),
-                   2px 2px 0px rgba(6, 182, 212, 0.18),
-                   3px 3px 1px rgba(6, 182, 212, 0.15),
-                   4px 4px 2px rgba(13, 148, 136, 0.12),
-                   6px 6px 4px rgba(3, 105, 161, 0.1),
-                   8px 8px 8px rgba(3, 105, 161, 0.08),
-                   12px 12px 16px rgba(0, 0, 0, 0.25),
-                   20px 20px 24px rgba(0, 0, 0, 0.3)`
-                : `inset 1px 1px 0px rgba(255, 255, 255, 0.7),
-                   inset 2px 2px 4px rgba(255, 255, 255, 0.3),
-                   1px 1px 0px rgba(6, 182, 212, 0.12),
-                   2px 2px 0px rgba(6, 182, 212, 0.1),
-                   3px 3px 1px rgba(15, 23, 42, 0.06),
-                   4px 4px 2px rgba(15, 23, 42, 0.05),
-                   6px 6px 4px rgba(15, 23, 42, 0.04),
-                   8px 8px 8px rgba(15, 23, 42, 0.03),
-                   12px 12px 12px rgba(15, 23, 42, 0.02)`
-            }}
+            shadow="xl"
           >
             <HStack justify="space-between" align="center" mb={4}>
               <HStack gap={2}>
@@ -305,43 +281,24 @@ export default function HomePage() {
               </HStack>
             </HStack>
             
-            <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={5}>
+             <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={5}>
               {/* Active Runs Card */}
               <Box
                 position="relative"
                 p={5}
-                bg={isDark 
-                  ? "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(6, 182, 212, 0.12) 100%)" 
-                  : "linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, rgba(6, 182, 212, 0.06) 100%)"
-                }
+                bg={colors.subBg}
                 border="1px solid"
-                borderColor={runningCount > 0 ? "rgba(6, 182, 212, 0.3)" : colors.border}
+                borderColor={runningCount > 0 ? "rgba(6, 182, 212, 0.45)" : colors.border}
                 borderRadius="xl"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
                 overflow="hidden"
-                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+                transition="all 0.2s ease"
                 _hover={{
-                  transform: "translateY(-1px)",
-                  borderColor: "rgba(6, 182, 212, 0.5)",
-                  boxShadow: isDark
-                    ? "0 4px 12px rgba(6, 182, 212, 0.12), inset 0 0 8px rgba(6, 182, 212, 0.08)"
-                    : "0 4px 12px rgba(6, 182, 212, 0.06)",
+                  borderColor: "rgba(6, 182, 212, 0.6)",
+                  bg: isDark ? "#121b2d" : "#eef2f6",
                 }}
               >
-                {/* Background glow when active */}
-                {runningCount > 0 && (
-                  <Box
-                    position="absolute"
-                    top="-20px"
-                    right="-20px"
-                    w="100px"
-                    h="100px"
-                    bg="radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%)"
-                    pointerEvents="none"
-                  />
-                )}
-
                 <Flex justify="space-between" align="start">
                   <VStack align="start" gap={1}>
                     <Text fontSize="11px" fontWeight="bold" color={colors.subtext} letterSpacing="0.05em" textTransform="uppercase">
@@ -397,23 +354,17 @@ export default function HomePage() {
               <Box
                 position="relative"
                 p={5}
-                bg={isDark 
-                  ? "linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(139, 92, 246, 0.12) 100%)" 
-                  : "linear-gradient(135deg, rgba(236, 72, 153, 0.04) 0%, rgba(139, 92, 246, 0.06) 100%)"
-                }
+                bg={colors.subBg}
                 border="1px solid"
                 borderColor={colors.border}
                 borderRadius="xl"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
                 overflow="hidden"
-                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+                transition="all 0.2s ease"
                 _hover={{
-                  transform: "translateY(-1px)",
-                  borderColor: "rgba(236, 72, 153, 0.5)",
-                  boxShadow: isDark
-                    ? "0 4px 12px rgba(236, 72, 153, 0.1), inset 0 0 8px rgba(139, 92, 246, 0.08)"
-                    : "0 4px 12px rgba(236, 72, 153, 0.05)",
+                  borderColor: isDark ? "rgba(236, 72, 153, 0.5)" : "rgba(236, 72, 153, 0.4)",
+                  bg: isDark ? "#1c1225" : "#fdf2f8",
                 }}
               >
                 <Flex justify="space-between" align="start">
@@ -449,36 +400,12 @@ export default function HomePage() {
 
           {/* Launch Wizard Form Panel */}
           <Box
-            position="relative"
             bg={colors.cardBg}
             border="1px solid"
             borderColor={colors.border}
             borderRadius="xl"
             p={5}
-            backdropFilter="blur(16px)"
-            overflow="hidden"
-            style={{
-              boxShadow: isDark
-                ? `inset 1px 1px 0px rgba(255, 255, 255, 0.35),
-                   inset 2px 2px 4px rgba(255, 255, 255, 0.1),
-                   1px 1px 0px rgba(6, 182, 212, 0.2),
-                   2px 2px 0px rgba(6, 182, 212, 0.18),
-                   3px 3px 1px rgba(6, 182, 212, 0.15),
-                   4px 4px 2px rgba(13, 148, 136, 0.12),
-                   6px 6px 4px rgba(3, 105, 161, 0.1),
-                   8px 8px 8px rgba(3, 105, 161, 0.08),
-                   12px 12px 16px rgba(0, 0, 0, 0.25),
-                   20px 20px 24px rgba(0, 0, 0, 0.3)`
-                : `inset 1px 1px 0px rgba(255, 255, 255, 0.7),
-                   inset 2px 2px 4px rgba(255, 255, 255, 0.3),
-                   1px 1px 0px rgba(6, 182, 212, 0.12),
-                   2px 2px 0px rgba(6, 182, 212, 0.1),
-                   3px 3px 1px rgba(15, 23, 42, 0.06),
-                   4px 4px 2px rgba(15, 23, 42, 0.05),
-                   6px 6px 4px rgba(15, 23, 42, 0.04),
-                   8px 8px 8px rgba(15, 23, 42, 0.03),
-                   12px 12px 12px rgba(15, 23, 42, 0.02)`
-            }}
+            shadow="xl"
           >
             <Heading size="sm" color={colors.text} mb={4} fontWeight="extrabold" letterSpacing="0.02em">
               Launch Test

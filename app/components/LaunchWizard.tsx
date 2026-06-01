@@ -103,18 +103,14 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
         {/* Section 1: Target URL */}
         <Box
           position="relative"
-          bg={isDark ? "rgba(13, 23, 42, 0.35)" : "rgba(255, 255, 255, 0.45)"}
+          bg={colors.subBg}
           border="1px solid"
-          borderColor={isDark ? "rgba(56, 189, 248, 0.45)" : "rgba(15, 23, 42, 0.18)"}
+          borderColor={colors.border}
           borderRadius="xl"
           p={5}
-          backdropFilter="blur(12px)"
-          transition="all 0.25s ease"
+          transition="all 0.2s ease"
           _hover={{
-            borderColor: isDark ? "rgba(6, 182, 212, 0.7)" : "rgba(59, 130, 246, 0.4)",
-            boxShadow: isDark 
-              ? "0 4px 20px rgba(6, 182, 212, 0.08)" 
-              : "0 4px 20px rgba(6, 182, 212, 0.04)"
+            borderColor: isDark ? "rgba(6, 182, 212, 0.5)" : "rgba(59, 130, 246, 0.4)",
           }}
         >
           <VStack align="stretch" gap={3}>
@@ -126,7 +122,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               onChange={(e) => setUrl(e.target.value)}
               placeholder="e.g. https://www.tarento.com"
               fontSize="13px"
-              bg={isDark ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.7)"}
+              bg={isDark ? "#080c14" : "#ffffff"}
               borderColor={colors.border}
               borderRadius="md"
               size="sm"
@@ -147,18 +143,14 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
         {/* Section 4: Crawl Parameters */}
         <Box
           position="relative"
-          bg={isDark ? "rgba(13, 23, 42, 0.35)" : "rgba(255, 255, 255, 0.45)"}
+          bg={colors.subBg}
           border="1px solid"
-          borderColor={isDark ? "rgba(56, 189, 248, 0.45)" : "rgba(15, 23, 42, 0.18)"}
+          borderColor={colors.border}
           borderRadius="xl"
           p={5}
-          backdropFilter="blur(12px)"
-          transition="all 0.25s ease"
+          transition="all 0.2s ease"
           _hover={{
-            borderColor: isDark ? "rgba(6, 182, 212, 0.7)" : "rgba(59, 130, 246, 0.4)",
-            boxShadow: isDark 
-              ? "0 4px 20px rgba(6, 182, 212, 0.08)" 
-              : "0 4px 20px rgba(6, 182, 212, 0.04)"
+            borderColor: isDark ? "rgba(6, 182, 212, 0.5)" : "rgba(59, 130, 246, 0.4)",
           }}
         >
           <VStack align="stretch" gap={4}>
@@ -179,7 +171,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   w="full"
                   h="36px"
                   px={3}
-                  bg={isDark ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.7)"}
+                  bg={isDark ? "#080c14" : "#ffffff"}
                   border="1px solid"
                   borderColor={colors.border}
                   borderRadius="md"
@@ -210,12 +202,11 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     left={0}
                     right={0}
                     zIndex={50}
-                    bg={isDark ? "rgba(11, 19, 36, 0.95)" : "rgba(255, 255, 255, 0.98)"}
-                    backdropFilter="blur(16px)"
+                    bg={isDark ? "#0e1526" : "#ffffff"}
                     border="1px solid"
                     borderColor={colors.border}
                     borderRadius="md"
-                    boxShadow="0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)"
+                    boxShadow="md"
                     maxH="150px"
                     overflowY="auto"
                     py={1}
@@ -271,7 +262,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   w="full"
                   h="36px"
                   px={3}
-                  bg={isDark ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.7)"}
+                  bg={isDark ? "#080c14" : "#ffffff"}
                   border="1px solid"
                   borderColor={colors.border}
                   borderRadius="md"
@@ -309,12 +300,11 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     left={0}
                     right={0}
                     zIndex={50}
-                    bg={isDark ? "rgba(11, 19, 36, 0.95)" : "rgba(255, 255, 255, 0.98)"}
-                    backdropFilter="blur(16px)"
+                    bg={isDark ? "#0e1526" : "#ffffff"}
                     border="1px solid"
                     borderColor={colors.border}
                     borderRadius="md"
-                    boxShadow="0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)"
+                    boxShadow="md"
                     maxH="150px"
                     overflowY="auto"
                     py={1}
@@ -373,8 +363,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           p={4}
           position={{ lg: "sticky" }}
           top={{ lg: "70px" }}
-          backdropFilter="blur(16px)"
-          boxShadow="lg"
+          shadow="md"
         >
           <Heading
             size="xs"
@@ -437,18 +426,14 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             cursor={submitting ? "not-allowed" : "pointer"}
             border="1px solid"
             borderColor={isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)"}
-            boxShadow={isDark 
-              ? "inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(6, 182, 212, 0.3)" 
-              : "inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 4px 14px rgba(59, 130, 246, 0.2)"}
-            transition="all 0.15s cubic-bezier(0.4, 0, 0.2, 1)"
+            boxShadow="sm"
+            transition="all 0.15s ease"
             _hover={
               submitting
                 ? {}
                 : {
                     transform: "translateY(-1px)",
-                    boxShadow: isDark
-                      ? "inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(6, 182, 212, 0.45)"
-                      : "inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 6px 20px rgba(59, 130, 246, 0.35)",
+                    boxShadow: "md",
                     filter: "brightness(1.05)"
                   }
             }

@@ -21,27 +21,27 @@ export const AWS_COLORS = {
   },
 
   dark: {
-    bg: "transparent", // background image handled in body layout
-    sidebarBg: "rgba(13, 23, 42, 0.65)",
-    cardBg: "rgba(11, 19, 36, 0.9)",
-    subBg: "rgba(7, 11, 22, 0.85)",
+    bg: "#0b0f19",
+    sidebarBg: "#0e1526",
+    cardBg: "#161f30",
+    subBg: "#0c1220",
     text: "#eff2f5",
     subtext: "#94a3b8",
-    border: "rgba(56, 189, 248, 0.25)",
-    rowHover: "rgba(56, 189, 248, 0.08)",
-    tabSelectedBg: "rgba(29, 42, 58, 0.75)",
+    border: "#232e42",
+    rowHover: "rgba(56, 189, 248, 0.05)",
+    tabSelectedBg: "#1a2538",
   },
 
   light: {
-    bg: "transparent",
-    sidebarBg: "rgba(255, 255, 255, 0.65)",
-    cardBg: "rgba(255, 255, 255, 0.95)",
-    subBg: "rgba(241, 245, 249, 0.9)",
+    bg: "#f8fafc",
+    sidebarBg: "#ffffff",
+    cardBg: "#ffffff",
+    subBg: "#f1f5f9",
     text: "#1a263b",
     subtext: "#64748b",
-    border: "rgba(15, 23, 42, 0.08)",
-    rowHover: "rgba(59, 130, 246, 0.05)",
-    tabSelectedBg: "rgba(224, 242, 254, 0.75)",
+    border: "#cbd5e1",
+    rowHover: "rgba(59, 130, 246, 0.04)",
+    tabSelectedBg: "#e2e8f0",
   }
 } as const;
 

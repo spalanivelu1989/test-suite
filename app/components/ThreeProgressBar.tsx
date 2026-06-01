@@ -158,12 +158,7 @@ export function ThreeProgressBar({
       borderColor={borderColor}
       borderRadius="xl"
       p={4}
-      backdropFilter="blur(16px)"
-      boxShadow={
-        isActive
-          ? `0 4px 12px ${catppuccinAlpha(colors.sapphire, isDark ? 0.15 : 0.1)}`
-          : "none"
-      }
+      shadow="sm"
       transition="all 0.3s ease"
       position="relative"
       overflow="hidden"

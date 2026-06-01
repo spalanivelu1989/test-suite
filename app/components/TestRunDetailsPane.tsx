@@ -592,18 +592,16 @@ export function TestRunDetailsPane({
       flexDirection="column"
       overflow="hidden"
       zIndex={50}
-      backdropFilter="blur(20px)"
     >
       {/* 1. Header with Run Name & State */}
       <Flex
         px={4}
         py={2.5}
-        bg={isDark ? "rgba(15, 23, 42, 0.45)" : "rgba(241, 245, 249, 0.45)"}
+        bg={colors.subBg}
         borderBottom="1px solid"
         borderColor={colors.border}
         align="center"
         justify="space-between"
-        backdropFilter="blur(8px)"
       >
         <HStack gap={4}>
           <Text

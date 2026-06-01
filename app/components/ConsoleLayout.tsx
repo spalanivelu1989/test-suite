@@ -5,9 +5,8 @@ import {
   Box,
   Flex,
   HStack,
-  Text,
   VStack,
-  Link,
+  Text,
   Button,
   IconButton,
 } from "@chakra-ui/react";
@@ -17,7 +16,6 @@ import {
   Sun,
   Moon,
   Workflow,
-  Database,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -57,9 +55,13 @@ export function ConsoleLayout({
       {/* Left Sidebar */}
       <Box
         w={sidebarOpen ? "260px" : "64px"}
-        bg="#0d1630"
+        style={{
+          background: isDark
+            ? "linear-gradient(175deg, #060c1e 0%, #0b1a42 50%, #0d2260 100%)"
+            : "linear-gradient(175deg, #0a1628 0%, #0d2b6b 45%, #1a4db5 100%)",
+        }}
         borderRight="1px solid"
-        borderColor="rgba(255, 255, 255, 0.08)"
+        borderColor={isDark ? colors.border : "rgba(255,255,255,0.15)"}
         display="flex"
         flexDirection="column"
         flexShrink={0}
@@ -69,14 +71,13 @@ export function ConsoleLayout({
         h="100vh"
         position="sticky"
         top={0}
-        className="glass-scroll-area"
       >
         {/* Sidebar Header: Logo, Title, and Action Controls */}
         <Flex
           h="52px"
           px={3.5}
           borderBottom="1px solid"
-          borderColor="rgba(255, 255, 255, 0.08)"
+          borderColor="rgba(255,255,255,0.12)"
           align="center"
           justify={sidebarOpen ? "space-between" : "center"}
           flexShrink={0}
@@ -84,10 +85,10 @@ export function ConsoleLayout({
           {sidebarOpen ? (
             <>
               <HStack gap={2} overflow="hidden">
-                <Box color="#38bdf8" flexShrink={0}>
+                <Box color="rgba(255,255,255,0.9)" flexShrink={0}>
                   <Workflow size={20} strokeWidth={2.5} />
                 </Box>
-                <Text fontWeight="extrabold" fontSize="14.5px" color="white" letterSpacing="0.3px">
+                <Text fontWeight="extrabold" fontSize="17px" color="white" letterSpacing="0.4px">
                   Test Suite
                 </Text>
               </HStack>
@@ -95,19 +96,19 @@ export function ConsoleLayout({
               <IconButton
                 aria-label="Collapse Sidebar"
                 variant="ghost"
-                color="rgba(255, 255, 255, 0.65)"
+                color="rgba(255,255,255,0.7)"
                 size="xs"
                 h="26px"
                 w="26px"
                 cursor="pointer"
                 borderRadius="md"
-                border="1px solid rgba(255, 255, 255, 0.12)"
-                bg="rgba(255, 255, 255, 0.03)"
+                border="1px solid"
+                borderColor="rgba(255,255,255,0.2)"
+                bg="rgba(255,255,255,0.08)"
                 _hover={{
                   color: "white",
-                  bg: "rgba(255, 255, 255, 0.15)",
-                  borderColor: "#38bdf8",
-                  boxShadow: "0 0 8px rgba(56, 189, 248, 0.3)"
+                  bg: "rgba(255,255,255,0.18)",
+                  borderColor: "rgba(255,255,255,0.5)",
                 }}
                 transition="all 0.2s ease"
                 onClick={() => setSidebarOpen(false)}
@@ -120,19 +121,19 @@ export function ConsoleLayout({
             <IconButton
               aria-label="Expand Sidebar"
               variant="ghost"
-              color="rgba(255, 255, 255, 0.65)"
+              color="rgba(255,255,255,0.7)"
               size="xs"
               h="32px"
               w="32px"
               cursor="pointer"
               borderRadius="md"
-              border="1px solid rgba(255, 255, 255, 0.12)"
-              bg="rgba(255, 255, 255, 0.03)"
+              border="1px solid"
+              borderColor="rgba(255,255,255,0.2)"
+              bg="rgba(255,255,255,0.08)"
               _hover={{
                 color: "white",
-                bg: "rgba(255, 255, 255, 0.15)",
-                borderColor: "#38bdf8",
-                boxShadow: "0 0 10px rgba(56, 189, 248, 0.4)"
+                bg: "rgba(255,255,255,0.18)",
+                borderColor: "rgba(255,255,255,0.5)",
               }}
               transition="all 0.2s ease"
               onClick={() => setSidebarOpen(true)}
@@ -143,62 +144,7 @@ export function ConsoleLayout({
           )}
         </Flex>
 
-        {/* User profile details block */}
-        {sidebarOpen ? (
-          <HStack
-            gap={3}
-            px={4}
-            py={3.5}
-            borderBottom="1px solid"
-            borderColor="rgba(255, 255, 255, 0.08)"
-            bg="rgba(0, 0, 0, 0.15)"
-            flexShrink={0}
-          >
-            <Box
-              w="36px"
-              h="36px"
-              borderRadius="xl"
-              bg="#1d3557"
-              color="white"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              fontWeight="extrabold"
-              fontSize="14px"
-              boxShadow="0 2px 8px rgba(29, 53, 87, 0.4)"
-              flexShrink={0}
-            >
-              T
-            </Box>
-            <VStack align="flex-start" gap={0} overflow="hidden">
-              <Text color="white" fontSize="12.5px" fontWeight="bold" truncate maxW="160px">
-                root@local
-              </Text>
-              <HStack gap={1} color="rgba(255, 255, 255, 0.5)" align="center">
-                <Database size={11} />
-                <Text fontSize="10.5px" fontWeight="medium">Super Admin</Text>
-              </HStack>
-            </VStack>
-          </HStack>
-        ) : (
-          <Flex justify="center" py={3.5} borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.08)" flexShrink={0}>
-            <Box
-              w="30px"
-              h="30px"
-              borderRadius="xl"
-              bg="#1d3557"
-              color="white"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              fontWeight="extrabold"
-              fontSize="12px"
-              boxShadow="0 2px 8px rgba(29, 53, 87, 0.4)"
-            >
-              T
-            </Box>
-          </Flex>
-        )}
+
 
         {/* Primary Functional Navigation Buttons */}
         <VStack align="stretch" gap={0.5} px={sidebarOpen ? 2 : 1} py={3} flexShrink={0}>
@@ -215,19 +161,19 @@ export function ConsoleLayout({
                 py={2.5}
                 height="34px"
                 borderRadius="lg"
-                bg={isActive ? "rgba(56, 189, 248, 0.12)" : "transparent"}
-                border={isActive ? "1.5px solid rgba(56, 189, 248, 0.45)" : "1.5px solid transparent"}
-                color={isActive ? "white" : "rgba(255, 255, 255, 0.65)"}
+                bg={isActive ? "rgba(255,255,255,0.2)" : "transparent"}
+                border={isActive ? "1.5px solid rgba(255,255,255,0.55)" : "1.5px solid transparent"}
+                color="white"
                 fontWeight={isActive ? "semibold" : "normal"}
                 fontSize="13px"
                 cursor="pointer"
                 _hover={{
-                  bg: isActive ? "rgba(56, 189, 248, 0.18)" : "rgba(255, 255, 255, 0.05)",
+                  bg: "rgba(255,255,255,0.12)",
                   color: "white",
                 }}
               >
                 <HStack gap={3.5} justify={sidebarOpen ? "flex-start" : "center"} w="full" overflow="hidden">
-                  <Box color={isActive ? "#38bdf8" : "inherit"} flexShrink={0}>
+                  <Box color={isActive ? "white" : "rgba(255,255,255,0.7)"} flexShrink={0}>
                     <Icon size={15} />
                   </Box>
                   {sidebarOpen && <Text truncate>{item.label}</Text>}
@@ -238,23 +184,23 @@ export function ConsoleLayout({
         </VStack>
 
         {/* Sidebar Footer with Theme Toggle */}
-        <Box mt="auto" p={sidebarOpen ? 3 : 2} borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.08)">
+        <Box mt="auto" p={sidebarOpen ? 3 : 2} borderTop="1px solid" borderColor="rgba(255,255,255,0.12)" bg="rgba(0,0,0,0.15)">
           <Flex align="center" justify={sidebarOpen ? "space-between" : "center"} gap={2}>
             {sidebarOpen && (
-              <Text fontSize="11px" color="rgba(255, 255, 255, 0.4)" fontWeight="medium">
+              <Text fontSize="11px" color="rgba(255,255,255,0.55)" fontWeight="medium">
                 Test Suite v1.0.0
               </Text>
             )}
             <IconButton
               aria-label="Toggle Theme"
               variant="ghost"
-              color="rgba(255, 255, 255, 0.65)"
+              color="rgba(255,255,255,0.7)"
               size="xs"
               h="28px"
               w={sidebarOpen ? "28px" : "32px"}
               cursor="pointer"
               borderRadius="md"
-              _hover={{ color: "white", bg: "rgba(255, 255, 255, 0.1)" }}
+              _hover={{ color: "white", bg: "rgba(255,255,255,0.15)" }}
               onClick={toggleTheme}
               title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
@@ -269,7 +215,7 @@ export function ConsoleLayout({
         {/* Breadcrumb Bar */}
         <Flex
           h="36px"
-          bg={isDark ? "rgba(17, 24, 39, 0.4)" : "rgba(248, 250, 252, 0.4)"}
+          bg={colors.cardBg}
           borderBottom="1px solid"
           borderColor={colors.border}
           align="center"
@@ -277,7 +223,6 @@ export function ConsoleLayout({
           fontSize="11.5px"
           color={colors.subtext}
           gap={2}
-          backdropFilter="blur(8px)"
           flexShrink={0}
         >
           <Text cursor="pointer" _hover={{ textDecoration: "underline" }} onClick={() => setActiveTab("dashboard")}>

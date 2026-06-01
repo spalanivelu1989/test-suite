@@ -71,19 +71,18 @@ export function TestRunsTable({
   };
 
   return (
-    <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="xl" overflow="hidden" backdropFilter="blur(16px)" shadow="xl">
+    <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="xl" overflow="hidden" shadow="md">
       {/* Table Actions Header */}
       <Flex
         px={4}
         py={2.5}
-        bg={isDark ? "rgba(15, 23, 42, 0.45)" : "rgba(241, 245, 249, 0.45)"}
+        bg={colors.subBg}
         borderBottom="1px solid"
         borderColor={colors.border}
         justify="space-between"
         align="center"
         wrap="wrap"
         gap={2}
-        backdropFilter="blur(8px)"
       >
         <HStack gap={2}>
           <Text fontSize="12.5px" fontWeight="extrabold" color={colors.text} letterSpacing="0.05em">
@@ -376,8 +375,7 @@ function TerminateRunDialog({
     >
       <Portal>
         <Dialog.Backdrop
-          bg={isDark ? "rgba(0, 0, 0, 0.75)" : "rgba(15, 23, 42, 0.55)"}
-          backdropFilter="blur(6px)"
+          bg={isDark ? "rgba(0, 0, 0, 0.7)" : "rgba(15, 23, 42, 0.5)"}
         />
         <Dialog.Positioner>
           <Dialog.Content
@@ -389,12 +387,7 @@ function TerminateRunDialog({
             maxW="520px"
             w="92vw"
             overflow="hidden"
-            backdropFilter="blur(24px)"
-            boxShadow={
-              isDark
-                ? "0 24px 60px rgba(0, 0, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.4)"
-                : "0 24px 60px rgba(15, 23, 42, 0.25), 0 2px 4px rgba(15, 23, 42, 0.08)"
-            }
+            shadow="xl"
             p={0}
           >
             {/* Header bar */}

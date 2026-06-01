@@ -247,36 +247,12 @@ export function RunView({ id }: { id: string }) {
 
           {/* Resources Overview Grid */}
           <Box
-            position="relative"
             bg={colors.cardBg}
             border="1px solid"
             borderColor={colors.border}
             borderRadius="xl"
-            p={4}
-            backdropFilter="blur(16px)"
-            overflow="hidden"
-            style={{
-              boxShadow: isDark
-                ? `inset 1px 1px 0px rgba(255, 255, 255, 0.35),
-                   inset 2px 2px 4px rgba(255, 255, 255, 0.1),
-                   1px 1px 0px rgba(6, 182, 212, 0.2),
-                   2px 2px 0px rgba(6, 182, 212, 0.18),
-                   3px 3px 1px rgba(6, 182, 212, 0.15),
-                   4px 4px 2px rgba(13, 148, 136, 0.12),
-                   6px 6px 4px rgba(3, 105, 161, 0.1),
-                   8px 8px 8px rgba(3, 105, 161, 0.08),
-                   12px 12px 16px rgba(0, 0, 0, 0.25),
-                   20px 20px 24px rgba(0, 0, 0, 0.3)`
-                : `inset 1px 1px 0px rgba(255, 255, 255, 0.7),
-                   inset 2px 2px 4px rgba(255, 255, 255, 0.3),
-                   1px 1px 0px rgba(6, 182, 212, 0.12),
-                   2px 2px 0px rgba(6, 182, 212, 0.1),
-                   3px 3px 1px rgba(15, 23, 42, 0.06),
-                   4px 4px 2px rgba(15, 23, 42, 0.05),
-                   6px 6px 4px rgba(15, 23, 42, 0.04),
-                   8px 8px 8px rgba(15, 23, 42, 0.03),
-                   12px 12px 12px rgba(15, 23, 42, 0.02)`
-            }}
+            p={5}
+            shadow="xl"
           >
             <Heading size="xs" color={colors.text} mb={4} borderBottom="1px solid" borderColor={colors.border} pb={2}>
               Resources Overview
@@ -291,7 +267,7 @@ export function RunView({ id }: { id: string }) {
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
-                _hover={{ borderColor: "var(--aws-orange-main)", boxShadow: "0 4px 12px rgba(6, 182, 212, 0.15)" }}
+                _hover={{ borderColor: "var(--aws-orange-main)", bg: isDark ? "#1a2538" : "#f1f5f9" }}
                 transition="all 0.2s ease"
               >
                 <Server size={18} style={{ color: "var(--aws-orange-main)", marginBottom: "8px" }} />
@@ -307,7 +283,7 @@ export function RunView({ id }: { id: string }) {
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
-                _hover={{ borderColor: "var(--aws-orange-main)", boxShadow: "0 4px 12px rgba(6, 182, 212, 0.15)" }}
+                _hover={{ borderColor: "var(--aws-orange-main)", bg: isDark ? "#1a2538" : "#f1f5f9" }}
                 transition="all 0.2s ease"
               >
                 <Layers size={18} style={{ color: "teal.400", marginBottom: "8px" }} />
@@ -323,7 +299,7 @@ export function RunView({ id }: { id: string }) {
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("security-groups")}
-                _hover={{ borderColor: "var(--aws-orange-main)", boxShadow: "0 4px 12px rgba(6, 182, 212, 0.15)" }}
+                _hover={{ borderColor: "var(--aws-orange-main)", bg: isDark ? "#1a2538" : "#f1f5f9" }}
                 transition="all 0.2s ease"
               >
                 <AlertCircle size={18} style={{ color: "purple.400", marginBottom: "8px" }} />
@@ -339,7 +315,7 @@ export function RunView({ id }: { id: string }) {
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("key-pairs")}
-                _hover={{ borderColor: "var(--aws-orange-main)", boxShadow: "0 4px 12px rgba(6, 182, 212, 0.15)" }}
+                _hover={{ borderColor: "var(--aws-orange-main)", bg: isDark ? "#1a2538" : "#f1f5f9" }}
                 transition="all 0.2s ease"
               >
                 <KeyRound size={18} style={{ color: "orange.400", marginBottom: "8px" }} />
@@ -351,36 +327,12 @@ export function RunView({ id }: { id: string }) {
 
           {/* Launch Wizard Form Panel */}
           <Box
-            position="relative"
             bg={colors.cardBg}
             border="1px solid"
             borderColor={colors.border}
             borderRadius="xl"
             p={5}
-            backdropFilter="blur(16px)"
-            overflow="hidden"
-            style={{
-              boxShadow: isDark
-                ? `inset 1px 1px 0px rgba(255, 255, 255, 0.35),
-                   inset 2px 2px 4px rgba(255, 255, 255, 0.1),
-                   1px 1px 0px rgba(6, 182, 212, 0.2),
-                   2px 2px 0px rgba(6, 182, 212, 0.18),
-                   3px 3px 1px rgba(6, 182, 212, 0.15),
-                   4px 4px 2px rgba(13, 148, 136, 0.12),
-                   6px 6px 4px rgba(3, 105, 161, 0.1),
-                   8px 8px 8px rgba(3, 105, 161, 0.08),
-                   12px 12px 16px rgba(0, 0, 0, 0.25),
-                   20px 20px 24px rgba(0, 0, 0, 0.3)`
-                : `inset 1px 1px 0px rgba(255, 255, 255, 0.7),
-                   inset 2px 2px 4px rgba(255, 255, 255, 0.3),
-                   1px 1px 0px rgba(6, 182, 212, 0.12),
-                   2px 2px 0px rgba(6, 182, 212, 0.1),
-                   3px 3px 1px rgba(15, 23, 42, 0.06),
-                   4px 4px 2px rgba(15, 23, 42, 0.05),
-                   6px 6px 4px rgba(15, 23, 42, 0.04),
-                   8px 8px 8px rgba(15, 23, 42, 0.03),
-                   12px 12px 12px rgba(15, 23, 42, 0.02)`
-            }}
+            shadow="xl"
           >
             <Heading size="sm" color={colors.text} mb={4} fontWeight="extrabold" letterSpacing="0.02em">
               Launch Test

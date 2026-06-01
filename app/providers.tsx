@@ -53,20 +53,18 @@ export function ThemeToggle() {
       w="42px"
       h="42px"
       p={0}
-      bg={isDark ? frappeAlpha(colors.surface0, 0.6) : colors.base}
-      borderColor={isDark ? "white/10" : colors.overlay0}
+      bg={isDark ? colors.surface0 : colors.base}
+      borderColor={isDark ? "slate.700" : colors.overlay0}
       color={isDark ? "white" : colors.text}
-      boxShadow="md"
+      boxShadow="sm"
       _hover={{
-        bg: isDark ? frappeAlpha(colors.surface0, 0.9) : colors.surface1,
-        borderColor: "cyan.500/40",
-        transform: "scale(1.05)",
-        boxShadow: isDark
-          ? `0 0 12px ${frappeAlpha(colors.sapphire, 0.25)}`
-          : `0 0 10px ${frappeAlpha(colors.sapphire, 0.15)}`,
+        bg: isDark ? colors.surface1 : colors.surface1,
+        borderColor: isDark ? "cyan.600" : "blue.500",
+        transform: "scale(1.03)",
+        boxShadow: "md",
       }}
-      _active={{ transform: "scale(0.95)" }}
-      transition="all 0.2s"
+      _active={{ transform: "scale(0.97)" }}
+      transition="all 0.15s"
       cursor="pointer"
       fontSize="xl"
       display="flex"
@@ -107,23 +105,25 @@ export function Providers({ children }: { children: ReactNode }) {
       root.style.setProperty("--aws-orange-main", "#06b6d4");
       root.style.setProperty("--aws-orange-hover", "#0891b2");
       root.style.setProperty("--aws-orange-light", "#22d3ee");
-      root.style.setProperty("--aws-header-bg", "rgba(11, 19, 40, 0.75)");
+      root.style.setProperty("--aws-header-bg", "#0e1526");
       root.style.setProperty("--aws-header-text", "#eff2f5");
-      root.style.setProperty("--aws-header-search-bg", "rgba(20, 31, 51, 0.6)");
-      root.style.setProperty("--aws-header-border", "rgba(38, 54, 74, 0.4)");
+      root.style.setProperty("--aws-header-search-bg", "#0c1220");
+      root.style.setProperty("--aws-header-border", "#232e42");
       
-      document.body.style.backgroundImage = "radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.08), transparent 45%), radial-gradient(circle at 15% 80%, rgba(99, 102, 241, 0.08), transparent 45%), linear-gradient(160deg, #070a13 0%, #0d1224 60%, #070a13 100%)";
+      document.body.style.background = "#0b0f19";
+      document.body.style.backgroundImage = "none";
       document.body.style.color = "#eff2f5";
     } else {
       root.style.setProperty("--aws-orange-main", "#3b82f6");
       root.style.setProperty("--aws-orange-hover", "#2563eb");
       root.style.setProperty("--aws-orange-light", "#60a5fa");
-      root.style.setProperty("--aws-header-bg", "rgba(255, 255, 255, 0.75)");
+      root.style.setProperty("--aws-header-bg", "#ffffff");
       root.style.setProperty("--aws-header-text", "#1a263b");
-      root.style.setProperty("--aws-header-search-bg", "rgba(226, 232, 240, 0.6)");
-      root.style.setProperty("--aws-header-border", "rgba(203, 213, 225, 0.4)");
+      root.style.setProperty("--aws-header-search-bg", "#f1f5f9");
+      root.style.setProperty("--aws-header-border", "#cbd5e1");
       
-      document.body.style.backgroundImage = "radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.06), transparent 35%), linear-gradient(160deg, #f1f5f9 0%, #e2e8f0 100%)";
+      document.body.style.background = "#f8fafc";
+      document.body.style.backgroundImage = "none";
       document.body.style.color = "#1a263b";
     }
     document.body.style.backgroundAttachment = "fixed";
