@@ -1,47 +1,47 @@
 /**
- * AWS Console Design System tokens and helpers.
- * Simulates the official AWS Management Console (dark header, orange accents, clean tabular details).
+ * Redesigned Theme Design System tokens and helpers.
+ * Implements a modern glassmorphic look and feel based on the Flow Watcher Design System.
  */
 
 export const AWS_COLORS = {
-  // Brand
+  // Brand/Primary Accents mapping to theme CSS variables
   orange: {
-    main: "#ec7211", // AWS brand orange
-    hover: "#d05e0a",
-    light: "#ff9900",
+    main: "var(--aws-orange-main)",
+    hover: "var(--aws-orange-hover)",
+    light: "var(--aws-orange-light)",
   },
   
-  // Headers (always dark squid ink in both light/dark AWS consoles)
+  // Headers (glassmorphic translucent top-bar variables)
   header: {
-    bg: "#232f3e",
-    text: "#ffffff",
-    searchBg: "#394b5f",
-    searchText: "#ffffff",
-    border: "#19222d",
+    bg: "var(--aws-header-bg)",
+    text: "var(--aws-header-text)",
+    searchBg: "var(--aws-header-search-bg)",
+    searchText: "var(--aws-header-text)",
+    border: "var(--aws-header-border)",
   },
 
   dark: {
-    bg: "#0f172a",       // slate-900
-    sidebarBg: "#1e293b",// slate-800
-    cardBg: "#1e293b",   // slate-800
-    subBg: "#0b0f19",    // terminal/inner container
-    text: "#f8fafc",     // slate-50
-    subtext: "#94a3b8",  // slate-400
-    border: "#334155",   // slate-700
-    rowHover: "#334155", // slate-700
-    tabSelectedBg: "#334155",
+    bg: "transparent", // background image handled in body layout
+    sidebarBg: "rgba(13, 23, 42, 0.65)",
+    cardBg: "rgba(20, 31, 51, 0.6)",
+    subBg: "rgba(7, 12, 26, 0.7)",
+    text: "#eff2f5",
+    subtext: "#94a3b8",
+    border: "rgba(38, 54, 74, 0.5)",
+    rowHover: "rgba(29, 42, 58, 0.45)",
+    tabSelectedBg: "rgba(29, 42, 58, 0.75)",
   },
 
   light: {
-    bg: "#eaeded",       // AWS console light gray
-    sidebarBg: "#ffffff",
-    cardBg: "#ffffff",
-    subBg: "#f2f3f3",
-    text: "#16191f",     // AWS dark charcoal text
-    subtext: "#545b64",  // AWS medium gray text
-    border: "#eaeded",   // AWS table border
-    rowHover: "#f2f3f3",
-    tabSelectedBg: "#eaeded",
+    bg: "transparent",
+    sidebarBg: "rgba(255, 255, 255, 0.65)",
+    cardBg: "rgba(255, 255, 255, 0.75)",
+    subBg: "rgba(241, 245, 249, 0.7)",
+    text: "#1a263b",
+    subtext: "#64748b",
+    border: "rgba(226, 232, 240, 0.8)",
+    rowHover: "rgba(224, 242, 254, 0.5)",
+    tabSelectedBg: "rgba(224, 242, 254, 0.75)",
   }
 } as const;
 
@@ -66,53 +66,53 @@ export function getStatusStyle(status: string) {
     case "completed":
     case "passed":
       return {
-        bg: "rgba(29, 129, 2, 0.1)",
-        color: "#1d8102",
-        darkColor: "#00c853",
-        border: "rgba(29, 129, 2, 0.2)",
+        bg: "rgba(34, 197, 94, 0.12)",
+        color: "#16a34a",
+        darkColor: "#4ade80",
+        border: "rgba(34, 197, 94, 0.25)",
         label: "Completed",
-        dotColor: "#00c853"
+        dotColor: "#4ade80"
       };
     case "running":
       return {
-        bg: "rgba(223, 142, 29, 0.12)",
-        color: "#b45309",
-        darkColor: "#fbbf24",
-        border: "rgba(223, 142, 29, 0.25)",
+        bg: "rgba(6, 182, 212, 0.15)",
+        color: "#0891b2",
+        darkColor: "#22d3ee",
+        border: "rgba(6, 182, 212, 0.3)",
         label: "Running",
-        dotColor: "#fbbf24",
+        dotColor: "#22d3ee",
         animate: true
       };
     case "pending":
     case "queued":
       return {
-        bg: "rgba(223, 142, 29, 0.1)",
-        color: "#df8e1d",
-        darkColor: "#ffab00",
-        border: "rgba(223, 142, 29, 0.2)",
+        bg: "rgba(245, 158, 11, 0.12)",
+        color: "#d97706",
+        darkColor: "#fbbf24",
+        border: "rgba(245, 158, 11, 0.25)",
         label: "Pending",
-        dotColor: "#ffab00",
+        dotColor: "#fbbf24",
         animate: true
       };
     case "cancelled":
     case "stopped":
       return {
-        bg: "rgba(236, 114, 17, 0.1)",
-        color: "#ec7211",
-        darkColor: "#ff9900",
-        border: "rgba(236, 114, 17, 0.2)",
+        bg: "rgba(100, 116, 139, 0.15)",
+        color: "#475569",
+        darkColor: "#94a3b8",
+        border: "rgba(100, 116, 139, 0.25)",
         label: "Stopped",
-        dotColor: "#ec7211"
+        dotColor: "#94a3b8"
       };
     case "failed":
     case "error":
       return {
-        bg: "rgba(209, 50, 18, 0.1)",
-        color: "#d13212",
-        darkColor: "#ff3d00",
-        border: "rgba(209, 50, 18, 0.2)",
-        label: "Terminated",
-        dotColor: "#ff3d00"
+        bg: "rgba(239, 68, 68, 0.12)",
+        color: "#dc2626",
+        darkColor: "#f87171",
+        border: "rgba(239, 68, 68, 0.25)",
+        label: "Failed",
+        dotColor: "#f87171"
       };
     default:
       return {

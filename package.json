@@ -9,7 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx --test \"src/**/*.test.ts\"",
-    "ci": "tsx bin/run-ci.ts"
+    "ci": "tsx bin/run-ci.ts",
+    "render:html": "tsx bin/render-html.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.152",

@@ -34,6 +34,17 @@ export const CRAWL_MODE_SCENARIOS_PER_PAGE: Record<CrawlMode, number> = {
   aggressive: 3,
 };
 
+/**
+ * Effective number of pages a run will actually exercise. `direct` mode tests
+ * ONLY the entry page regardless of the user's "Maximum Crawl Pages" choice, so
+ * its budget is always 1; every other mode honors the chosen `maxPages`. Used by
+ * both the scenario-cap math (so "direct + 50 pages" no longer inflates the plan
+ * to 400 scenarios) and the crawl gate, so the two always agree.
+ */
+export function effectivePageBudget(mode: CrawlMode, maxPages: number): number {
+  return mode === "direct" ? 1 : maxPages;
+}
+
 /** Human-readable label for each crawl mode, displayed in the UI. */
 export const CRAWL_MODE_LABEL: Record<CrawlMode, string> = {
   direct: "Direct page only (depth 0)",

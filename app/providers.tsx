@@ -85,20 +85,49 @@ export function Providers({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem("theme") as Theme;
     const activeTheme = saved === "light" || saved === "dark" ? saved : "dark";
     setTheme(activeTheme);
+    const root = document.documentElement;
     if (activeTheme === "dark") {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
+      root.classList.add("dark");
+      root.classList.remove("light");
+      root.setAttribute("data-theme", "dark");
+      root.style.colorScheme = "dark";
     } else {
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
+      root.classList.add("light");
+      root.classList.remove("dark");
+      root.setAttribute("data-theme", "light");
+      root.style.colorScheme = "light";
     }
   }, []);
 
   useEffect(() => {
-    // Dynamic sync of document body theme styles
-    const colors = getCatppuccinColors(theme);
-    document.body.style.background = colors.base;
-    document.body.style.color = colors.text;
+    const root = document.documentElement;
+    
+    // Set custom CSS theme variables dynamically based on Flow Watcher palette
+    if (theme === "dark") {
+      root.style.setProperty("--aws-orange-main", "#06b6d4");
+      root.style.setProperty("--aws-orange-hover", "#0891b2");
+      root.style.setProperty("--aws-orange-light", "#22d3ee");
+      root.style.setProperty("--aws-header-bg", "rgba(11, 19, 40, 0.75)");
+      root.style.setProperty("--aws-header-text", "#eff2f5");
+      root.style.setProperty("--aws-header-search-bg", "rgba(20, 31, 51, 0.6)");
+      root.style.setProperty("--aws-header-border", "rgba(38, 54, 74, 0.4)");
+      
+      document.body.style.backgroundImage = "radial-gradient(circle at 85% 15%, rgba(34, 211, 238, 0.15), transparent 35%), radial-gradient(circle at 18% 82%, rgba(37, 99, 235, 0.18), transparent 40%), linear-gradient(162deg, rgba(4, 11, 24, 1) 0%, rgba(9, 20, 40, 1) 55%, rgba(7, 17, 34, 1) 100%)";
+      document.body.style.color = "#eff2f5";
+    } else {
+      root.style.setProperty("--aws-orange-main", "#3b82f6");
+      root.style.setProperty("--aws-orange-hover", "#2563eb");
+      root.style.setProperty("--aws-orange-light", "#60a5fa");
+      root.style.setProperty("--aws-header-bg", "rgba(255, 255, 255, 0.75)");
+      root.style.setProperty("--aws-header-text", "#1a263b");
+      root.style.setProperty("--aws-header-search-bg", "rgba(226, 232, 240, 0.6)");
+      root.style.setProperty("--aws-header-border", "rgba(203, 213, 225, 0.4)");
+      
+      document.body.style.backgroundImage = "radial-gradient(circle at 86% 16%, rgba(56, 189, 248, 0.15), transparent 30%), radial-gradient(circle at 16% 82%, rgba(59, 130, 246, 0.12), transparent 36%), linear-gradient(160deg, rgba(248, 251, 255, 1) 0%, rgba(233, 242, 251, 1) 58%, rgba(228, 240, 250, 1) 100%)";
+      document.body.style.color = "#1a263b";
+    }
+    document.body.style.backgroundAttachment = "fixed";
+    document.body.style.backgroundSize = "cover";
     document.body.style.transition = "background-color 0.3s ease, color 0.3s ease";
   }, [theme]);
 
@@ -106,12 +135,17 @@ export function Providers({ children }: { children: ReactNode }) {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     localStorage.setItem("theme", next);
+    const root = document.documentElement;
     if (next === "dark") {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
+      root.classList.add("dark");
+      root.classList.remove("light");
+      root.setAttribute("data-theme", "dark");
+      root.style.colorScheme = "dark";
     } else {
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
+      root.classList.add("light");
+      root.classList.remove("dark");
+      root.setAttribute("data-theme", "light");
+      root.style.colorScheme = "light";
     }
   };
 

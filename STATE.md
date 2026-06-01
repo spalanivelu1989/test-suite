@@ -11,18 +11,27 @@ and after every task completed during Forge.
 - **Last updated:** 2026-05-27
 - **Waiting on:** nothing — ready to run `/craft-framework:test-tune`. NOTE:
   review-report.md still reflects v0.1.0 (validator flags AC12–AC17) — Test & Tune
-  regenerates it. A full v2 live run needs ANTHROPIC_API_KEY + the MCP server.
+  regenerates it. A full v2 live run needs ANTHROPIC_API_KEY + the Playwright
+  CLI (`@playwright/cli`, browser installed via `npx playwright-cli install-browser`).
 
 ### v2 direction (decided 2026-05-27)
 
 Re-architect to the **Playwright Agents** pattern (ref:
 `/Users/senthilpalanivelu/Downloads/test/.claude/agents` — planner/generator/healer
-markdown subagents + `playwright run-test-mcp-server` MCP). Chosen approach =
-**Hybrid**: four agents (planner → generator → healer → reporter) do the work via
-the live-browser MCP, while the Next.js app triggers runs and shows a **rich
-reporter** (success rate %, passed/needs-attention/improve breakdown, fix prompts,
-issues, recommendations, and a **code-view tab** for generated specs). Running
-through CRAFT (Record → Assemble → Forge → Test).
+markdown subagents). Chosen approach = **Hybrid**: four agents (planner →
+generator → healer → reporter) do the work by driving a headless browser through
+the **Playwright CLI** (`@playwright/cli`, invoked via the `Bash` tool), while the
+Next.js app triggers runs and shows a **rich reporter** (success rate %,
+passed/needs-attention/improve breakdown, fix prompts, issues, recommendations,
+and a **code-view tab** for generated specs). Running through CRAFT (Record →
+Assemble → Forge → Test).
+
+> **2026-06-01 — Browser driver migrated from MCP → Playwright CLI.** The build
+> originally enabled the `playwright-test` MCP server (`playwright run-test-mcp-server`)
+> and the agents used its `mcp__playwright-test__browser_*` tools. We removed that
+> server (`.mcp.json` + `enabledMcpjsonServers` deleted) so the agents drive the
+> browser exclusively via `npx playwright-cli` over `Bash`, which is **headless by
+> default**. See the "Key decisions" entry below.
 
 ## Stage completion log
 
@@ -36,8 +45,9 @@ through CRAFT (Record → Assemble → Forge → Test).
 | 2026-05-27 | 5 — Test&Tune   | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage | ✅     |
 | 2026-05-27 | Ship            | Shipped v0.1.0 at the Human Gate (user decision)                | ✅     |
 | 2026-05-27 | 2 — Record v2   | Spec v0.2.0 approved (4-agent architecture + rich reporter)     | ✅     |
-| 2026-05-27 | 3 — Assemble v2 | plan + tasks v0.2.0 approved (23 tasks; Agent SDK + MCP)        | ✅     |
+| 2026-05-27 | 3 — Assemble v2 | plan + tasks v0.2.0 approved (23 tasks; Agent SDK + browser)    | ✅     |
 | 2026-05-27 | 4 — Forge v2    | All 23 v0.2.0 tasks built; 48 unit tests, build clean           | ✅     |
+| 2026-06-01 | Maintenance     | Browser driver migrated MCP → Playwright CLI (headless default) | ✅     |
 
 ## Key decisions
 
@@ -53,6 +63,17 @@ through CRAFT (Record → Assemble → Forge → Test).
 - **2026-05-27 (Assemble gate):** Stack = **Next.js + React 19 + TypeScript,
   Chakra UI + Framer Motion + Lucide**, single full-stack app; **SSE** for live
   progress; in-memory run store (no DB) for v1. Resolves Q6.
+
+- **2026-06-01 (Maintenance):** **Browser driver = Playwright CLI, not the MCP
+  server.** The agents now drive the browser with `npx playwright-cli` (open /
+  snapshot / click / etc.) over the `Bash` tool, matching the prompts in
+  `.claude/agents/*.md` and the skill at `.claude/skills/playwright-cli/`. Removed
+  the `playwright-test` MCP server (`.mcp.json`, the `enabledMcpjsonServers` entry
+  in `.claude/settings.local.json`, and the dead `bin/smoke-mcp.ts`). Rationale:
+  the MCP server was still enabled and — under `permissionMode: "bypassPermissions"`
+  — the agents kept reaching for its `browser_*` tools instead of the CLI, so runs
+  weren't actually on the intended path. The CLI is **headless by default** (only
+  `--headed` shows a window), which also resolves the headless requirement.
 
 ## Open questions carried to Forge
 

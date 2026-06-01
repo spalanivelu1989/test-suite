@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { query as sdkQuery } from "@anthropic-ai/claude-agent-sdk";
+import {
+  type Options,
+  query as sdkQuery,
+} from "@anthropic-ai/claude-agent-sdk";
 
 /** A parsed Playwright agent definition (from `.claude/agents/<name>.md`). */
 export interface AgentDef {
@@ -60,6 +63,8 @@ export interface RunAgentOptions {
   maxTurns?: number;
   /** Aborts the underlying agent subprocess when the run is stopped. */
   abortController?: AbortController;
+  /** SDK lifecycle hooks — used to code-enforce crawl scope (see crawlGate). */
+  hooks?: Options["hooks"];
 }
 
 export interface RunAgentResult {
@@ -91,9 +96,11 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
       maxTurns: opts.maxTurns ?? 150,
       permissionMode: "bypassPermissions",
       abortController: opts.abortController,
+      // PreToolUse hook denials apply even under bypassPermissions, so the crawl
+      // gate can hard-block out-of-scope navigation.
+      hooks: opts.hooks,
     },
   });
-
 
   try {
     for await (const msg of iterator) {

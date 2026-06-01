@@ -38,7 +38,7 @@ import { useThemeMode } from "@/app/providers";
 import type { Run, ProgressEvent, RunReport, TestOutcome } from "@/src/types";
 import { ThreeProgressBar } from "./ThreeProgressBar";
 
-interface InstanceDetailsPaneProps {
+interface TestRunDetailsPaneProps {
   run: Run;
   events: ProgressEvent[];
   report: RunReport | null;
@@ -422,7 +422,7 @@ function AWSCodeViewer({ filename, code, isMaximized, copiedFile, onCopy }: AWSC
   );
 }
 
-export function InstanceDetailsPane({
+export function TestRunDetailsPane({
   run,
   events,
   report,
@@ -431,7 +431,7 @@ export function InstanceDetailsPane({
   onClose,
   isMaximized,
   onToggleMaximize,
-}: InstanceDetailsPaneProps) {
+}: TestRunDetailsPaneProps) {
   const { theme } = useThemeMode();
   const colors = getAWSColors(theme);
   const isDark = theme === "dark";
@@ -489,16 +489,18 @@ export function InstanceDetailsPane({
       flexDirection="column"
       overflow="hidden"
       zIndex={50}
+      backdropFilter="blur(20px)"
     >
-      {/* 1. Header with Instance Name & State */}
+      {/* 1. Header with Run Name & State */}
       <Flex
         px={4}
         py={2.5}
-        bg={isDark ? "slate.900" : "slate.50"}
+        bg={isDark ? "rgba(15, 23, 42, 0.45)" : "rgba(241, 245, 249, 0.45)"}
         borderBottom="1px solid"
         borderColor={colors.border}
         align="center"
         justify="space-between"
+        backdropFilter="blur(8px)"
       >
         <HStack gap={4}>
           <Text fontSize="13.5px" fontWeight="bold" fontFamily="mono" color={colors.text}>
@@ -510,7 +512,7 @@ export function InstanceDetailsPane({
             bg={statusStyle.bg}
             color={isDark ? statusStyle.darkColor : statusStyle.color}
             px={2}
-            borderRadius="sm"
+            borderRadius="md"
           >
             {statusStyle.label}
           </Badge>
@@ -519,7 +521,7 @@ export function InstanceDetailsPane({
         <HStack gap={1.5}>
           <IconButton
             aria-label={isMaximized ? "Restore Details" : "Maximize Details (Full Screen)"}
-            title={isMaximized ? "Exit full screen" : "Full screen (hides Instances table)"}
+            title={isMaximized ? "Exit full screen" : "Full screen (hides Test Runs table)"}
             variant="ghost"
             size="xs"
             onClick={onToggleMaximize}
@@ -640,10 +642,10 @@ export function InstanceDetailsPane({
             <Flex direction={{ base: "column", md: "row" }} gap={6} fontSize="13px" align="stretch">
               <VStack align="stretch" gap={3} flex={1}>
                 <Heading size="xs" color={colors.text} borderBottom="1px solid" borderColor={colors.border} pb={1.5}>
-                  Instance Summary
+                  Test Run Summary
                 </Heading>
                 <Flex justify="space-between">
-                  <Text color={colors.subtext}>Instance ID:</Text>
+                  <Text color={colors.subtext}>Run ID:</Text>
                   <Text fontWeight="bold" fontFamily="mono">{run.id}</Text>
                 </Flex>
                 <Flex justify="space-between">

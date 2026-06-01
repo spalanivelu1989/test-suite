@@ -17,7 +17,6 @@ import {
 } from "@chakra-ui/react";
 import {
   Server,
-  HardDrive,
   ShieldCheck,
   KeyRound,
   Layers,
@@ -28,14 +27,13 @@ import {
   CirclePlay,
   Wrench,
   AlertCircle,
-  FileCode,
 } from "lucide-react";
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors, AWS_COLORS } from "@/app/theme/aws";
 import { ConsoleLayout } from "@/app/components/ConsoleLayout";
 import { LaunchWizard } from "@/app/components/LaunchWizard";
-import { InstancesTable } from "@/app/components/InstancesTable";
-import { InstanceDetailsPane } from "@/app/components/InstanceDetailsPane";
+import { TestRunsTable } from "@/app/components/TestRunsTable";
+import { TestRunDetailsPane } from "@/app/components/TestRunDetailsPane";
 import type { Run, ProgressEvent, RunReport } from "@/src/types";
 
 export default function HomePage() {
@@ -57,8 +55,7 @@ export default function HomePage() {
   const [reportsMap, setReportsMap] = useState<Record<string, RunReport | null>>({});
   const [cancellingMap, setCancellingMap] = useState<Record<string, boolean>>({});
 
-  // Spec Volumes selection
-  const [selectedVolumeId, setSelectedVolumeId] = useState<string | null>(null);
+
 
   // Fetch runs on load
   const fetchRuns = async () => {
@@ -227,8 +224,8 @@ export default function HomePage() {
   const handleLaunchSuccess = (runId: string) => {
     // Refresh runs list
     fetchRuns().then(() => {
-      // Switch tab to Instances
-      setActiveTab("instances");
+      // Switch tab to Test Runs
+      setActiveTab("test-runs");
       // Find and select the newly launched run
       const checkInterval = setInterval(() => {
         setRuns((currentRuns) => {
@@ -251,21 +248,7 @@ export default function HomePage() {
   const stoppedCount = runs.filter((r) => r.status === "cancelled").length;
   const terminatedCount = runs.filter((r) => r.status === "failed").length;
 
-  // Extract spec volumes from completed runs
-  const specVolumes = runs
-    .filter((r) => r.status === "completed" && r.report)
-    .flatMap((run) => {
-      const reportData = reportsMap[run.id] ?? run.report;
-      if (!reportData || !reportData.generatedSpecs) return [];
-      return reportData.generatedSpecs.map((spec) => ({
-        id: `vol-${spec.file.split("/").pop()?.replace(".spec.ts", "") || run.id.slice(0, 8)}`,
-        file: spec.file,
-        code: spec.code,
-        size: `${spec.code.length} B`,
-        runId: run.id,
-        url: run.config.url,
-      }));
-    });
+
 
   return (
     <ConsoleLayout
@@ -281,26 +264,26 @@ export default function HomePage() {
         <VStack align="stretch" gap={6}>
 
           {/* Resources Overview Grid */}
-          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" p={4}>
+          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="xl" p={4} backdropFilter="blur(16px)" shadow="lg">
             <Heading size="xs" color={colors.text} mb={4} borderBottom="1px solid" borderColor={colors.border} pb={2}>
-              Resources Overview (us-east-1 Region)
+              Resources Overview
             </Heading>
             
-            <Grid templateColumns={{ base: "repeat(2, 1fr)", md: "repeat(5, 1fr)" }} gap={4}>
+            <Grid templateColumns={{ base: "repeat(2, 1fr)" }} gap={4}>
               <Box
                 p={3.5}
                 bg={colors.subBg}
                 border="1px solid"
                 borderColor={colors.border}
-                borderRadius="sm"
+                borderRadius="lg"
                 cursor="pointer"
-                onClick={() => setActiveTab("instances")}
-                _hover={{ borderColor: AWS_COLORS.orange.main }}
-                transition="border-color 0.15s ease"
+                onClick={() => setActiveTab("test-runs")}
+                _hover={{ borderColor: "var(--aws-orange-main)", boxShadow: "0 4px 12px rgba(6, 182, 212, 0.15)" }}
+                transition="all 0.2s ease"
               >
-                <Server size={18} style={{ color: AWS_COLORS.orange.main, marginBottom: "8px" }} />
-                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">Running Instances</Text>
-                <Text fontSize="24px" fontWeight="black" color={colors.text}>{runningCount}</Text>
+                <Server size={18} style={{ color: "var(--aws-orange-main)", marginBottom: "8px" }} />
+                <Text fontSize="12.5px" color={colors.subtext} fontWeight="bold">Active Runs</Text>
+                <Text fontSize="26px" fontWeight="black" color={colors.text}>{runningCount}</Text>
               </Box>
 
               <Box
@@ -308,88 +291,40 @@ export default function HomePage() {
                 bg={colors.subBg}
                 border="1px solid"
                 borderColor={colors.border}
-                borderRadius="sm"
+                borderRadius="lg"
                 cursor="pointer"
-                onClick={() => setActiveTab("instances")}
-                _hover={{ borderColor: AWS_COLORS.orange.main }}
-                transition="border-color 0.15s ease"
+                onClick={() => setActiveTab("test-runs")}
+                _hover={{ borderColor: "var(--aws-orange-main)", boxShadow: "0 4px 12px rgba(6, 182, 212, 0.15)" }}
+                transition="all 0.2s ease"
               >
-                <Layers size={18} style={{ color: "teal", marginBottom: "8px" }} />
-                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">Total Instances</Text>
-                <Text fontSize="24px" fontWeight="black" color={colors.text}>{totalCount}</Text>
-              </Box>
-
-              <Box
-                p={3.5}
-                bg={colors.subBg}
-                border="1px solid"
-                borderColor={colors.border}
-                borderRadius="sm"
-                cursor="pointer"
-                onClick={() => setActiveTab("volumes")}
-                _hover={{ borderColor: AWS_COLORS.orange.main }}
-                transition="border-color 0.15s ease"
-              >
-                <HardDrive size={18} style={{ color: "blue.500", marginBottom: "8px" }} />
-                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">EBS Volumes (Specs)</Text>
-                <Text fontSize="24px" fontWeight="black" color={colors.text}>{specVolumes.length}</Text>
-              </Box>
-
-              <Box
-                p={3.5}
-                bg={colors.subBg}
-                border="1px solid"
-                borderColor={colors.border}
-                borderRadius="sm"
-                cursor="pointer"
-                onClick={() => setActiveTab("security-groups")}
-                _hover={{ borderColor: AWS_COLORS.orange.main }}
-                transition="border-color 0.15s ease"
-              >
-                <AlertCircle size={18} style={{ color: "purple.500", marginBottom: "8px" }} />
-                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">Security Groups</Text>
-                <Text fontSize="24px" fontWeight="black" color={colors.text}>1</Text>
-              </Box>
-
-              <Box
-                p={3.5}
-                bg={colors.subBg}
-                border="1px solid"
-                borderColor={colors.border}
-                borderRadius="sm"
-                cursor="pointer"
-                onClick={() => setActiveTab("key-pairs")}
-                _hover={{ borderColor: AWS_COLORS.orange.main }}
-                transition="border-color 0.15s ease"
-              >
-                <KeyRound size={18} style={{ color: "orange.500", marginBottom: "8px" }} />
-                <Text fontSize="12px" color={colors.subtext} fontWeight="semibold">Key Pairs (API Keys)</Text>
-                <Text fontSize="24px" fontWeight="black" color={colors.text}>1</Text>
+                <Layers size={18} style={{ color: "teal.400", marginBottom: "8px" }} />
+                <Text fontSize="12.5px" color={colors.subtext} fontWeight="bold">Total Runs</Text>
+                <Text fontSize="26px" fontWeight="black" color={colors.text}>{totalCount}</Text>
               </Box>
             </Grid>
           </Box>
 
           {/* Launch Wizard Form Panel */}
-          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" p={4}>
+          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="xl" p={4} backdropFilter="blur(16px)" shadow="lg">
             <Heading size="sm" color={colors.text} mb={4} borderBottom="1px solid" borderColor={colors.border} pb={2}>
-              Launch Instance (Launch New AI Crawler & Tester Run)
+              Launch Test (Launch New AI Crawler & Tester Run)
             </Heading>
             <LaunchWizard onLaunchSuccess={handleLaunchSuccess} />
           </Box>
         </VStack>
       </Box>
 
-      {/* ==================== INSTANCES TAB ==================== */}
-      <Box display={activeTab === "instances" ? "flex" : "none"} flexDirection="column" gap={isDetailsMaximized ? 0 : 4} h="100%" width="100%">
+      {/* ==================== TEST RUNS TAB ==================== */}
+      <Box display={activeTab === "test-runs" ? "flex" : "none"} flexDirection="column" gap={isDetailsMaximized ? 0 : 4} h="100%" width="100%">
         {!isDetailsMaximized && (
           <Heading size="sm" color={colors.text} fontWeight="extrabold">
-            Instances
+            Test Runs
           </Heading>
         )}
 
         {!isDetailsMaximized && (
           <Box flex={1} overflow="hidden">
-            <InstancesTable
+            <TestRunsTable
               runs={runs}
               selectedRunId={selectedRun?.id ?? null}
               onSelectRun={(run) => setSelectedRun(run)}
@@ -404,7 +339,7 @@ export default function HomePage() {
 
         {/* Details pane — bottom drawer by default, full-screen when maximized */}
         {selectedRun && (
-          <InstanceDetailsPane
+          <TestRunDetailsPane
             key={selectedRun.id}
             run={selectedRun}
             events={eventsMap[selectedRun.id] ?? []}
@@ -421,147 +356,7 @@ export default function HomePage() {
         )}
       </Box>
 
-      {/* ==================== AMIs TAB ==================== */}
-      <Box display={activeTab === "amis" ? "block" : "none"} width="100%">
-        <VStack align="stretch" gap={4}>
-          <Heading size="sm" color={colors.text}>AMIs (Amazon Machine Images)</Heading>
-          <Text fontSize="13px" color={colors.subtext}>
-            Pre-packaged templates with Playwright, crawl hooks, and locators recovery logic setup.
-          </Text>
 
-          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" overflow="hidden">
-            <Table.Root size="sm" variant="outline" border="none">
-              <Table.Header bg={isDark ? "white/5" : "gray.50"}>
-                <Table.Row borderColor={colors.border}>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">AMI Name</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">AMI ID</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Engine Platform</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Status</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Description</Table.ColumnHeader>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body fontSize="13px">
-                <Table.Row borderColor={colors.border}>
-                  <Table.Cell fontWeight="bold">Playwright Chromium Image</Table.Cell>
-                  <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>ami-chrome-v1.60.0</Table.Cell>
-                  <Table.Cell>Linux (Chromium Headless)</Table.Cell>
-                  <Table.Cell><Badge colorPalette="green">Available</Badge></Table.Cell>
-                  <Table.Cell>Official Google Chrome Headless runtime for modern JavaScript SPAs and crawling.</Table.Cell>
-                </Table.Row>
-                <Table.Row borderColor={colors.border}>
-                  <Table.Cell fontWeight="bold">Playwright Firefox Image</Table.Cell>
-                  <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>ami-firefox-v1.60.0</Table.Cell>
-                  <Table.Cell>Linux (Firefox/Gecko Headless)</Table.Cell>
-                  <Table.Cell><Badge colorPalette="green">Available</Badge></Table.Cell>
-                  <Table.Cell>Firefox Headless runtime for cross-browser testing of forms and locator healing.</Table.Cell>
-                </Table.Row>
-              </Table.Body>
-            </Table.Root>
-          </Box>
-        </VStack>
-      </Box>
-
-      {/* ==================== VOLUMES TAB ==================== */}
-      <Box display={activeTab === "volumes" ? "block" : "none"} width="100%">
-        <VStack align="stretch" gap={4}>
-          <Heading size="sm" color={colors.text}>Elastic Block Store - Volumes (Generated Specs)</Heading>
-          <Text fontSize="13px" color={colors.subtext}>
-            EBS Volumes store the generated test specifications (`.spec.ts` files) attached to completed instances.
-          </Text>
-
-          <Box display="grid" gridTemplateColumns={{ base: "1fr", lg: "3fr 2fr" }} gap={4} alignItems="stretch">
-            {/* Table of Volumes */}
-            <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" overflow="hidden">
-              <Table.Root size="sm" variant="outline" border="none">
-                <Table.Header bg={isDark ? "white/5" : "gray.50"}>
-                  <Table.Row borderColor={colors.border}>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Volume ID</Table.ColumnHeader>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">File Path</Table.ColumnHeader>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Size</Table.ColumnHeader>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Attachment</Table.ColumnHeader>
-                    <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Domain App</Table.ColumnHeader>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body fontSize="13px">
-                  {specVolumes.length === 0 ? (
-                    <Table.Row>
-                      <Table.Cell colSpan={5} textAlign="center" py={6} color={colors.subtext} fontSize="13px">
-                        No spec volumes generated. Launch a run and let it complete.
-                      </Table.Cell>
-                    </Table.Row>
-                  ) : (
-                    specVolumes.map((vol) => (
-                      <Table.Row
-                        key={vol.id}
-                        borderColor={colors.border}
-                        cursor="pointer"
-                        bg={selectedVolumeId === vol.id ? (isDark ? "rgba(236,114,17,0.1)" : "rgba(236,114,17,0.05)") : "transparent"}
-                        onClick={() => setSelectedVolumeId(vol.id)}
-                        _hover={{ bg: selectedVolumeId === vol.id ? undefined : colors.rowHover }}
-                      >
-                        <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>{vol.id}</Table.Cell>
-                        <Table.Cell fontWeight="medium">{vol.file.split("/").pop()}</Table.Cell>
-                        <Table.Cell fontFamily="mono">{vol.size}</Table.Cell>
-                        <Table.Cell fontFamily="mono" color="teal">i-{vol.runId.slice(0, 17)}</Table.Cell>
-                        <Table.Cell color={colors.subtext}>{vol.url}</Table.Cell>
-                      </Table.Row>
-                    ))
-                  )}
-                </Table.Body>
-              </Table.Root>
-            </Box>
-
-            {/* Volume code viewer */}
-            <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} p={4} borderRadius="md" display="flex" flexDirection="column">
-              <Heading size="xs" color={colors.text} mb={3} borderBottom="1px solid" borderColor={colors.border} pb={1.5} display="flex" alignItems="center" gap={1.5}>
-                <FileCode size={13} style={{ color: AWS_COLORS.orange.main }} /> Volume Inspector
-              </Heading>
-              
-              {selectedVolumeId ? (
-                (() => {
-                  const vol = specVolumes.find((v) => v.id === selectedVolumeId);
-                  if (!vol) return <Text fontSize="13px" color={colors.subtext}>Volume not found.</Text>;
-                  return (
-                    <VStack align="stretch" gap={3} flex={1} overflow="hidden">
-                      <VStack align="stretch" gap={1} fontSize="12px">
-                        <Flex justify="space-between">
-                          <Text color={colors.subtext}>Attached File Path:</Text>
-                          <Text fontWeight="bold" fontFamily="mono">{vol.file}</Text>
-                        </Flex>
-                        <Flex justify="space-between">
-                          <Text color={colors.subtext}>Attached Instance:</Text>
-                          <Text fontWeight="bold" fontFamily="mono">i-{vol.runId.slice(0, 17)}</Text>
-                        </Flex>
-                      </VStack>
-                      <Box
-                        as="pre"
-                        p={3}
-                        bg="black"
-                        color="emerald.400"
-                        fontFamily="mono"
-                        fontSize="12px"
-                        maxH="320px"
-                        overflowY="auto"
-                        whiteSpace="pre-wrap"
-                        borderRadius="sm"
-                        flex={1}
-                        border="1px solid"
-                        borderColor={colors.border}
-                      >
-                        <code>{vol.code}</code>
-                      </Box>
-                    </VStack>
-                  );
-                })()
-              ) : (
-                <Flex align="center" justify="center" h="200px" color={colors.subtext} fontSize="13px">
-                  Select a volume to inspect its contents.
-                </Flex>
-              )}
-            </Box>
-          </Box>
-        </VStack>
-      </Box>
 
       {/* ==================== SECURITY GROUPS TAB ==================== */}
       <Box display={activeTab === "security-groups" ? "block" : "none"} width="100%">

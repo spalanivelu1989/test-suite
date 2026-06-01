@@ -29,21 +29,25 @@ tasks at the same dependency level.
 - **Covers:** R12, C7
 - **Depends on:** —
 - **Parallel:** yes
-- **Done-when:** `.claude/agents/{planner,generator,healer}.md` copied from the reference, `.mcp.json` (playwright-test) and `seed.spec.ts` present.
+- **Done-when:** `.claude/agents/{planner,generator,healer}.md` copied from the reference, the `.claude/skills/playwright-cli/` skill, and `seed.spec.ts` present.
 
-### T3 — Smoke-test the playwright run-test-mcp-server [x]
+### T3 — Verify the Playwright CLI browser tool surface [x]
+
+> **Superseded 2026-06-01.** As built, this task smoke-tested the
+> `playwright run-test-mcp-server` MCP. That server was later removed; the agents
+> now drive the browser via `npx playwright-cli`. Done-when updated to match.
 
 - **Covers:** R12, C7
 - **Depends on:** T2
 - **Parallel:** no
-- **Done-when:** `npx playwright run-test-mcp-server` boots and its tool list (browser\_\*, planner_save_plan, generator_write_test, test_run) is confirmed reachable.
+- **Done-when:** `npx playwright-cli open <url>` boots a headless browser and the core commands (snapshot/click/type/`npx playwright test`) are confirmed reachable from the agents over `Bash`.
 
-### T4 — Agent runtime wrapper over the Agent SDK + MCP [x]
+### T4 — Agent runtime wrapper over the Agent SDK [x]
 
 - **Covers:** R6, R12
 - **Depends on:** T1, T3
 - **Parallel:** no
-- **Done-when:** `runAgent({name, prompt, cwd, onEvent})` runs an agent against the MCP and streams typed progress events; unit-tested with a stubbed query.
+- **Done-when:** `runAgent({name, prompt, cwd, onEvent})` runs an agent (which drives the browser via the Playwright CLI) and streams typed progress events; unit-tested with a stubbed query.
 
 ### T5 — Per-run workspace builder [x]
 

@@ -14,7 +14,7 @@ const firaCode = Fira_Code({
 });
 
 export const metadata: Metadata = {
-  title: "AI UI Testing Tool",
+  title: "Test Suite",
   description:
     "Point it at a web app URL. It crawls, generates Playwright tests, runs them, and reports.",
 };

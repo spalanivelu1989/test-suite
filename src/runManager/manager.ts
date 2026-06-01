@@ -84,6 +84,7 @@ export function createRunManager(deps: RunManagerDeps = {}): RunManager {
         if (controller.signal.aborted) return; // cancel() already marked it
         const completed = store.complete(run.id, report);
         void persistence.save(completed);
+        void persistence.writeHtmlReport?.(completed); // static report.html alongside run.json
       } catch (err) {
         const terminal = controller.signal.aborted
           ? store.cancel(run.id, "Run stopped by user")

@@ -74,3 +74,23 @@ prior-art spike at Stage 1 would have caught this before any build.
 **Fix:** Deferred — tracked as a post-ship tuning item, not a build defect.
 **Future prevention:** Treat AI-repair success rate as a tunable metric with its
 own iteration loop; a single keyed sample is enough to expose it but not to tune it.
+
+### [2026-06-01] "Migrating" to the Playwright CLI didn't take — the MCP server was still winning
+
+**Trigger:** After the agent defs were switched to a `playwright-cli`-based prompt,
+a live run's logs still showed `mcp__playwright-test__browser_*` tool calls and zero
+CLI calls. The migration looked done but wasn't.
+**Root cause:** The "migration" only changed the prompts and stripped the
+`mcp__playwright-test__*` entries from each agent's `tools:` frontmatter. It left the
+server **enabled** (`.mcp.json` + `enabledMcpjsonServers` in `.claude/settings.local.json`).
+Because the runtime runs agents with `permissionMode: "bypassPermissions"`, the
+`tools:` allow-list doesn't fence the agents off an enabled MCP server — so they kept
+using the convenient native `browser_*` tools instead of shelling out to the CLI.
+**Fix:** Disabled the server outright — removed the `enabledMcpjsonServers` entry,
+deleted `.mcp.json` and the dead `bin/smoke-mcp.ts`. With no server available the
+agents fall through to `npx playwright-cli` (headless by default) as the prompts
+intend. Verified: typecheck + 69 unit tests pass; `playwright-cli open` runs headless.
+**Future prevention:** A tool migration isn't complete until the _old_ path is
+removed and a run's logs confirm the _new_ path is the only one used. Under
+`bypassPermissions`, removing a tool from an agent's `tools:` list is not enough to
+disable it — disable the MCP server itself.

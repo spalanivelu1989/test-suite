@@ -20,9 +20,10 @@ live app and writes a Markdown **test plan**; the Generator turns that plan into
 runnable Playwright `.spec.ts` files (grounded against a live browser); the Healer
 runs the suite, repairs failures, and quarantines the unfixable; the Reporter
 aggregates results into a rich report. Delivered as a **hybrid**: the agents do
-the work via the Playwright Agents pattern (the `playwright run-test-mcp-server`
-MCP for live-browser actions), while a Next.js web app triggers runs and shows the
-report — including a **code-view tab** for the generated specs.
+the work via the Playwright Agents pattern, driving a headless browser through the
+**Playwright CLI** (`@playwright/cli`, invoked over the `Bash` tool), while a
+Next.js web app triggers runs and shows the report — including a **code-view tab**
+for the generated specs.
 
 **v0.2.0 changes the architecture** of the shipped v0.1.0 tool (which used a
 bespoke prompt-driven pipeline) to the agent pattern and a much richer reporter.
@@ -82,14 +83,14 @@ The reasoning engine (Claude), browser engine (Playwright), reference app
 
 ## Constraints
 
-| ID  | Constraint                                                                                                                                                                                                                                        |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1  | Browser automation engine **must be Playwright**.                                                                                                                                                                                                 |
-| C2  | Web front-ends only — no native mobile or desktop targets.                                                                                                                                                                                        |
-| C3  | Reasoning engine is **Claude (Anthropic)**.                                                                                                                                                                                                       |
-| C4  | Report must be available human-readable (Markdown + HTML) and machine-readable (JSON).                                                                                                                                                            |
-| C5  | Delivered as a **hybrid**: agents do the work; a Next.js web app triggers runs and renders the report.                                                                                                                                            |
-| C6  | Must respect `CONSTITUTION.md`: Spec-as-contract, ship-only-when-verified, simplicity, determinism over flakiness.                                                                                                                                |
+| ID  | Constraint                                                                                                                                                                                                                                |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | Browser automation engine **must be Playwright**.                                                                                                                                                                                         |
+| C2  | Web front-ends only — no native mobile or desktop targets.                                                                                                                                                                                |
+| C3  | Reasoning engine is **Claude (Anthropic)**.                                                                                                                                                                                               |
+| C4  | Report must be available human-readable (Markdown + HTML) and machine-readable (JSON).                                                                                                                                                    |
+| C5  | Delivered as a **hybrid**: agents do the work; a Next.js web app triggers runs and renders the report.                                                                                                                                    |
+| C6  | Must respect `CONSTITUTION.md`: Spec-as-contract, ship-only-when-verified, simplicity, determinism over flakiness.                                                                                                                        |
 | C7  | Adopt the **Playwright Agents** architecture: planner/generator/healer/reporter agents using `playwright-cli` (npx playwright-cli) for browser actions (ref: the agent defs in `/Users/senthilpalanivelu/Downloads/test/.claude/agents`). |
 
 ## Dependencies
@@ -100,7 +101,7 @@ The reasoning engine (Claude), browser engine (Playwright), reference app
 | DEP2 | Playwright runtime + browser binaries                                                                       | Technical  | Team  | Done (v1)                              |
 | DEP3 | Reference app = **tarento.com** (public, no login)                                                          | External   | User  | Confirmed                              |
 | DEP4 | Curated list of "primary flows" for tarento.com (M1 denominator)                                            | Sequencing | Team  | Done (fixture; reconcile w/ live site) |
-| DEP5 | `@playwright/cli` package + agent skills installed via `npx playwright-cli install --skills`                 | Technical  | Team  | Done                                   |
+| DEP5 | `@playwright/cli` package + agent skills installed via `npx playwright-cli install --skills`                | Technical  | Team  | Done                                   |
 | DEP6 | Agent invocation runtime (Agent SDK / Claude Code subagents vs. in-app orchestration) — decided in Assemble | Technical  | Team  | Open                                   |
 
 ## Success metrics
@@ -154,18 +155,18 @@ The reasoning engine (Claude), browser engine (Playwright), reference app
 
 ## Open questions
 
-| ID  | Question                                                                                                                              | Status          |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| Q1  | Reference app — tarento.com.                                                                                                          | Resolved        |
-| Q2  | Curated "primary flows" for tarento.com — fixture exists; reconcile with live site.                                                   | Open            |
-| Q3  | Report formats — Markdown + HTML + JSON.                                                                                              | Resolved        |
-| Q4  | "Flow" = curated key task AND discovered navigable path — both count.                                                                 | Resolved        |
-| Q5  | Distribution — hybrid (agents + Next.js web UI).                                                                                      | Resolved        |
-| Q6  | Tech stack — Next.js + React 19 + TS + Chakra/Framer/Lucide (from v0.1.0).                                                            | Resolved        |
-| Q7  | Success-rate denominator — RESOLVED: passed ÷ all planned tests; `test.fixme()`/skipped count as not-passed.                          | Resolved        |
-| Q8  | Agent runtime: literal Claude Code subagents via the Agent SDK, or in-app orchestration calling Claude with per-agent system prompts? | Open (Assemble) |
-| Q9  | Use the official `playwright run-test-mcp-server` as-is, or wrap/reimplement its tool surface?                                        | Open (Assemble) |
-| Q10 | How much of the v0.1.0 codebase (crawler, runner, reporter, store) is reused vs. replaced?                                            | Open (Assemble) |
+| ID  | Question                                                                                                                              | Status                                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Q1  | Reference app — tarento.com.                                                                                                          | Resolved                                                                                                                 |
+| Q2  | Curated "primary flows" for tarento.com — fixture exists; reconcile with live site.                                                   | Open                                                                                                                     |
+| Q3  | Report formats — Markdown + HTML + JSON.                                                                                              | Resolved                                                                                                                 |
+| Q4  | "Flow" = curated key task AND discovered navigable path — both count.                                                                 | Resolved                                                                                                                 |
+| Q5  | Distribution — hybrid (agents + Next.js web UI).                                                                                      | Resolved                                                                                                                 |
+| Q6  | Tech stack — Next.js + React 19 + TS + Chakra/Framer/Lucide (from v0.1.0).                                                            | Resolved                                                                                                                 |
+| Q7  | Success-rate denominator — RESOLVED: passed ÷ all planned tests; `test.fixme()`/skipped count as not-passed.                          | Resolved                                                                                                                 |
+| Q8  | Agent runtime: literal Claude Code subagents via the Agent SDK, or in-app orchestration calling Claude with per-agent system prompts? | Open (Assemble)                                                                                                          |
+| Q9  | Browser tool surface for the agents?                                                                                                  | Resolved — Playwright CLI (`@playwright/cli`) over `Bash`. (The MCP server was used initially, then removed 2026-06-01.) |
+| Q10 | How much of the v0.1.0 codebase (crawler, runner, reporter, store) is reused vs. replaced?                                            | Open (Assemble)                                                                                                          |
 
 ---
 

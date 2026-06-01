@@ -4,10 +4,12 @@ import {
   readPlan,
   type Workspace,
 } from "../agents/workspace";
+import { createCrawlGate } from "../agents/crawlGate";
 import {
   type CrawlMode,
   CRAWL_MODE_DEPTH,
   CRAWL_MODE_SCENARIOS_PER_PAGE,
+  effectivePageBudget,
 } from "../types";
 
 // The four pipeline stages (T6–T8 + results). Each stage runs one agent in the
@@ -46,7 +48,8 @@ function buildPlannerConstraints(
 ): string[] {
   const depth = CRAWL_MODE_DEPTH[crawlMode];
   const scenariosPerPage = CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode];
-  const maxScenarios = maxPages * scenariosPerPage;
+  const pageBudget = effectivePageBudget(crawlMode, maxPages);
+  const maxScenarios = pageBudget * scenariosPerPage;
 
   const lines: string[] = [
     "IMPORTANT — hard crawl-scope constraints (you MUST respect these exactly):",
@@ -82,7 +85,7 @@ function buildPlannerConstraints(
   }
 
   lines.push(
-    `SCENARIO CAP: Your plan MUST contain at most ${maxScenarios} test scenarios in total (${maxPages} pages × ${scenariosPerPage} scenarios/page).`,
+    `SCENARIO CAP: Your plan MUST contain at most ${maxScenarios} test scenarios in total (${pageBudget} page(s) × ${scenariosPerPage} scenarios/page).`,
     "Do not exceed this cap under any circumstances — trim lower-priority scenarios if needed.",
   );
 
@@ -106,11 +109,23 @@ export async function planTests(
 
   const constraintLines = buildPlannerConstraints(crawlMode, maxPages, url);
 
+  // Code-enforced crawl scope: the gate hard-denies out-of-scope navigation at
+  // the tool boundary, so the depth/page limits hold even if the agent ignores
+  // the prompt constraints above.
+  const gate = createCrawlGate({
+    mode: crawlMode,
+    maxPages,
+    entryUrl: url,
+    onDeny: (reason) =>
+      onEvent?.({ kind: "text", text: `🛑 Crawl limit enforced: ${reason}` }),
+  });
+
   const prompt = [
     `Create a comprehensive Playwright test plan for the web application at ${url}.`,
     "Open the browser with playwright-cli first, then explore the app and identify the primary",
-    "user flows (navigation, key content pages, forms, search). Save the finished",
-    "plan as a Markdown file directly under the specs/ directory (e.g. specs/plan.md) using the Write tool.",
+    "user flows (navigation, key content pages, forms, search). Save the finished plan",
+    `with the Write tool to exactly this absolute path: ${ws.specsDir}/plan.md`,
+    "— write it there and nowhere else (do NOT write to the repository's own specs/ directory or any other path).",
     ...constraintLines,
   ].join(" ");
 
@@ -120,6 +135,7 @@ export async function planTests(
     cwd: ws.root,
     onEvent,
     abortController: deps.abortController,
+    hooks: gate.hooks,
   });
   const planMarkdown = await readPlan(ws);
   return {
@@ -188,7 +204,8 @@ export async function generateTests(
   const crawlMode: CrawlMode = options.crawlMode ?? "standard";
   const maxPages = options.maxPages ?? 10;
   const scenariosPerPage = CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode];
-  const maxScenarios = maxPages * scenariosPerPage;
+  const pageBudget = effectivePageBudget(crawlMode, maxPages);
+  const maxScenarios = pageBudget * scenariosPerPage;
 
   // Read and (if necessary) trim the plan before the generator sees it.
   const rawPlan = await readPlan(ws);
@@ -203,7 +220,7 @@ export async function generateTests(
     if (removed > 0) {
       onEvent?.({
         kind: "text",
-        text: `⚠️  Plan trimmed: ${removed} scenario(s) removed (budget: ${maxScenarios} max for ${crawlMode} mode with ${maxPages} pages).`,
+        text: `⚠️  Plan trimmed: ${removed} scenario(s) removed (budget: ${maxScenarios} max for ${crawlMode} mode with ${pageBudget} page(s)).`,
       });
       // Write the trimmed plan back so the generator reads it from the workspace.
       await ws.writePlan(trimmed);
@@ -214,15 +231,16 @@ export async function generateTests(
   const maxTurns = Math.max(80, scenarioCount * 10);
 
   const prompt = [
-    "Read the Markdown test plan saved under the specs/ directory.",
+    `Read the Markdown test plan at ${ws.specsDir}/plan.md.`,
     "Group tests by narrative: produce ONE spec file per top-level plan section",
     "(### N. <Section Title>), with every scenario in that section as a separate test()",
     "inside a single test.describe('<Section Title>', ...) block.",
     "For each scenario, open the page using playwright-cli and execute its steps using the CLI commands via Bash.",
     "After all scenarios for a section have been explored, use the Write tool ONCE to save",
-    "the combined file as tests/<fs-friendly-section-title>.spec.ts (e.g. 'Quick Links Section'",
-    "→ tests/quick-links-section.spec.ts). Use seed.spec.ts as the seed.",
-    "Do NOT emit one file per scenario.",
+    `the combined file to an absolute path under ${ws.testsDir}/ named <fs-friendly-section-title>.spec.ts`,
+    `(e.g. 'Quick Links Section' → ${ws.testsDir}/quick-links-section.spec.ts).`,
+    "Write spec files there and nowhere else (do NOT write to the repository's own tests/ directory).",
+    `Use the seed at ${ws.seedPath} as the starting template. Do NOT emit one file per scenario.`,
   ].join(" ");
 
   const res = await run({

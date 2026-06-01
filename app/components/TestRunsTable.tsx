@@ -31,7 +31,7 @@ import { getAWSColors, AWS_COLORS, getStatusStyle } from "@/app/theme/aws";
 import { useThemeMode } from "@/app/providers";
 import type { Run } from "@/src/types";
 
-interface InstancesTableProps {
+interface TestRunsTableProps {
   runs: Run[];
   selectedRunId: string | null;
   onSelectRun: (run: Run | null) => void;
@@ -42,7 +42,7 @@ interface InstancesTableProps {
   onRefresh: () => void;
 }
 
-export function InstancesTable({
+export function TestRunsTable({
   runs,
   selectedRunId,
   onSelectRun,
@@ -51,7 +51,7 @@ export function InstancesTable({
   onLaunchNew,
   isLoading,
   onRefresh,
-}: InstancesTableProps) {
+}: TestRunsTableProps) {
   const { theme } = useThemeMode();
   const colors = getAWSColors(theme);
   const isDark = theme === "dark";
@@ -71,22 +71,23 @@ export function InstancesTable({
   };
 
   return (
-    <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" overflow="hidden">
+    <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="xl" overflow="hidden" backdropFilter="blur(16px)" shadow="xl">
       {/* Table Actions Header */}
       <Flex
         px={4}
         py={2.5}
-        bg={isDark ? "slate.900" : "slate.100"}
+        bg={isDark ? "rgba(15, 23, 42, 0.45)" : "rgba(241, 245, 249, 0.45)"}
         borderBottom="1px solid"
         borderColor={colors.border}
         justify="space-between"
         align="center"
         wrap="wrap"
         gap={2}
+        backdropFilter="blur(8px)"
       >
         <HStack gap={2}>
-          <Text fontSize="12px" fontWeight="bold" color={colors.text}>
-            Instances ({runs.length})
+          <Text fontSize="12.5px" fontWeight="extrabold" color={colors.text} letterSpacing="0.05em">
+            TEST RUNS ({runs.length})
           </Text>
           <Button
             size="xs"
@@ -98,42 +99,43 @@ export function InstancesTable({
             cursor="pointer"
             height="24px"
             px={2.5}
-            _hover={{ bg: colors.rowHover }}
+            borderRadius="md"
+            _hover={{ bg: colors.rowHover, borderColor: "var(--aws-orange-main)" }}
           >
             <RefreshCw size={11} className={isLoading ? "animate-spin" : ""} />
           </Button>
         </HStack>
 
         <HStack gap={2}>
-          {/* Launch instance button */}
+          {/* Launch test button */}
           <Button
             size="xs"
-            bg="linear-gradient(135deg, #f88a2b 0%, #ec7211 100%)"
+            bg="linear-gradient(135deg, var(--aws-orange-light) 0%, var(--aws-orange-main) 100%)"
             color="white"
             fontWeight="bold"
             height="24px"
             px={3}
             cursor="pointer"
-            border="1px solid #d05e0a"
-            borderRadius="sm"
-            boxShadow="0 2px 4px rgba(236,114,17,0.2), inset 0 1px 0 rgba(255,255,255,0.2)"
+            border="none"
+            borderRadius="md"
+            boxShadow="0 2px 8px rgba(6, 182, 212, 0.25)"
             transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
             _hover={{
-              bg: "linear-gradient(135deg, #ffa047 0%, #d05e0a 100%)",
+              bg: "linear-gradient(135deg, var(--aws-orange-light) 30%, var(--aws-orange-hover) 100%)",
               transform: "translateY(-1px)",
-              boxShadow: "0 4px 12px rgba(236, 114, 17, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
+              boxShadow: "0 4px 12px rgba(6, 182, 212, 0.4)",
             }}
             _active={{
               transform: "translateY(0)",
-              boxShadow: "0 2px 4px rgba(236, 114, 17, 0.2)",
+              boxShadow: "0 2px 4px rgba(6, 182, 212, 0.2)",
             }}
             onClick={onLaunchNew}
           >
             <Plus size={11} style={{ marginRight: "4px" }} strokeWidth={2.5} />
-            Launch instances
+            Launch tests
           </Button>
 
-          {/* Instance state dropdown actions */}
+          {/* Stop Run button */}
           <Button
             size="xs"
             variant="outline"
@@ -142,19 +144,17 @@ export function InstancesTable({
             disabled={!selectedRunId}
             height="24px"
             px={3}
+            borderRadius="md"
             cursor={selectedRunId ? "pointer" : "not-allowed"}
             opacity={selectedRunId ? 1 : 0.6}
             transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
             _hover={
               selectedRunId
                 ? {
-                    bg: isDark ? "rgba(236,114,17,0.08)" : "rgba(236,114,17,0.04)",
-                    borderColor: AWS_COLORS.orange.main,
-                    color: AWS_COLORS.orange.main,
+                    bg: colors.rowHover,
+                    borderColor: "var(--aws-orange-main)",
+                    color: "var(--aws-orange-main)",
                     transform: "translateY(-1px)",
-                    boxShadow: isDark
-                      ? "0 4px 12px rgba(236,114,17,0.15)"
-                      : "0 4px 12px rgba(0,0,0,0.05)",
                   }
                 : {}
             }
@@ -169,10 +169,10 @@ export function InstancesTable({
             }}
           >
             <StopCircle size={11} style={{ marginRight: "4px" }} />
-            Stop Instance
+            Stop Run
           </Button>
 
-          {/* Terminate Instance button */}
+          {/* Terminate Run button */}
           <Button
             size="xs"
             variant="outline"
@@ -181,6 +181,7 @@ export function InstancesTable({
             disabled={!selectedRunId}
             height="24px"
             px={3}
+            borderRadius="md"
             cursor={selectedRunId ? "pointer" : "not-allowed"}
             opacity={selectedRunId ? 1 : 0.6}
             transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
@@ -203,34 +204,31 @@ export function InstancesTable({
             }}
           >
             <Trash2 size={11} style={{ marginRight: "4px" }} />
-            Terminate Instance
+            Terminate Run
           </Button>
         </HStack>
       </Flex>
 
-      {/* Instances Grid Table */}
+      {/* Test Runs Grid Table */}
       <Box overflowX="auto">
         <Table.Root size="sm" variant="outline" border="none">
           <Table.Header bg={isDark ? "white/5" : "gray.50"}>
             <Table.Row borderColor={colors.border}>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2} w="40px" textAlign="center">
+              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5} w="40px" textAlign="center">
                 Select
               </Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Instance ID</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Name (Target URL)</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Instance State</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Instance Type</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Status Checks</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Alarm Status</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Availability Zone</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12.5px" py={2}>Launch Time</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Run ID</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Name (Target URL)</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Run State</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Status Checks</Table.ColumnHeader>
+              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Launch Time</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {runs.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={9} textAlign="center" py={8} color={colors.subtext} fontSize="13px">
-                  No instances found. Launch an instance to get started.
+                <Table.Cell colSpan={6} textAlign="center" py={8} color={colors.subtext} fontSize="13px">
+                  No test runs found. Launch a test to get started.
                 </Table.Cell>
               </Table.Row>
             ) : (
@@ -257,7 +255,7 @@ export function InstancesTable({
                   <Table.Row
                     key={run.id}
                     onClick={() => onSelectRun(isSelected ? null : run)}
-                    bg={isSelected ? (isDark ? "rgba(236,114,17,0.12)" : "rgba(236,114,17,0.06)") : "transparent"}
+                    bg={isSelected ? (isDark ? "rgba(6, 182, 212, 0.12)" : "rgba(59, 130, 246, 0.08)") : "transparent"}
                     borderBottom="1px solid"
                     borderColor={colors.border}
                     cursor="pointer"
@@ -276,7 +274,7 @@ export function InstancesTable({
                         style={{ cursor: "pointer" }}
                       />
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontWeight="semibold" fontSize="13px" color={AWS_COLORS.orange.main} fontFamily="mono">
+                    <Table.Cell py={2.5} fontWeight="semibold" fontSize="13px" color="var(--aws-orange-main)" fontFamily="mono">
                       {shortId}
                     </Table.Cell>
                     <Table.Cell py={2.5} fontSize="13px" color={colors.text} fontWeight="medium">
@@ -285,8 +283,8 @@ export function InstancesTable({
                     <Table.Cell py={2.5}>
                       <Badge
                         variant="subtle"
-                        borderRadius="sm"
-                        fontSize="11.5px"
+                        borderRadius="md"
+                        fontSize="11px"
                         fontWeight="semibold"
                         display="inline-flex"
                         alignItems="center"
@@ -303,27 +301,13 @@ export function InstancesTable({
                           h="6px"
                           borderRadius="full"
                           bg={statusStyle.dotColor}
-                          style={statusStyle.animate ? { animation: "pulse-glow 1.2s infinite" } : {}}
+                          style={statusStyle.animate ? { animation: "pulse-glow-run 1.2s infinite" } : {}}
                         />
                         {statusStyle.label}
                       </Badge>
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="13px" color={colors.subtext} fontFamily="mono">
-                      t3.medium
-                    </Table.Cell>
                     <Table.Cell py={2.5} fontSize="13px" fontWeight="medium" color={checksColor === "green" ? "green.600" : checksColor === "red" ? "red.500" : colors.text}>
                       {checksText}
-                    </Table.Cell>
-                    <Table.Cell
-                      py={2.5}
-                      fontSize="13px"
-                      color={alarmsText === "No alarms" ? (isDark ? "#d9a700" : "#8a6d00") : "red.500"}
-                      fontWeight={alarmsText === "No alarms" ? "normal" : "bold"}
-                    >
-                      {alarmsText}
-                    </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="13px" color={colors.subtext}>
-                      local-1a
                     </Table.Cell>
                     <Table.Cell py={2.5} fontSize="13px" color={colors.subtext} fontFamily="mono">
                       {new Date(run.createdAt).toLocaleString()}
@@ -338,13 +322,13 @@ export function InstancesTable({
 
       {/* Internal Animation styles for status dots */}
       <style jsx global>{`
-        @keyframes pulse-glow {
+        @keyframes pulse-glow-run {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.3; transform: scale(0.7); }
         }
       `}</style>
 
-      <TerminateInstanceDialog
+      <TerminateRunDialog
         target={terminateTarget}
         isTerminating={isTerminating}
         onCancel={() => {
@@ -358,7 +342,7 @@ export function InstancesTable({
   );
 }
 
-interface TerminateDialogProps {
+interface TerminateRunDialogProps {
   target: Run | null;
   isTerminating: boolean;
   onCancel: () => void;
@@ -367,14 +351,14 @@ interface TerminateDialogProps {
   colors: ReturnType<typeof getAWSColors>;
 }
 
-function TerminateInstanceDialog({
+function TerminateRunDialog({
   target,
   isTerminating,
   onCancel,
   onConfirm,
   isDark,
   colors,
-}: TerminateDialogProps) {
+}: TerminateRunDialogProps) {
   const isOpen = target !== null;
   const shortId = target ? `i-${target.id.slice(0, 17)}` : "";
   const statusStyle = target ? getStatusStyle(target.status) : null;
@@ -392,8 +376,8 @@ function TerminateInstanceDialog({
     >
       <Portal>
         <Dialog.Backdrop
-          bg={isDark ? "rgba(0, 0, 0, 0.72)" : "rgba(15, 23, 42, 0.55)"}
-          backdropFilter="blur(2px)"
+          bg={isDark ? "rgba(0, 0, 0, 0.75)" : "rgba(15, 23, 42, 0.55)"}
+          backdropFilter="blur(6px)"
         />
         <Dialog.Positioner>
           <Dialog.Content
@@ -401,10 +385,11 @@ function TerminateInstanceDialog({
             color={colors.text}
             border="1px solid"
             borderColor={colors.border}
-            borderRadius="md"
+            borderRadius="xl"
             maxW="520px"
             w="92vw"
             overflow="hidden"
+            backdropFilter="blur(24px)"
             boxShadow={
               isDark
                 ? "0 24px 60px rgba(0, 0, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.4)"
@@ -412,35 +397,35 @@ function TerminateInstanceDialog({
             }
             p={0}
           >
-            {/* AWS-style dark squid-ink header bar */}
+            {/* Header bar */}
             <Flex
               align="center"
               gap={2.5}
               px={5}
               py={3}
-              bg={AWS_COLORS.header.bg}
+              bg="var(--aws-header-bg)"
               borderBottom="2px solid"
-              borderColor="#d13212"
+              borderColor="red.500"
             >
               <Flex
                 w="22px"
                 h="22px"
-                bg="rgba(209, 50, 18, 0.18)"
-                border="1px solid rgba(209, 50, 18, 0.6)"
-                borderRadius="sm"
+                bg="rgba(239, 68, 68, 0.18)"
+                border="1px solid rgba(239, 68, 68, 0.6)"
+                borderRadius="md"
                 align="center"
                 justify="center"
               >
-                <AlertTriangle size={13} color="#ff6b4a" strokeWidth={2.5} />
+                <AlertTriangle size={13} color="#f87171" strokeWidth={2.5} />
               </Flex>
               <Dialog.Title flex={1}>
                 <Text
-                  fontSize="13px"
+                  fontSize="13.5px"
                   fontWeight="bold"
                   color="white"
                   letterSpacing="0.1px"
                 >
-                  Terminate instance?
+                  Terminate test run?
                 </Text>
               </Dialog.Title>
               <Button
@@ -461,17 +446,17 @@ function TerminateInstanceDialog({
 
             {/* Body */}
             <Box px={5} py={4}>
-              <Text fontSize="12px" color={colors.text} mb={3} lineHeight="1.55">
-                Once an instance is terminated, all logs, generated specs, and
+              <Text fontSize="12.5px" color={colors.text} mb={3} lineHeight="1.55">
+                Once a test run is terminated, all logs, generated specs, and
                 workspace files are <Box as="span" fontWeight="bold">permanently deleted</Box>.
                 This action cannot be undone.
               </Text>
 
-              {/* Instance details — AWS Resource summary style */}
+              {/* Run details */}
               <Box
                 border="1px solid"
                 borderColor={colors.border}
-                borderRadius="sm"
+                borderRadius="lg"
                 bg={isDark ? "rgba(255,255,255,0.02)" : "#fafbfc"}
                 overflow="hidden"
               >
@@ -484,7 +469,7 @@ function TerminateInstanceDialog({
                   align="center"
                   gap={1.5}
                 >
-                  <Box w="3px" h="10px" bg={AWS_COLORS.orange.main} borderRadius="full" />
+                  <Box w="3px" h="10px" bg="var(--aws-orange-main)" borderRadius="full" />
                   <Text
                     fontSize="10px"
                     fontWeight="bold"
@@ -492,14 +477,14 @@ function TerminateInstanceDialog({
                     textTransform="uppercase"
                     letterSpacing="0.5px"
                   >
-                    Instance details
+                    Test run details
                   </Text>
                 </Flex>
 
                 {target && (
-                  <VStack align="stretch" gap={0} fontSize="11px">
-                    <DialogRow label="Instance ID" isDark={isDark} colors={colors}>
-                      <Text fontFamily="mono" color={AWS_COLORS.orange.main} fontWeight="semibold">
+                  <VStack align="stretch" gap={0} fontSize="11.5px">
+                    <DialogRow label="Run ID" isDark={isDark} colors={colors}>
+                      <Text fontFamily="mono" color="var(--aws-orange-main)" fontWeight="semibold">
                         {shortId}
                       </Text>
                     </DialogRow>
@@ -512,8 +497,8 @@ function TerminateInstanceDialog({
                       {statusStyle && (
                         <Badge
                           variant="subtle"
-                          borderRadius="sm"
-                          fontSize="10px"
+                          borderRadius="md"
+                          fontSize="10.5px"
                           fontWeight="semibold"
                           display="inline-flex"
                           alignItems="center"
@@ -553,11 +538,12 @@ function TerminateInstanceDialog({
                 bg="transparent"
                 _hover={{ bg: colors.rowHover }}
                 fontWeight="semibold"
-                fontSize="11px"
+                fontSize="11.5px"
                 height="28px"
                 px={3.5}
                 onClick={onCancel}
                 disabled={isTerminating}
+                borderRadius="md"
               >
                 Cancel
               </Button>
@@ -568,12 +554,13 @@ function TerminateInstanceDialog({
                 _hover={{ bg: "#b62a0e" }}
                 _active={{ bg: "#9a2208" }}
                 fontWeight="bold"
-                fontSize="11px"
+                fontSize="11.5px"
                 height="28px"
                 px={3.5}
                 onClick={onConfirm}
                 loading={isTerminating}
                 loadingText="Terminating..."
+                borderRadius="md"
               >
                 <Trash2 size={11} style={{ marginRight: "6px" }} />
                 Terminate
@@ -611,7 +598,7 @@ function DialogRow({
       <Text
         flex="0 0 110px"
         color={colors.subtext}
-        fontSize="10px"
+        fontSize="10.5px"
         textTransform="uppercase"
         letterSpacing="0.4px"
         fontWeight="semibold"

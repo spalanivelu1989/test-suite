@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import type { Run } from "../types";
+import { renderHtml } from "../reporter/render";
 
 // Disk side of a run's life (R8). Moved out of agents/workspace.ts so the Run
 // Manager — not every caller — owns the "save after every state change"
@@ -32,6 +33,11 @@ export interface RunPersistence {
   list(): Promise<Run[]>;
   /** Purge a run's workspace dir. Returns whether it existed; throws on rm failure. */
   remove(id: string): Promise<boolean>;
+  /**
+   * Best-effort render of a completed run's report to a static report.html
+   * alongside run.json. Optional so non-disk fakes stay side-effect-free.
+   */
+  writeHtmlReport?(run: Run): Promise<void>;
 }
 
 /** Construct a disk-backed RunPersistence rooted at `baseDir`. */
@@ -83,11 +89,39 @@ export function createDiskPersistence(baseDir = ".runs"): RunPersistence {
       await rm(dir, { recursive: true, force: true });
       return true;
     },
+
+    writeHtmlReport(run: Run): Promise<void> {
+      return writeHtmlReport(run, baseDir);
+    },
   };
 }
 
 /** Default disk persistence rooted at `.runs`. */
 export const diskPersistence: RunPersistence = createDiskPersistence();
+
+/**
+ * Best-effort render of a completed run's report to `.runs/<id>/report.html`,
+ * alongside run.json. The API renders HTML on demand; this gives every finished
+ * run a static, shareable file too. Logs but never throws — a render/write
+ * failure must not break the run lifecycle.
+ */
+export async function writeHtmlReport(
+  run: Run,
+  baseDir = ".runs",
+): Promise<void> {
+  if (!run.report) return;
+  const runDir = join(getRunsRoot(baseDir), run.id);
+  try {
+    await mkdir(runDir, { recursive: true });
+    await writeFile(
+      join(runDir, "report.html"),
+      renderHtml(run.report),
+      "utf8",
+    );
+  } catch (err) {
+    console.error(`Failed to write HTML report for run ${run.id}:`, err);
+  }
+}
 
 /**
  * Read run.json when present; for legacy folders without metadata, synthesise a
