@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Box } from "@chakra-ui/react";
 import { useThemeMode } from "@/app/providers";
 import { getCatppuccinColors, catppuccinAlpha } from "@/app/theme/catppuccin";
@@ -10,6 +10,7 @@ interface ThreeProgressBarProps {
   label: string;
   colorHex?: string; // Optional custom color hex
   activeStartAt?: string; // Optional start time of the active stage (ISO string)
+  icon?: ReactNode; // Optional leading icon (e.g. an AI agent bot glyph)
 }
 
 export function ThreeProgressBar({
@@ -17,6 +18,7 @@ export function ThreeProgressBar({
   label,
   colorHex: customColorHex,
   activeStartAt,
+  icon,
 }: ThreeProgressBarProps) {
   const [mounted, setMounted] = useState(false);
   const { theme } = useThemeMode();
@@ -83,7 +85,9 @@ export function ThreeProgressBar({
   let progressTrackBg = "";
 
   if (isDark) {
-    cardBg = isActive ? catppuccinAlpha(colors.surface0, 0.6) : catppuccinAlpha(colors.surface0, 0.3);
+    cardBg = isActive
+      ? catppuccinAlpha(colors.surface0, 0.6)
+      : catppuccinAlpha(colors.surface0, 0.3);
     progressTrackBg = "rgba(0, 0, 0, 0.25)";
 
     if (isActive) {
@@ -111,7 +115,7 @@ export function ThreeProgressBar({
     // Light Mode (Latte)
     cardBg = isActive ? colors.base : catppuccinAlpha(colors.base, 0.7);
     progressTrackBg = catppuccinAlpha(colors.crust, 0.3);
-    
+
     if (isActive) {
       borderColor = catppuccinAlpha(colors.sapphire, 0.4);
       labelColor = colors.text;
@@ -165,20 +169,24 @@ export function ThreeProgressBar({
       overflow="hidden"
     >
       {/* Label and Status Flex Row */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "14px",
-        width: "100%",
-      }}>
-        <div style={{
+      <div
+        style={{
           display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
-          gap: "8px",
-          overflow: "hidden",
-          whiteSpace: "nowrap",
-        }}>
+          marginBottom: "14px",
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+          }}
+        >
           {isActive && (
             <div
               style={{
@@ -192,46 +200,65 @@ export function ThreeProgressBar({
               }}
             />
           )}
-          <span style={{
-            fontWeight: "600",
-            fontSize: "13px",
-            letterSpacing: "0.05em",
-            color: labelColor,
-            textTransform: "uppercase",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}>
+          {icon && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                color: statusColor,
+                flexShrink: 0,
+              }}
+              aria-hidden="true"
+            >
+              {icon}
+            </span>
+          )}
+          <span
+            style={{
+              fontWeight: "600",
+              fontSize: "13px",
+              letterSpacing: "0.05em",
+              color: labelColor,
+              textTransform: "uppercase",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {label}
           </span>
         </div>
-        
-        <span style={{
-          fontSize: "12px",
-          fontFamily: "monospace",
-          fontWeight: "bold",
-          color: statusColor,
-          marginLeft: "8px",
-          flexShrink: 0,
-        }}>
+
+        <span
+          style={{
+            fontSize: "12px",
+            fontFamily: "monospace",
+            fontWeight: "bold",
+            color: statusColor,
+            marginLeft: "8px",
+            flexShrink: 0,
+          }}
+        >
           {statusText}
         </span>
       </div>
 
       {/* Retro Segmented Progress Track */}
-      <div style={{
-        height: "14px",
-        width: "100%",
-        backgroundColor: progressTrackBg,
-        borderRadius: "4px",
-        padding: "2px",
-        display: "flex",
-        gap: "3px",
-        border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : catppuccinAlpha(colors.overlay0, 0.15)}`,
-        boxSizing: "border-box",
-      }}>
+      <div
+        style={{
+          height: "14px",
+          width: "100%",
+          backgroundColor: progressTrackBg,
+          borderRadius: "4px",
+          padding: "2px",
+          display: "flex",
+          gap: "3px",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : catppuccinAlpha(colors.overlay0, 0.15)}`,
+          boxSizing: "border-box",
+        }}
+      >
         {Array.from({ length: totalBlocks }).map((_, index) => {
           const isFilled = index < filledBlocksCount;
-          
+
           let blockBg = "transparent";
           let blockOpacity = 0.1;
 
@@ -239,7 +266,9 @@ export function ThreeProgressBar({
             blockBg = progressBg;
             blockOpacity = 1;
           } else {
-            blockBg = isDark ? "rgba(255, 255, 255, 0.15)" : catppuccinAlpha(colors.overlay0, 0.25);
+            blockBg = isDark
+              ? "rgba(255, 255, 255, 0.15)"
+              : catppuccinAlpha(colors.overlay0, 0.25);
             blockOpacity = 0.1;
           }
 
@@ -261,8 +290,15 @@ export function ThreeProgressBar({
 
       <style jsx global>{`
         @keyframes pulse-glow {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.4; transform: scale(0.85); }
+          0%,
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.4;
+            transform: scale(0.85);
+          }
         }
       `}</style>
     </Box>
