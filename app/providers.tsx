@@ -1,9 +1,19 @@
 "use client";
 
-import { ChakraProvider, createSystem, defaultConfig, Button } from "@chakra-ui/react";
+import {
+  ChakraProvider,
+  createSystem,
+  defaultConfig,
+  Button,
+} from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
-import { frappe, frappeAlpha, semanticColorTokens, getCatppuccinColors } from "./theme/catppuccin";
+import {
+  frappe,
+  frappeAlpha,
+  semanticColorTokens,
+  getCatppuccinColors,
+} from "./theme/catppuccin";
 
 type Theme = "light" | "dark";
 
@@ -16,7 +26,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function useThemeMode() {
   const context = useContext(ThemeContext);
-  if (!context) throw new Error("useThemeMode must be used within a ThemeProvider");
+  if (!context)
+    throw new Error("useThemeMode must be used within a ThemeProvider");
   return context;
 }
 
@@ -99,20 +110,20 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    
-    // Set custom CSS theme variables dynamically based on Flow Watcher palette
+
+    // Set custom CSS theme variables dynamically. Dark = official Catppuccin Frappé.
     if (theme === "dark") {
-      root.style.setProperty("--aws-orange-main", "#06b6d4");
-      root.style.setProperty("--aws-orange-hover", "#0891b2");
-      root.style.setProperty("--aws-orange-light", "#22d3ee");
-      root.style.setProperty("--aws-header-bg", "#0e1526");
-      root.style.setProperty("--aws-header-text", "#eff2f5");
-      root.style.setProperty("--aws-header-search-bg", "#0c1220");
-      root.style.setProperty("--aws-header-border", "#232e42");
-      
-      document.body.style.background = "#0b0f19";
+      root.style.setProperty("--aws-orange-main", frappe.sapphire); // #85c1dc
+      root.style.setProperty("--aws-orange-hover", frappe.blue); // #8caaee
+      root.style.setProperty("--aws-orange-light", frappe.sky); // #99d1db
+      root.style.setProperty("--aws-header-bg", frappe.mantle); // #292c3c
+      root.style.setProperty("--aws-header-text", frappe.text); // #c6d0f5
+      root.style.setProperty("--aws-header-search-bg", frappe.crust); // #232634
+      root.style.setProperty("--aws-header-border", frappe.surface1); // #51576d
+
+      document.body.style.background = frappe.base; // #303446
       document.body.style.backgroundImage = "none";
-      document.body.style.color = "#eff2f5";
+      document.body.style.color = frappe.text; // #c6d0f5
     } else {
       root.style.setProperty("--aws-orange-main", "#3b82f6");
       root.style.setProperty("--aws-orange-hover", "#2563eb");
@@ -121,14 +132,15 @@ export function Providers({ children }: { children: ReactNode }) {
       root.style.setProperty("--aws-header-text", "#1a263b");
       root.style.setProperty("--aws-header-search-bg", "#f1f5f9");
       root.style.setProperty("--aws-header-border", "#cbd5e1");
-      
+
       document.body.style.background = "#f8fafc";
       document.body.style.backgroundImage = "none";
       document.body.style.color = "#1a263b";
     }
     document.body.style.backgroundAttachment = "fixed";
     document.body.style.backgroundSize = "cover";
-    document.body.style.transition = "background-color 0.3s ease, color 0.3s ease";
+    document.body.style.transition =
+      "background-color 0.3s ease, color 0.3s ease";
   }, [theme]);
 
   const toggleTheme = () => {
@@ -152,7 +164,9 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <ChakraProvider value={customConfig}>
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
           * {
             user-select: text !important;
             -webkit-user-select: text !important;
@@ -162,14 +176,16 @@ export function Providers({ children }: { children: ReactNode }) {
             -webkit-user-select: none !important;
           }
           ::selection {
-            background-color: rgba(6, 182, 212, 0.35) !important;
-            color: #ffffff !important;
+            background-color: ${frappeAlpha(frappe.sapphire, 0.35)} !important;
+            color: ${frappe.text} !important;
           }
           ::-moz-selection {
-            background-color: rgba(6, 182, 212, 0.35) !important;
-            color: #ffffff !important;
+            background-color: ${frappeAlpha(frappe.sapphire, 0.35)} !important;
+            color: ${frappe.text} !important;
           }
-        ` }} />
+        `,
+          }}
+        />
         {children}
       </ChakraProvider>
     </ThemeContext.Provider>

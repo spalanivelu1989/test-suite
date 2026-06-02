@@ -31,6 +31,8 @@ const base: ReportInput = {
   claudeCallCount: 4,
   fixPrompts: [{ test: "c", problem: "selector", change: "use getByRole" }],
   issues: ["slow"],
+  better: "better prose",
+  recommendationsText: "rec prose",
   recommendations: ["add labels"],
   summary: ["simple summary"],
   planMarkdown: "# Plan",
@@ -46,6 +48,8 @@ test("buildReport assembles all rich fields incl. success rate", () => {
   assert.equal(report.successRate.rate, 0.5);
   assert.equal(report.fixPrompts.length, 1);
   assert.deepEqual(report.issues, ["slow"]);
+  assert.equal(report.better, "better prose");
+  assert.equal(report.recommendationsText, "rec prose");
   assert.deepEqual(report.summary, ["simple summary"]);
   assert.equal(report.planMarkdown, "# Plan");
   assert.ok(report.generatedAt);

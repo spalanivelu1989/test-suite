@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Heading,
@@ -24,10 +24,13 @@ import { getAWSColors, AWS_COLORS } from "@/app/theme/aws";
 import { ConsoleLayout } from "@/app/components/ConsoleLayout";
 import { LaunchWizard } from "@/app/components/LaunchWizard";
 import { TestRunsTable } from "@/app/components/TestRunsTable";
+import { TestReportView } from "@/app/components/TestReportView";
 import { TestRunDetailsPane } from "@/app/components/TestRunDetailsPane";
 import type { Run, ProgressEvent, RunReport } from "@/src/types";
+import { useRouter } from "next/navigation";
 
 export function RunView({ id }: { id: string }) {
+  const router = useRouter();
   const { theme } = useThemeMode();
   const colors = getAWSColors(theme);
   const isDark = theme === "dark";
@@ -42,22 +45,28 @@ export function RunView({ id }: { id: string }) {
   const [isDetailsMaximized, setIsDetailsMaximized] = useState(false);
 
   // SSE & Report States
-  const [eventsMap, setEventsMap] = useState<Record<string, ProgressEvent[]>>({});
-  const [reportsMap, setReportsMap] = useState<Record<string, RunReport | null>>({});
-  const [cancellingMap, setCancellingMap] = useState<Record<string, boolean>>({});
-
-
+  const [eventsMap, setEventsMap] = useState<Record<string, ProgressEvent[]>>(
+    {},
+  );
+  const [reportsMap, setReportsMap] = useState<
+    Record<string, RunReport | null>
+  >({});
+  const [cancellingMap, setCancellingMap] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // Fetch runs on load and pre-select the current run
   const fetchRuns = async () => {
     setIsLoadingRuns(true);
     try {
-      const res = await fetch(`/api/runs?t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetch(`/api/runs?t=${Date.now()}`, {
+        cache: "no-store",
+      });
       if (res.ok) {
         const data = await res.json();
         const runsList = data.runs as Run[];
         setRuns(runsList);
-        
+
         // Find and select the run matching the ID from parameters
         const match = runsList.find((r) => r.id === id);
         if (match) {
@@ -87,12 +96,16 @@ export function RunView({ id }: { id: string }) {
 
   // Sync running runs in the background
   useEffect(() => {
-    const hasRunning = runs.some((r) => r.status === "running" || r.status === "pending");
+    const hasRunning = runs.some(
+      (r) => r.status === "running" || r.status === "pending",
+    );
     if (!hasRunning) return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/runs?t=${Date.now()}`, { cache: "no-store" });
+        const res = await fetch(`/api/runs?t=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const data = await res.json();
           setRuns(data.runs);
@@ -125,10 +138,27 @@ export function RunView({ id }: { id: string }) {
     const runId = selectedRun.id;
     const runStatus = selectedRun.status;
 
-    if (runStatus === "completed" || runStatus === "failed" || runStatus === "cancelled") {
+    if (
+      runStatus === "completed" ||
+      runStatus === "failed" ||
+      runStatus === "cancelled"
+    ) {
       fetchReport(runId);
-      // Pre-fill history events from the run object
-      setEventsMap((prev) => ({ ...prev, [runId]: selectedRun.events || [] }));
+      // The list API strips events, so fetch the full run to populate the log
+      // panel for terminal runs (no live SSE stream once a run has ended).
+      void (async () => {
+        try {
+          const res = await fetch(`/api/runs/${runId}`);
+          if (!res.ok) return;
+          const full = await res.json();
+          setEventsMap((prev) => {
+            if (prev[runId] && prev[runId].length > 0) return prev;
+            return { ...prev, [runId]: full.events || [] };
+          });
+        } catch (err) {
+          console.error("Failed to load events for run:", runId, err);
+        }
+      })();
       return;
     }
 
@@ -160,11 +190,16 @@ export function RunView({ id }: { id: string }) {
               ...r,
               status: s,
               error: err,
-              stage: s === "completed" ? "done" : s === "cancelled" ? "cancelled" : "error",
+              stage:
+                s === "completed"
+                  ? "done"
+                  : s === "cancelled"
+                    ? "cancelled"
+                    : "error",
             };
           }
           return r;
-        })
+        }),
       );
 
       if (s === "completed") {
@@ -180,6 +215,18 @@ export function RunView({ id }: { id: string }) {
       es.close();
     };
   }, [selectedRun?.id]);
+
+  const reportRun = useMemo(() => {
+    if (selectedRun && selectedRun.id === id) return selectedRun;
+    return runs.find((r) => r.id === id) || null;
+  }, [selectedRun, runs, id]);
+
+  // Fetch report for the current run when on the test-report tab
+  useEffect(() => {
+    if (activeTab === "test-report" && id) {
+      fetchReport(id);
+    }
+  }, [activeTab, id]);
 
   // Stop Run handler
   const handleStopRun = async (runId: string) => {
@@ -230,8 +277,6 @@ export function RunView({ id }: { id: string }) {
   const totalCount = runs.length;
   const runningCount = runs.filter((r) => r.status === "running").length;
 
-
-
   return (
     <ConsoleLayout
       activeTab={activeTab}
@@ -244,7 +289,6 @@ export function RunView({ id }: { id: string }) {
       {/* ==================== DASHBOARD TAB ==================== */}
       <Box display={activeTab === "dashboard" ? "block" : "none"} width="100%">
         <VStack align="stretch" gap={6}>
-
           {/* Resources Overview Grid */}
           <Box
             bg={colors.cardBg}
@@ -254,11 +298,21 @@ export function RunView({ id }: { id: string }) {
             p={5}
             shadow="xl"
           >
-            <Heading size="xs" color={colors.text} mb={4} borderBottom="1px solid" borderColor={colors.border} pb={2}>
+            <Heading
+              size="xs"
+              color={colors.text}
+              mb={4}
+              borderBottom="1px solid"
+              borderColor={colors.border}
+              pb={2}
+            >
               Resources Overview
             </Heading>
-            
-            <Grid templateColumns={{ base: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }} gap={4}>
+
+            <Grid
+              templateColumns={{ base: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }}
+              gap={4}
+            >
               <Box
                 p={3.5}
                 bg={colors.subBg}
@@ -267,12 +321,29 @@ export function RunView({ id }: { id: string }) {
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
-                _hover={{ borderColor: "var(--aws-orange-main)", bg: isDark ? "#1a2538" : "#f1f5f9" }}
+                _hover={{
+                  borderColor: "var(--aws-orange-main)",
+                  bg: isDark ? "#51576d" : "#f1f5f9",
+                }}
                 transition="all 0.2s ease"
               >
-                <Server size={18} style={{ color: "var(--aws-orange-main)", marginBottom: "8px" }} />
-                <Text fontSize="12.5px" color={colors.subtext} fontWeight="bold">Active Runs</Text>
-                <Text fontSize="26px" fontWeight="black" color={colors.text}>{runningCount}</Text>
+                <Server
+                  size={18}
+                  style={{
+                    color: "var(--aws-orange-main)",
+                    marginBottom: "8px",
+                  }}
+                />
+                <Text
+                  fontSize="12.5px"
+                  color={colors.subtext}
+                  fontWeight="bold"
+                >
+                  Active Runs
+                </Text>
+                <Text fontSize="26px" fontWeight="black" color={colors.text}>
+                  {runningCount}
+                </Text>
               </Box>
 
               <Box
@@ -283,12 +354,26 @@ export function RunView({ id }: { id: string }) {
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
-                _hover={{ borderColor: "var(--aws-orange-main)", bg: isDark ? "#1a2538" : "#f1f5f9" }}
+                _hover={{
+                  borderColor: "var(--aws-orange-main)",
+                  bg: isDark ? "#51576d" : "#f1f5f9",
+                }}
                 transition="all 0.2s ease"
               >
-                <Layers size={18} style={{ color: "teal.400", marginBottom: "8px" }} />
-                <Text fontSize="12.5px" color={colors.subtext} fontWeight="bold">Total Runs</Text>
-                <Text fontSize="26px" fontWeight="black" color={colors.text}>{totalCount}</Text>
+                <Layers
+                  size={18}
+                  style={{ color: "teal.400", marginBottom: "8px" }}
+                />
+                <Text
+                  fontSize="12.5px"
+                  color={colors.subtext}
+                  fontWeight="bold"
+                >
+                  Total Runs
+                </Text>
+                <Text fontSize="26px" fontWeight="black" color={colors.text}>
+                  {totalCount}
+                </Text>
               </Box>
 
               <Box
@@ -299,12 +384,26 @@ export function RunView({ id }: { id: string }) {
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("security-groups")}
-                _hover={{ borderColor: "var(--aws-orange-main)", bg: isDark ? "#1a2538" : "#f1f5f9" }}
+                _hover={{
+                  borderColor: "var(--aws-orange-main)",
+                  bg: isDark ? "#51576d" : "#f1f5f9",
+                }}
                 transition="all 0.2s ease"
               >
-                <AlertCircle size={18} style={{ color: "purple.400", marginBottom: "8px" }} />
-                <Text fontSize="12.5px" color={colors.subtext} fontWeight="bold">Security Groups</Text>
-                <Text fontSize="26px" fontWeight="black" color={colors.text}>1</Text>
+                <AlertCircle
+                  size={18}
+                  style={{ color: "purple.400", marginBottom: "8px" }}
+                />
+                <Text
+                  fontSize="12.5px"
+                  color={colors.subtext}
+                  fontWeight="bold"
+                >
+                  Security Groups
+                </Text>
+                <Text fontSize="26px" fontWeight="black" color={colors.text}>
+                  1
+                </Text>
               </Box>
 
               <Box
@@ -315,12 +414,26 @@ export function RunView({ id }: { id: string }) {
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("key-pairs")}
-                _hover={{ borderColor: "var(--aws-orange-main)", bg: isDark ? "#1a2538" : "#f1f5f9" }}
+                _hover={{
+                  borderColor: "var(--aws-orange-main)",
+                  bg: isDark ? "#51576d" : "#f1f5f9",
+                }}
                 transition="all 0.2s ease"
               >
-                <KeyRound size={18} style={{ color: "orange.400", marginBottom: "8px" }} />
-                <Text fontSize="12.5px" color={colors.subtext} fontWeight="bold">Key Pairs (API Keys)</Text>
-                <Text fontSize="26px" fontWeight="black" color={colors.text}>1</Text>
+                <KeyRound
+                  size={18}
+                  style={{ color: "orange.400", marginBottom: "8px" }}
+                />
+                <Text
+                  fontSize="12.5px"
+                  color={colors.subtext}
+                  fontWeight="bold"
+                >
+                  Key Pairs (API Keys)
+                </Text>
+                <Text fontSize="26px" fontWeight="black" color={colors.text}>
+                  1
+                </Text>
               </Box>
             </Grid>
           </Box>
@@ -334,17 +447,29 @@ export function RunView({ id }: { id: string }) {
             p={5}
             shadow="xl"
           >
-            <Heading size="sm" color={colors.text} mb={4} fontWeight="extrabold" letterSpacing="0.02em">
+            <Heading
+              size="sm"
+              color={colors.text}
+              mb={4}
+              fontWeight="extrabold"
+              letterSpacing="0.02em"
+            >
               Launch Test
             </Heading>
-            
+
             <LaunchWizard onLaunchSuccess={handleLaunchSuccess} />
           </Box>
         </VStack>
       </Box>
 
       {/* ==================== TEST RUNS TAB ==================== */}
-      <Box display={activeTab === "test-runs" ? "flex" : "none"} flexDirection="column" gap={isDetailsMaximized ? 0 : 4} h="100%" width="100%">
+      <Box
+        display={activeTab === "test-runs" ? "flex" : "none"}
+        flexDirection="column"
+        gap={isDetailsMaximized ? 0 : 4}
+        h="100%"
+        width="100%"
+      >
         {!isDetailsMaximized && (
           <Heading size="sm" color={colors.text} fontWeight="extrabold">
             Test Runs
@@ -362,6 +487,10 @@ export function RunView({ id }: { id: string }) {
               onLaunchNew={() => setActiveTab("dashboard")}
               isLoading={isLoadingRuns}
               onRefresh={fetchRuns}
+              onViewReport={(run) => {
+                setSelectedRun(run);
+                setActiveTab("test-report");
+              }}
             />
           </Box>
         )}
@@ -385,37 +514,81 @@ export function RunView({ id }: { id: string }) {
         )}
       </Box>
 
-
+      {/* ==================== TEST REPORT TAB ==================== */}
+      <Box
+        display={activeTab === "test-report" ? "block" : "none"}
+        width="100%"
+        height="100%"
+      >
+        <TestReportView
+          run={reportRun}
+          report={reportRun ? (reportsMap[reportRun.id] ?? null) : null}
+          runs={runs}
+          onSelectRun={(run) => {
+            router.push(`/runs/${run.id}`);
+          }}
+        />
+      </Box>
 
       {/* ==================== SECURITY GROUPS TAB ==================== */}
-      <Box display={activeTab === "security-groups" ? "block" : "none"} width="100%">
+      <Box
+        display={activeTab === "security-groups" ? "block" : "none"}
+        width="100%"
+      >
         <VStack align="stretch" gap={4}>
-          <Heading size="sm" color={colors.text}>Security Groups</Heading>
+          <Heading size="sm" color={colors.text}>
+            Security Groups
+          </Heading>
           <Text fontSize="13px" color={colors.subtext}>
-            Security groups act as a virtual firewall for your instances to control inbound and outbound traffic.
+            Security groups act as a virtual firewall for your instances to
+            control inbound and outbound traffic.
           </Text>
 
-          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" overflow="hidden">
+          <Box
+            bg={colors.cardBg}
+            border="1px solid"
+            borderColor={colors.border}
+            borderRadius="md"
+            overflow="hidden"
+          >
             <Table.Root size="sm" variant="outline" border="none">
               <Table.Header bg={isDark ? "white/5" : "gray.50"}>
                 <Table.Row borderColor={colors.border}>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Security Group ID</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Name</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Inbound Rules</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Outbound Rules</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Instance Bounds</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Security Group ID
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Name
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Inbound Rules
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Outbound Rules
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Instance Bounds
+                  </Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
               <Table.Body fontSize="13px">
                 <Table.Row borderColor={colors.border}>
-                  <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>sg-0default</Table.Cell>
+                  <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>
+                    sg-0default
+                  </Table.Cell>
                   <Table.Cell fontWeight="bold">default-agent-rules</Table.Cell>
-                  <Table.Cell color="slate.500">None (Inbound blocked)</Table.Cell>
+                  <Table.Cell color="slate.500">
+                    None (Inbound blocked)
+                  </Table.Cell>
                   <Table.Cell>
                     <VStack align="flex-start" gap={1}>
                       <Badge
                         variant="subtle"
-                        bg={isDark ? "rgba(6, 182, 212, 0.15)" : "rgba(6, 182, 212, 0.1)"}
+                        bg={
+                          isDark
+                            ? "rgba(133, 193, 220, 0.15)"
+                            : "rgba(133, 193, 220, 0.1)"
+                        }
                         color={isDark ? "cyan.300" : "cyan.800"}
                         borderColor={isDark ? "cyan.800/30" : "cyan.200"}
                         borderWidth="1px"
@@ -428,7 +601,11 @@ export function RunView({ id }: { id: string }) {
                       </Badge>
                       <Badge
                         variant="subtle"
-                        bg={isDark ? "rgba(6, 182, 212, 0.15)" : "rgba(6, 182, 212, 0.1)"}
+                        bg={
+                          isDark
+                            ? "rgba(133, 193, 220, 0.15)"
+                            : "rgba(133, 193, 220, 0.1)"
+                        }
                         color={isDark ? "cyan.300" : "cyan.800"}
                         borderColor={isDark ? "cyan.800/30" : "cyan.200"}
                         borderWidth="1px"
@@ -457,29 +634,56 @@ export function RunView({ id }: { id: string }) {
       {/* ==================== KEY PAIRS TAB ==================== */}
       <Box display={activeTab === "key-pairs" ? "block" : "none"} width="100%">
         <VStack align="stretch" gap={4}>
-          <Heading size="sm" color={colors.text}>Key Pairs (LLM & Runtime Credentials)</Heading>
+          <Heading size="sm" color={colors.text}>
+            Key Pairs (LLM & Runtime Credentials)
+          </Heading>
           <Text fontSize="13px" color={colors.subtext}>
-            Key pairs secure credentials used by the AI Agent to issue API calls to Claude and connect to Playwright.
+            Key pairs secure credentials used by the AI Agent to issue API calls
+            to Claude and connect to Playwright.
           </Text>
 
-          <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="md" overflow="hidden">
+          <Box
+            bg={colors.cardBg}
+            border="1px solid"
+            borderColor={colors.border}
+            borderRadius="md"
+            overflow="hidden"
+          >
             <Table.Root size="sm" variant="outline" border="none">
               <Table.Header bg={isDark ? "white/5" : "gray.50"}>
                 <Table.Row borderColor={colors.border}>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Key Pair ID</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Key Name</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Type</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Key Fingerprint</Table.ColumnHeader>
-                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">Status</Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Key Pair ID
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Key Name
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Type
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Key Fingerprint
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader color={colors.subtext} fontSize="12.5px">
+                    Status
+                  </Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
               <Table.Body fontSize="13px">
                 <Table.Row borderColor={colors.border}>
-                  <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>key-0claude</Table.Cell>
-                  <Table.Cell fontWeight="bold">claude-anthropic-key</Table.Cell>
+                  <Table.Cell fontFamily="mono" color={AWS_COLORS.orange.main}>
+                    key-0claude
+                  </Table.Cell>
+                  <Table.Cell fontWeight="bold">
+                    claude-anthropic-key
+                  </Table.Cell>
                   <Table.Cell>API Token (RSA-like auth)</Table.Cell>
-                  <Table.Cell fontFamily="mono" color="slate.500">sk-ant-us-east-1-*************</Table.Cell>
-                  <Table.Cell><Badge colorPalette="green">Authorized</Badge></Table.Cell>
+                  <Table.Cell fontFamily="mono" color="slate.500">
+                    sk-ant-us-east-1-*************
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Badge colorPalette="green">Authorized</Badge>
+                  </Table.Cell>
                 </Table.Row>
               </Table.Body>
             </Table.Root>

@@ -27,7 +27,10 @@ export async function GET(
 
   const encoder = new TextEncoder();
   // Resume point: the client sends the last index it saw via Last-Event-ID.
-  const resumeFrom = Number(request.headers.get("last-event-id"));
+  // A missing header is `null`, and Number(null) === 0 — which would wrongly
+  // skip event 0 on a fresh connection — so treat "absent" as "start from 0".
+  const lastEventId = request.headers.get("last-event-id");
+  const resumeFrom = lastEventId === null ? Number.NaN : Number(lastEventId);
   let sent =
     Number.isInteger(resumeFrom) && resumeFrom >= 0 ? resumeFrom + 1 : 0;
   let timer: ReturnType<typeof setInterval>;

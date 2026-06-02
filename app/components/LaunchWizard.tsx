@@ -12,9 +12,18 @@ import {
   Spinner,
   Heading,
 } from "@chakra-ui/react";
-import { Play, ChevronRight, TriangleAlert, ChevronDown, Check } from "lucide-react";
+import {
+  Play,
+  ChevronRight,
+  TriangleAlert,
+  ChevronDown,
+  Check,
+} from "lucide-react";
 import { useThemeMode } from "@/app/providers";
-import { getAWSColors, AWS_COLORS } from "@/app/theme/aws";
+import { getAWSColors, AWS_COLORS, SIDEBAR_GRADIENT } from "@/app/theme/aws";
+import { motion, AnimatePresence } from "framer-motion";
+
+const MotionBox = motion.create(Box);
 
 interface LaunchWizardProps {
   onLaunchSuccess: (runId: string) => void;
@@ -40,10 +49,16 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (depthRef.current && !depthRef.current.contains(event.target as Node)) {
+      if (
+        depthRef.current &&
+        !depthRef.current.contains(event.target as Node)
+      ) {
         setIsDepthOpen(false);
       }
-      if (pagesRef.current && !pagesRef.current.contains(event.target as Node)) {
+      if (
+        pagesRef.current &&
+        !pagesRef.current.contains(event.target as Node)
+      ) {
         setIsPagesOpen(false);
       }
     }
@@ -110,11 +125,20 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           p={5}
           transition="all 0.2s ease"
           _hover={{
-            borderColor: isDark ? "rgba(6, 182, 212, 0.5)" : "rgba(59, 130, 246, 0.4)",
+            borderColor: isDark
+              ? "rgba(133, 193, 220, 0.5)"
+              : "rgba(59, 130, 246, 0.4)",
           }}
         >
           <VStack align="stretch" gap={3}>
-            <Text fontSize="13px" fontWeight="extrabold" color={colors.text} letterSpacing="0.03em" fontFamily="mono" textTransform="uppercase">
+            <Text
+              fontSize="13px"
+              fontWeight="extrabold"
+              color={colors.text}
+              letterSpacing="0.03em"
+              fontFamily="mono"
+              textTransform="uppercase"
+            >
               Target URL
             </Text>
             <Input
@@ -122,7 +146,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               onChange={(e) => setUrl(e.target.value)}
               placeholder="e.g. https://www.tarento.com"
               fontSize="13px"
-              bg={isDark ? "#080c14" : "#ffffff"}
+              bg={isDark ? "#232634" : "#ffffff"}
               borderColor={colors.border}
               borderRadius="md"
               size="sm"
@@ -130,12 +154,13 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               disabled={submitting}
               autoFocus
               _focus={{
-                borderColor: "#06b6d4",
-                boxShadow: "0 0 0 1px #06b6d4"
+                borderColor: "#85c1dc",
+                boxShadow: "0 0 0 1px #85c1dc",
               }}
             />
             <Text fontSize="11.5px" color={colors.subtext}>
-              The AI agent will crawl this URL, planning and executing test suites automatically.
+              The AI agent will crawl this URL, planning and executing test
+              suites automatically.
             </Text>
           </VStack>
         </Box>
@@ -150,16 +175,35 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           p={5}
           transition="all 0.2s ease"
           _hover={{
-            borderColor: isDark ? "rgba(6, 182, 212, 0.5)" : "rgba(59, 130, 246, 0.4)",
+            borderColor: isDark
+              ? "rgba(133, 193, 220, 0.5)"
+              : "rgba(59, 130, 246, 0.4)",
           }}
         >
           <VStack align="stretch" gap={4}>
-            <Text fontSize="13px" fontWeight="extrabold" color={colors.text} letterSpacing="0.03em" fontFamily="mono" textTransform="uppercase" borderBottom="1px solid" borderColor={colors.border} pb={2.5}>
+            <Text
+              fontSize="13px"
+              fontWeight="extrabold"
+              color={colors.text}
+              letterSpacing="0.03em"
+              fontFamily="mono"
+              textTransform="uppercase"
+              borderBottom="1px solid"
+              borderColor={colors.border}
+              pb={2.5}
+            >
               Crawl Parameters
             </Text>
 
             <HStack gap={4} wrap="wrap">
-              <VStack align="stretch" gap={1.5} flex={1} minW="150px" position="relative" ref={depthRef}>
+              <VStack
+                align="stretch"
+                gap={1.5}
+                flex={1}
+                minW="150px"
+                position="relative"
+                ref={depthRef}
+              >
                 <Text fontSize="12px" fontWeight="bold" color={colors.subtext}>
                   Maximum Crawl Depth
                 </Text>
@@ -171,7 +215,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   w="full"
                   h="36px"
                   px={3}
-                  bg={isDark ? "#080c14" : "#ffffff"}
+                  bg={isDark ? "#232634" : "#ffffff"}
                   border="1px solid"
                   borderColor={colors.border}
                   borderRadius="md"
@@ -181,76 +225,134 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   cursor="pointer"
                   fontSize="13px"
                   color={colors.text}
-                  _hover={{ borderColor: isDark ? "rgba(6, 182, 212, 0.5)" : "rgba(59, 130, 246, 0.5)" }}
-                  _focus={{ borderColor: isDark ? "#06b6d4" : "#3b82f6" }}
+                  _hover={{
+                    borderColor: isDark
+                      ? "rgba(133, 193, 220, 0.5)"
+                      : "rgba(59, 130, 246, 0.5)",
+                  }}
+                  _focus={{ borderColor: isDark ? "#85c1dc" : "#3b82f6" }}
                   transition="all 0.15s ease"
                 >
                   <Text truncate>
                     {crawlMode === "direct" && "Direct page only (depth 0)"}
-                    {crawlMode === "standard" && "Standard depth — links of entry (depth 1)"}
+                    {crawlMode === "standard" &&
+                      "Standard depth — links of entry (depth 1)"}
                     {crawlMode === "deep" && "Deep — 3 levels down"}
-                    {crawlMode === "aggressive" && "Aggressive crawl (depth 10)"}
+                    {crawlMode === "aggressive" &&
+                      "Aggressive crawl (depth 10)"}
                   </Text>
-                  <ChevronDown size={14} style={{ opacity: 0.7, transform: isDepthOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease", flexShrink: 0 }} />
+                  <ChevronDown
+                    size={14}
+                    style={{
+                      opacity: 0.7,
+                      transform: isDepthOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s ease",
+                      flexShrink: 0,
+                    }}
+                  />
                 </Box>
 
                 {/* Options List Menu */}
-                {isDepthOpen && (
-                  <Box
-                    position="absolute"
-                    top="58px"
-                    left={0}
-                    right={0}
-                    zIndex={50}
-                    bg={isDark ? "#0e1526" : "#ffffff"}
-                    border="1px solid"
-                    borderColor={colors.border}
-                    borderRadius="md"
-                    boxShadow="md"
-                    maxH="150px"
-                    overflowY="auto"
-                    py={1}
-                    className="glass-scroll-area"
-                  >
-                    {[
-                      { value: "direct", label: "Direct page only (depth 0)" },
-                      { value: "standard", label: "Standard depth — links of entry (depth 1)" },
-                      { value: "deep", label: "Deep — 3 levels down" },
-                      { value: "aggressive", label: "Aggressive crawl (depth 10)" }
-                    ].map((opt) => {
-                      const isSelected = crawlMode === opt.value;
-                      return (
-                        <Box
-                          key={opt.value}
-                          onClick={() => {
-                            setCrawlMode(opt.value);
-                            setIsDepthOpen(false);
-                          }}
-                          px={3}
-                          py={2}
-                          fontSize="13px"
-                          cursor="pointer"
-                          bg={isSelected ? (isDark ? "rgba(6, 182, 212, 0.15)" : "rgba(59, 130, 246, 0.08)") : "transparent"}
-                          color={isSelected ? (isDark ? "#22d3ee" : "#2563eb") : colors.text}
-                          fontWeight={isSelected ? "semibold" : "normal"}
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="space-between"
-                          _hover={{
-                            bg: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)",
-                          }}
-                          transition="background-color 0.12s ease"
-                        >
-                          <Text truncate>{opt.label}</Text>
-                          {isSelected && <Check size={12} style={{ color: isDark ? "#22d3ee" : "#2563eb" }} />}
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                )}
+                <AnimatePresence>
+                  {isDepthOpen && (
+                    <MotionBox
+                      position="absolute"
+                      top="58px"
+                      left={0}
+                      right={0}
+                      zIndex={50}
+                      bg={isDark ? "#292c3c" : "#ffffff"}
+                      border="1px solid"
+                      borderColor={colors.border}
+                      borderRadius="md"
+                      boxShadow="md"
+                      maxH="150px"
+                      overflowY="auto"
+                      py={1}
+                      className="glass-scroll-area"
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.12, ease: "easeOut" }}
+                      style={{ transformOrigin: "top" }}
+                    >
+                      {[
+                        {
+                          value: "direct",
+                          label: "Direct page only (depth 0)",
+                        },
+                        {
+                          value: "standard",
+                          label: "Standard depth — links of entry (depth 1)",
+                        },
+                        { value: "deep", label: "Deep — 3 levels down" },
+                        {
+                          value: "aggressive",
+                          label: "Aggressive crawl (depth 10)",
+                        },
+                      ].map((opt) => {
+                        const isSelected = crawlMode === opt.value;
+                        return (
+                          <Box
+                            key={opt.value}
+                            onClick={() => {
+                              setCrawlMode(opt.value);
+                              setIsDepthOpen(false);
+                            }}
+                            px={3}
+                            py={2}
+                            fontSize="13px"
+                            cursor="pointer"
+                            bg={
+                              isSelected
+                                ? isDark
+                                  ? "rgba(133, 193, 220, 0.15)"
+                                  : "rgba(59, 130, 246, 0.08)"
+                                : "transparent"
+                            }
+                            color={
+                              isSelected
+                                ? isDark
+                                  ? "#99d1db"
+                                  : "#2563eb"
+                                : colors.text
+                            }
+                            fontWeight={isSelected ? "semibold" : "normal"}
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="space-between"
+                            _hover={{
+                              bg: isDark
+                                ? "rgba(255, 255, 255, 0.05)"
+                                : "rgba(0, 0, 0, 0.03)",
+                            }}
+                            transition="background-color 0.12s ease"
+                          >
+                            <Text truncate>{opt.label}</Text>
+                            {isSelected && (
+                              <Check
+                                size={12}
+                                style={{
+                                  color: isDark ? "#99d1db" : "#2563eb",
+                                }}
+                              />
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </MotionBox>
+                  )}
+                </AnimatePresence>
               </VStack>
 
-              <VStack align="stretch" gap={1.5} flex={1} minW="150px" position="relative" ref={pagesRef}>
+              <VStack
+                align="stretch"
+                gap={1.5}
+                flex={1}
+                minW="150px"
+                position="relative"
+                ref={pagesRef}
+              >
                 <Text fontSize="12px" fontWeight="bold" color={colors.subtext}>
                   Maximum Crawl Pages
                 </Text>
@@ -258,11 +360,13 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                 <Box
                   role="button"
                   tabIndex={crawlMode === "direct" ? -1 : 0}
-                  onClick={() => crawlMode !== "direct" && setIsPagesOpen(!isPagesOpen)}
+                  onClick={() =>
+                    crawlMode !== "direct" && setIsPagesOpen(!isPagesOpen)
+                  }
                   w="full"
                   h="36px"
                   px={3}
-                  bg={isDark ? "#080c14" : "#ffffff"}
+                  bg={isDark ? "#232634" : "#ffffff"}
                   border="1px solid"
                   borderColor={colors.border}
                   borderRadius="md"
@@ -273,8 +377,20 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   opacity={crawlMode === "direct" ? 0.5 : 1}
                   fontSize="13px"
                   color={colors.text}
-                  _hover={crawlMode === "direct" ? {} : { borderColor: isDark ? "rgba(6, 182, 212, 0.5)" : "rgba(59, 130, 246, 0.5)" }}
-                  _focus={crawlMode === "direct" ? {} : { borderColor: isDark ? "#06b6d4" : "#3b82f6" }}
+                  _hover={
+                    crawlMode === "direct"
+                      ? {}
+                      : {
+                          borderColor: isDark
+                            ? "rgba(133, 193, 220, 0.5)"
+                            : "rgba(59, 130, 246, 0.5)",
+                        }
+                  }
+                  _focus={
+                    crawlMode === "direct"
+                      ? {}
+                      : { borderColor: isDark ? "#85c1dc" : "#3b82f6" }
+                  }
                   transition="all 0.15s ease"
                   title={
                     crawlMode === "direct"
@@ -289,64 +405,100 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     {maxPages === "50" && "50 pages (Thorough)"}
                     {maxPages === "100" && "100 pages (Large suite)"}
                   </Text>
-                  <ChevronDown size={14} style={{ opacity: 0.7, transform: isPagesOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease", flexShrink: 0 }} />
+                  <ChevronDown
+                    size={14}
+                    style={{
+                      opacity: 0.7,
+                      transform: isPagesOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s ease",
+                      flexShrink: 0,
+                    }}
+                  />
                 </Box>
 
                 {/* Options List Menu */}
-                {isPagesOpen && crawlMode !== "direct" && (
-                  <Box
-                    position="absolute"
-                    top="58px"
-                    left={0}
-                    right={0}
-                    zIndex={50}
-                    bg={isDark ? "#0e1526" : "#ffffff"}
-                    border="1px solid"
-                    borderColor={colors.border}
-                    borderRadius="md"
-                    boxShadow="md"
-                    maxH="150px"
-                    overflowY="auto"
-                    py={1}
-                    className="glass-scroll-area"
-                  >
-                    {[
-                      { value: "5", label: "5 pages (Quick test)" },
-                      { value: "10", label: "10 pages (Standard)" },
-                      { value: "20", label: "20 pages" },
-                      { value: "50", label: "50 pages (Thorough)" },
-                      { value: "100", label: "100 pages (Large suite)" }
-                    ].map((opt) => {
-                      const isSelected = maxPages === opt.value;
-                      return (
-                        <Box
-                          key={opt.value}
-                          onClick={() => {
-                            setMaxPages(opt.value);
-                            setIsPagesOpen(false);
-                          }}
-                          px={3}
-                          py={2}
-                          fontSize="13px"
-                          cursor="pointer"
-                          bg={isSelected ? (isDark ? "rgba(6, 182, 212, 0.15)" : "rgba(59, 130, 246, 0.08)") : "transparent"}
-                          color={isSelected ? (isDark ? "#22d3ee" : "#2563eb") : colors.text}
-                          fontWeight={isSelected ? "semibold" : "normal"}
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="space-between"
-                          _hover={{
-                            bg: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)",
-                          }}
-                          transition="background-color 0.12s ease"
-                        >
-                          <Text truncate>{opt.label}</Text>
-                          {isSelected && <Check size={12} style={{ color: isDark ? "#22d3ee" : "#2563eb" }} />}
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                )}
+                <AnimatePresence>
+                  {isPagesOpen && crawlMode !== "direct" && (
+                    <MotionBox
+                      position="absolute"
+                      top="58px"
+                      left={0}
+                      right={0}
+                      zIndex={50}
+                      bg={isDark ? "#292c3c" : "#ffffff"}
+                      border="1px solid"
+                      borderColor={colors.border}
+                      borderRadius="md"
+                      boxShadow="md"
+                      maxH="150px"
+                      overflowY="auto"
+                      py={1}
+                      className="glass-scroll-area"
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.12, ease: "easeOut" }}
+                      style={{ transformOrigin: "top" }}
+                    >
+                      {[
+                        { value: "5", label: "5 pages (Quick test)" },
+                        { value: "10", label: "10 pages (Standard)" },
+                        { value: "20", label: "20 pages" },
+                        { value: "50", label: "50 pages (Thorough)" },
+                        { value: "100", label: "100 pages (Large suite)" },
+                      ].map((opt) => {
+                        const isSelected = maxPages === opt.value;
+                        return (
+                          <Box
+                            key={opt.value}
+                            onClick={() => {
+                              setMaxPages(opt.value);
+                              setIsPagesOpen(false);
+                            }}
+                            px={3}
+                            py={2}
+                            fontSize="13px"
+                            cursor="pointer"
+                            bg={
+                              isSelected
+                                ? isDark
+                                  ? "rgba(133, 193, 220, 0.15)"
+                                  : "rgba(59, 130, 246, 0.08)"
+                                : "transparent"
+                            }
+                            color={
+                              isSelected
+                                ? isDark
+                                  ? "#99d1db"
+                                  : "#2563eb"
+                                : colors.text
+                            }
+                            fontWeight={isSelected ? "semibold" : "normal"}
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="space-between"
+                            _hover={{
+                              bg: isDark
+                                ? "rgba(255, 255, 255, 0.05)"
+                                : "rgba(0, 0, 0, 0.03)",
+                            }}
+                            transition="background-color 0.12s ease"
+                          >
+                            <Text truncate>{opt.label}</Text>
+                            {isSelected && (
+                              <Check
+                                size={12}
+                                style={{
+                                  color: isDark ? "#99d1db" : "#2563eb",
+                                }}
+                              />
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </MotionBox>
+                  )}
+                </AnimatePresence>
               </VStack>
             </HStack>
           </VStack>
@@ -412,9 +564,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             type="submit"
             disabled={submitting}
             w="full"
-            bg={isDark 
-              ? "linear-gradient(180deg, #06b6d4 0%, #0891b2 100%)" 
-              : "linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)"}
+            background={isDark ? SIDEBAR_GRADIENT.dark : SIDEBAR_GRADIENT.light}
             color="white"
             fontSize="12px"
             fontWeight="black"
@@ -424,17 +574,24 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             h="42px"
             borderRadius="lg"
             cursor={submitting ? "not-allowed" : "pointer"}
-            border="1px solid"
-            borderColor={isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)"}
-            boxShadow="sm"
-            transition="all 0.15s ease"
+            border="1.5px solid"
+            borderColor={
+              isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.3)"
+            }
+            boxShadow="0 3px 12px rgba(0, 0, 0, 0.35)"
+            transition="all 0.2s ease"
             _hover={
               submitting
                 ? {}
                 : {
+                    background: isDark
+                      ? SIDEBAR_GRADIENT.darkHover
+                      : SIDEBAR_GRADIENT.lightHover,
+                    borderColor: isDark
+                      ? "rgba(255, 255, 255, 0.2)"
+                      : "rgba(255, 255, 255, 0.55)",
                     transform: "translateY(-1px)",
-                    boxShadow: "md",
-                    filter: "brightness(1.05)"
+                    boxShadow: "0 6px 20px rgba(0, 0, 0, 0.45)",
                   }
             }
             _active={
@@ -442,9 +599,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                 ? {}
                 : {
                     transform: "translateY(0.5px)",
-                    boxShadow: isDark
-                      ? "inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px rgba(6, 182, 212, 0.2)"
-                      : "inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 8px rgba(59, 130, 246, 0.15)"
+                    boxShadow: "0 2px 8px rgba(133, 193, 220, 0.35)",
                   }
             }
             display="flex"

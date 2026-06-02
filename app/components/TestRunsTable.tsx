@@ -40,6 +40,7 @@ interface TestRunsTableProps {
   onLaunchNew: () => void;
   isLoading: boolean;
   onRefresh: () => void;
+  onViewReport: (run: Run) => void;
 }
 
 export function TestRunsTable({
@@ -51,6 +52,7 @@ export function TestRunsTable({
   onLaunchNew,
   isLoading,
   onRefresh,
+  onViewReport,
 }: TestRunsTableProps) {
   const { theme } = useThemeMode();
   const colors = getAWSColors(theme);
@@ -71,7 +73,14 @@ export function TestRunsTable({
   };
 
   return (
-    <Box bg={colors.cardBg} border="1px solid" borderColor={colors.border} borderRadius="xl" overflow="hidden" shadow="md">
+    <Box
+      bg={colors.cardBg}
+      border="1px solid"
+      borderColor={colors.border}
+      borderRadius="xl"
+      overflow="hidden"
+      shadow="md"
+    >
       {/* Table Actions Header */}
       <Flex
         px={4}
@@ -85,7 +94,12 @@ export function TestRunsTable({
         gap={2}
       >
         <HStack gap={2}>
-          <Text fontSize="12.5px" fontWeight="extrabold" color={colors.text} letterSpacing="0.05em">
+          <Text
+            fontSize="12.5px"
+            fontWeight="extrabold"
+            color={colors.text}
+            letterSpacing="0.05em"
+          >
             TEST RUNS ({runs.length})
           </Text>
           <Button
@@ -99,7 +113,10 @@ export function TestRunsTable({
             height="24px"
             px={2.5}
             borderRadius="md"
-            _hover={{ bg: colors.rowHover, borderColor: "var(--aws-orange-main)" }}
+            _hover={{
+              bg: colors.rowHover,
+              borderColor: "var(--aws-orange-main)",
+            }}
           >
             <RefreshCw size={11} className={isLoading ? "animate-spin" : ""} />
           </Button>
@@ -110,23 +127,23 @@ export function TestRunsTable({
           <Button
             size="xs"
             bg="linear-gradient(135deg, var(--aws-orange-light) 0%, var(--aws-orange-main) 100%)"
-            color="white"
+            color={isDark ? "#232634" : "white"}
             fontWeight="bold"
             height="24px"
             px={3}
             cursor="pointer"
             border="none"
             borderRadius="md"
-            boxShadow="0 2px 8px rgba(6, 182, 212, 0.25)"
+            boxShadow="0 2px 8px rgba(133, 193, 220, 0.25)"
             transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
             _hover={{
               bg: "linear-gradient(135deg, var(--aws-orange-light) 30%, var(--aws-orange-hover) 100%)",
               transform: "translateY(-1px)",
-              boxShadow: "0 4px 12px rgba(6, 182, 212, 0.4)",
+              boxShadow: "0 4px 12px rgba(133, 193, 220, 0.4)",
             }}
             _active={{
               transform: "translateY(0)",
-              boxShadow: "0 2px 4px rgba(6, 182, 212, 0.2)",
+              boxShadow: "0 2px 4px rgba(133, 193, 220, 0.2)",
             }}
             onClick={onLaunchNew}
           >
@@ -150,9 +167,9 @@ export function TestRunsTable({
             _hover={
               selectedRunId
                 ? {
-                    bg: colors.rowHover,
-                    borderColor: "var(--aws-orange-main)",
-                    color: "var(--aws-orange-main)",
+                    bg: "rgba(239, 159, 118, 0.08)",
+                    borderColor: "#ef9f76",
+                    color: "#ef9f76",
                     transform: "translateY(-1px)",
                   }
                 : {}
@@ -191,7 +208,7 @@ export function TestRunsTable({
                     borderColor: "red.500",
                     color: isDark ? "red.300" : "red.600",
                     transform: "translateY(-1px)",
-                    boxShadow: "0 4px 12px rgba(239, 68, 68, 0.2)",
+                    boxShadow: "0 4px 12px rgba(231, 130, 132, 0.2)",
                   }
                 : {}
             }
@@ -213,20 +230,70 @@ export function TestRunsTable({
         <Table.Root size="sm" variant="outline" border="none">
           <Table.Header bg={isDark ? "white/5" : "gray.50"}>
             <Table.Row borderColor={colors.border}>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5} w="40px" textAlign="center">
+              <Table.ColumnHeader
+                color={colors.subtext}
+                fontSize="12px"
+                py={2.5}
+                w="40px"
+                textAlign="center"
+              >
                 Select
               </Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Run ID</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Name (Target URL)</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Run State</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Status Checks</Table.ColumnHeader>
-              <Table.ColumnHeader color={colors.subtext} fontSize="12px" py={2.5}>Launch Time</Table.ColumnHeader>
+              <Table.ColumnHeader
+                color={colors.subtext}
+                fontSize="12px"
+                py={2.5}
+              >
+                Run ID
+              </Table.ColumnHeader>
+              <Table.ColumnHeader
+                color={colors.subtext}
+                fontSize="12px"
+                py={2.5}
+              >
+                Name (Target URL)
+              </Table.ColumnHeader>
+              <Table.ColumnHeader
+                color={colors.subtext}
+                fontSize="12px"
+                py={2.5}
+              >
+                Run State
+              </Table.ColumnHeader>
+              <Table.ColumnHeader
+                color={colors.subtext}
+                fontSize="12px"
+                py={2.5}
+              >
+                Status Checks
+              </Table.ColumnHeader>
+              <Table.ColumnHeader
+                color={colors.subtext}
+                fontSize="12px"
+                py={2.5}
+              >
+                Launch Time
+              </Table.ColumnHeader>
+              <Table.ColumnHeader
+                color={colors.subtext}
+                fontSize="12px"
+                py={2.5}
+                w="110px"
+              >
+                Actions
+              </Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {runs.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={6} textAlign="center" py={8} color={colors.subtext} fontSize="13px">
+                <Table.Cell
+                  colSpan={7}
+                  textAlign="center"
+                  py={8}
+                  color={colors.subtext}
+                  fontSize="13px"
+                >
                   No test runs found. Launch a test to get started.
                 </Table.Cell>
               </Table.Row>
@@ -235,26 +302,36 @@ export function TestRunsTable({
                 const isSelected = selectedRunId === run.id;
                 const statusStyle = getStatusStyle(run.status);
                 const shortId = `i-${run.id.slice(0, 17)}`;
-                
+
                 // Status Checks details
                 let checksText = "Initializing...";
                 let checksColor = "yellow";
                 if (run.status === "completed") {
                   checksText = "2/2 checks passed";
                   checksColor = "green";
-                } else if (run.status === "failed" || run.status === "cancelled") {
+                } else if (
+                  run.status === "failed" ||
+                  run.status === "cancelled"
+                ) {
                   checksText = "Checks failed";
                   checksColor = "red";
                 }
 
                 // Alarm details
-                const alarmsText = run.status === "failed" ? "1 alarm" : "No alarms";
+                const alarmsText =
+                  run.status === "failed" ? "1 alarm" : "No alarms";
 
                 return (
                   <Table.Row
                     key={run.id}
                     onClick={() => onSelectRun(isSelected ? null : run)}
-                    bg={isSelected ? (isDark ? "rgba(6, 182, 212, 0.12)" : "rgba(59, 130, 246, 0.08)") : "transparent"}
+                    bg={
+                      isSelected
+                        ? isDark
+                          ? "rgba(133, 193, 220, 0.12)"
+                          : "rgba(59, 130, 246, 0.08)"
+                        : "transparent"
+                    }
                     borderBottom="1px solid"
                     borderColor={colors.border}
                     cursor="pointer"
@@ -273,10 +350,21 @@ export function TestRunsTable({
                         style={{ cursor: "pointer" }}
                       />
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontWeight="semibold" fontSize="13px" color="var(--aws-orange-main)" fontFamily="mono">
+                    <Table.Cell
+                      py={2.5}
+                      fontWeight="semibold"
+                      fontSize="13px"
+                      color="var(--aws-orange-main)"
+                      fontFamily="mono"
+                    >
                       {shortId}
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="13px" color={colors.text} fontWeight="medium">
+                    <Table.Cell
+                      py={2.5}
+                      fontSize="13px"
+                      color={colors.text}
+                      fontWeight="medium"
+                    >
                       {run.config.url}
                     </Table.Cell>
                     <Table.Cell py={2.5}>
@@ -291,7 +379,9 @@ export function TestRunsTable({
                         px={2}
                         py={0.5}
                         bg={statusStyle.bg}
-                        color={isDark ? statusStyle.darkColor : statusStyle.color}
+                        color={
+                          isDark ? statusStyle.darkColor : statusStyle.color
+                        }
                         borderColor={statusStyle.border}
                         borderWidth="1px"
                       >
@@ -300,16 +390,83 @@ export function TestRunsTable({
                           h="6px"
                           borderRadius="full"
                           bg={statusStyle.dotColor}
-                          style={statusStyle.animate ? { animation: "pulse-glow-run 1.2s infinite" } : {}}
+                          style={
+                            statusStyle.animate
+                              ? { animation: "pulse-glow-run 1.2s infinite" }
+                              : {}
+                          }
                         />
                         {statusStyle.label}
                       </Badge>
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="13px" fontWeight="medium" color={checksColor === "green" ? "green.600" : checksColor === "red" ? "red.500" : colors.text}>
+                    <Table.Cell
+                      py={2.5}
+                      fontSize="13px"
+                      fontWeight="medium"
+                      color={
+                        checksColor === "green"
+                          ? "green.600"
+                          : checksColor === "red"
+                            ? "red.500"
+                            : colors.text
+                      }
+                    >
                       {checksText}
                     </Table.Cell>
-                    <Table.Cell py={2.5} fontSize="13px" color={colors.subtext} fontFamily="mono">
+                    <Table.Cell
+                      py={2.5}
+                      fontSize="13px"
+                      color={colors.subtext}
+                      fontFamily="mono"
+                    >
                       {new Date(run.createdAt).toLocaleString()}
+                    </Table.Cell>
+                    <Table.Cell py={2} onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        borderColor={colors.border}
+                        color={colors.text}
+                        disabled={
+                          run.status !== "completed" &&
+                          run.status !== "failed" &&
+                          run.status !== "cancelled"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewReport(run);
+                        }}
+                        cursor={
+                          run.status === "completed" ||
+                          run.status === "failed" ||
+                          run.status === "cancelled"
+                            ? "pointer"
+                            : "not-allowed"
+                        }
+                        opacity={
+                          run.status === "completed" ||
+                          run.status === "failed" ||
+                          run.status === "cancelled"
+                            ? 1
+                            : 0.4
+                        }
+                        _hover={
+                          run.status === "completed" ||
+                          run.status === "failed" ||
+                          run.status === "cancelled"
+                            ? {
+                                bg: colors.rowHover,
+                                borderColor: "var(--aws-orange-main)",
+                                color: "var(--aws-orange-main)",
+                              }
+                            : {}
+                        }
+                        fontSize="11px"
+                        height="22px"
+                        borderRadius="md"
+                      >
+                        View Report
+                      </Button>
                     </Table.Cell>
                   </Table.Row>
                 );
@@ -322,8 +479,15 @@ export function TestRunsTable({
       {/* Internal Animation styles for status dots */}
       <style jsx global>{`
         @keyframes pulse-glow-run {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.3; transform: scale(0.7); }
+          0%,
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.3;
+            transform: scale(0.7);
+          }
         }
       `}</style>
 
@@ -403,13 +567,17 @@ function TerminateRunDialog({
               <Flex
                 w="22px"
                 h="22px"
-                bg="rgba(239, 68, 68, 0.18)"
-                border="1px solid rgba(239, 68, 68, 0.6)"
+                bg="rgba(231, 130, 132, 0.18)"
+                border="1px solid rgba(231, 130, 132, 0.6)"
                 borderRadius="md"
                 align="center"
                 justify="center"
               >
-                <AlertTriangle size={13} color={isDark ? "#f87171" : "#dc2626"} strokeWidth={2.5} />
+                <AlertTriangle
+                  size={13}
+                  color={isDark ? "#e78284" : "#dc2626"}
+                  strokeWidth={2.5}
+                />
               </Flex>
               <Dialog.Title flex={1}>
                 <Text
@@ -428,7 +596,10 @@ function TerminateRunDialog({
                 minW="22px"
                 h="22px"
                 color={isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)"}
-                _hover={{ bg: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", color: isDark ? "white" : "black" }}
+                _hover={{
+                  bg: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+                  color: isDark ? "white" : "black",
+                }}
                 onClick={onCancel}
                 disabled={isTerminating}
                 aria-label="Close"
@@ -439,10 +610,18 @@ function TerminateRunDialog({
 
             {/* Body */}
             <Box px={5} py={4}>
-              <Text fontSize="12.5px" color={colors.text} mb={3} lineHeight="1.55">
+              <Text
+                fontSize="12.5px"
+                color={colors.text}
+                mb={3}
+                lineHeight="1.55"
+              >
                 Once a test run is terminated, all logs, generated specs, and
-                workspace files are <Box as="span" fontWeight="bold">permanently deleted</Box>.
-                This action cannot be undone.
+                workspace files are{" "}
+                <Box as="span" fontWeight="bold">
+                  permanently deleted
+                </Box>
+                . This action cannot be undone.
               </Text>
 
               {/* Run details */}
@@ -462,7 +641,12 @@ function TerminateRunDialog({
                   align="center"
                   gap={1.5}
                 >
-                  <Box w="3px" h="10px" bg="var(--aws-orange-main)" borderRadius="full" />
+                  <Box
+                    w="3px"
+                    h="10px"
+                    bg="var(--aws-orange-main)"
+                    borderRadius="full"
+                  />
                   <Text
                     fontSize="10px"
                     fontWeight="bold"
@@ -477,16 +661,34 @@ function TerminateRunDialog({
                 {target && (
                   <VStack align="stretch" gap={0} fontSize="11.5px">
                     <DialogRow label="Run ID" isDark={isDark} colors={colors}>
-                      <Text fontFamily="mono" color="var(--aws-orange-main)" fontWeight="semibold">
+                      <Text
+                        fontFamily="mono"
+                        color="var(--aws-orange-main)"
+                        fontWeight="semibold"
+                      >
                         {shortId}
                       </Text>
                     </DialogRow>
-                    <DialogRow label="Target URL" isDark={isDark} colors={colors}>
-                      <Text color={colors.text} truncate maxW="280px" title={target.config.url}>
+                    <DialogRow
+                      label="Target URL"
+                      isDark={isDark}
+                      colors={colors}
+                    >
+                      <Text
+                        color={colors.text}
+                        truncate
+                        maxW="280px"
+                        title={target.config.url}
+                      >
                         {target.config.url}
                       </Text>
                     </DialogRow>
-                    <DialogRow label="State" isDark={isDark} colors={colors} isLast>
+                    <DialogRow
+                      label="State"
+                      isDark={isDark}
+                      colors={colors}
+                      isLast
+                    >
                       {statusStyle && (
                         <Badge
                           variant="subtle"
@@ -499,11 +701,18 @@ function TerminateRunDialog({
                           px={2}
                           py={0.5}
                           bg={statusStyle.bg}
-                          color={isDark ? statusStyle.darkColor : statusStyle.color}
+                          color={
+                            isDark ? statusStyle.darkColor : statusStyle.color
+                          }
                           borderColor={statusStyle.border}
                           borderWidth="1px"
                         >
-                          <Box w="5px" h="5px" borderRadius="full" bg={statusStyle.dotColor} />
+                          <Box
+                            w="5px"
+                            h="5px"
+                            borderRadius="full"
+                            bg={statusStyle.dotColor}
+                          />
                           {statusStyle.label}
                         </Badge>
                       )}
@@ -542,10 +751,10 @@ function TerminateRunDialog({
               </Button>
               <Button
                 size="sm"
-                bg="#d13212"
-                color="white"
-                _hover={{ bg: "#b62a0e" }}
-                _active={{ bg: "#9a2208" }}
+                bg="#e78284"
+                color="#232634"
+                _hover={{ bg: "#ea999c" }}
+                _active={{ bg: "#e78284" }}
                 fontWeight="bold"
                 fontSize="11.5px"
                 height="28px"
@@ -598,7 +807,9 @@ function DialogRow({
       >
         {label}
       </Text>
-      <Box flex={1} minW={0}>{children}</Box>
+      <Box flex={1} minW={0}>
+        {children}
+      </Box>
     </Flex>
   );
 }

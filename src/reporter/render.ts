@@ -1,6 +1,8 @@
 import type { RunReport, TestResult } from "../types";
 import { summarize } from "./report";
 import { bucketResults } from "./successRate";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const OUTCOME_LABEL: Record<TestResult["outcome"], string> = {
   passed: "PASS",
@@ -72,10 +74,16 @@ export function renderMarkdown(report: RunReport): string {
   if (report.issues.length) {
     L.push("", `## Issues found`, "", ...report.issues.map((i) => `- ${i}`));
   }
+  if (report.better) {
+    L.push("", `## What could be better`, "", report.better);
+  }
+  if (report.recommendationsText) {
+    L.push("", `## Recommendations`, "", report.recommendationsText);
+  }
   if (report.recommendations.length) {
     L.push(
       "",
-      `## Recommendations`,
+      `## Coverage Recommendations`,
       "",
       ...report.recommendations.map((r) => `- ${r}`),
     );
@@ -93,135 +101,381 @@ function esc(s: string): string {
 
 /** T16: self-contained HTML report — plain English for all audiences (R5, R16). */
 export function renderHtml(report: RunReport): string {
-  const s = summarize(report);
-  const b = bucketResults(report.results);
   const successPct = ratePct(report);
+  const passedCount = report.successRate.passed;
+  const totalCount = report.successRate.total;
 
-  /* ── outcome helpers ── */
-  function outcomeEmoji(r: TestResult): string {
-    const map: Record<TestResult["outcome"], string> = {
-      passed: "✅",
-      failed: "❌",
-      flaky: "⚠️",
-      healed: "🔧",
-      fixme: "⏭️",
-    };
-    return map[r.outcome];
+  const passedTestNames = report.results
+    .filter((r) => r.outcome === "passed")
+    .map((r) => r.flowId);
+  const failedTestNames = report.results
+    .filter((r) => r.outcome === "failed")
+    .map((r) => r.flowId);
+
+  // Verdict config
+  const verdict =
+    successPct >= 90
+      ? {
+          label: "Excellent",
+          cls: "",
+          desc: "Almost everything is working perfectly — no failures or reliability issues were found.",
+        }
+      : successPct >= 70
+        ? {
+            label: "Good",
+            cls: "is-caution",
+            desc: "Most checks passed, but a few areas need attention.",
+          }
+        : successPct >= 50
+          ? {
+              label: "Needs Work",
+              cls: "is-caution",
+              desc: "Several checks failed. We recommend investigating these issues.",
+            }
+          : {
+              label: "Critical",
+              cls: "is-alert",
+              desc: "Many checks failed. Immediate action is recommended.",
+            };
+
+  const passedBuckets = report.results.filter((r) => r.outcome === "passed");
+  const needsAttentionBuckets = report.results.filter(
+    (r) => r.outcome === "failed" || r.outcome === "fixme",
+  );
+  const whereToImproveBuckets = report.results.filter(
+    (r) => r.outcome === "flaky" || r.outcome === "healed",
+  );
+
+  // Read CSS styles from file
+  let cssContent = "";
+  try {
+    cssContent = readFileSync(
+      join(process.cwd(), "app/components/TestReportView.css"),
+      "utf8",
+    );
+    // Remove :global(.dark) to make it pure CSS, since we are in raw HTML/CSS
+    cssContent = cssContent.replace(/:global\(\.dark\)/g, ".dark");
+  } catch (e) {
+    console.error("Failed to read TestReportView.css:", e);
   }
 
-  function outcomeWord(r: TestResult): string {
-    const map: Record<TestResult["outcome"], string> = {
-      passed: "Passed",
-      failed: "Failed",
-      flaky: "Unreliable",
-      healed: "Auto-fixed",
-      fixme: "Skipped",
-    };
-    return map[r.outcome];
+  // Render Findings Summary Banner
+  let summaryBannerHtml = "";
+  if (needsAttentionBuckets.length > 0) {
+    summaryBannerHtml = `
+      <div class="summary-banner banner-fail">
+        <div class="banner-icon">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </div>
+        <div class="banner-content">
+          <h3>Action Required: ${needsAttentionBuckets.length} Failed Checks</h3>
+          <p>Critical issues were detected in core user flows. We recommend investigating these failures first:</p>
+          <ul class="banner-list">
+            ${needsAttentionBuckets
+              .slice(0, 5)
+              .map(
+                (r) => `
+              <li>
+                <button type="button" class="link-btn" data-test-name="${esc(r.flowId)}">${esc(r.flowId)}</button>
+              </li>
+            `,
+              )
+              .join("")}
+            ${needsAttentionBuckets.length > 5 ? `<li style="font-weight: 600; color: var(--text-3); font-size: var(--fs-xs)">and ${needsAttentionBuckets.length - 5} more failure(s)...</li>` : ""}
+          </ul>
+        </div>
+      </div>
+    `;
+  } else if (whereToImproveBuckets.length > 0) {
+    summaryBannerHtml = `
+      <div class="summary-banner banner-warn">
+        <div class="banner-icon">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </div>
+        <div class="banner-content">
+          <h3>Reliability Note: ${whereToImproveBuckets.length} Inconsistent Run(s)</h3>
+          <p>Some checks passed but required retries or automatic AI healing. These flows are working but should be audited for stability:</p>
+          <ul class="banner-list">
+            ${whereToImproveBuckets
+              .map(
+                (r) => `
+              <li>
+                <button type="button" class="link-btn" data-test-name="${esc(r.flowId)}">${esc(r.flowId)} (${r.outcome === "flaky" ? "Flaky" : "Auto-fixed"})</button>
+              </li>
+            `,
+              )
+              .join("")}
+          </ul>
+        </div>
+      </div>
+    `;
+  } else {
+    summaryBannerHtml = `
+      <div class="summary-banner banner-pass">
+        <div class="banner-icon">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <div class="banner-content">
+          <h3>All Systems Operational</h3>
+          <p>All automated checks completed successfully. No failures or reliability concerns were reported for this run. Your key user journeys are stable.</p>
+        </div>
+      </div>
+    `;
   }
 
-  function outcomeExplain(r: TestResult): string {
+  // Popovers
+  const passedPopoverHtml =
+    passedTestNames.length > 0
+      ? `
+      <div class="stat-popover" id="popover-passed" style="display: none;">
+        <div class="stat-popover-title">Passed Tests (${passedTestNames.length})</div>
+        <ul class="stat-popover-list">
+          ${passedTestNames.map((name) => `<li title="${esc(name)}">${esc(name)}</li>`).join("")}
+        </ul>
+      </div>
+    `
+      : "";
+
+  const failedPopoverHtml =
+    failedTestNames.length > 0
+      ? `
+      <div class="stat-popover" id="popover-failed" style="display: none;">
+        <div class="stat-popover-title">Failed Tests (${failedTestNames.length})</div>
+        <ul class="stat-popover-list">
+          ${failedTestNames.map((name) => `<li title="${esc(name)}">${esc(name)}</li>`).join("")}
+        </ul>
+      </div>
+    `
+      : "";
+
+  // Results Breakdown Buckets
+  const passedBucketsHtml =
+    passedBuckets.length > 0
+      ? `<ul class="bucket-list">${passedBuckets.map((r) => `<li>${esc(r.flowId)}</li>`).join("")}</ul>`
+      : `<div class="empty">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        No checks completed successfully.
+       </div>`;
+
+  const needsAttentionBucketsHtml =
+    needsAttentionBuckets.length > 0
+      ? `<ul class="bucket-list">${needsAttentionBuckets
+          .map(
+            (r) => `
+        <li>
+          <span style="font-weight: 600;">${esc(r.flowId)}</span>
+          ${r.failureReason ? `<span style="display: block; color: var(--text-3); font-size: 11px; margin-top: 2px;">${esc(r.failureReason)}</span>` : ""}
+        </li>
+      `,
+          )
+          .join("")}</ul>`
+      : `<div class="empty">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        Nothing needs urgent attention.
+       </div>`;
+
+  const whereToImproveBucketsHtml =
+    whereToImproveBuckets.length > 0
+      ? `<ul class="bucket-list">${whereToImproveBuckets
+          .map(
+            (r) => `
+        <li>
+          <span style="font-weight: 600;">${esc(r.flowId)}</span>
+          <span style="display: block; color: var(--text-3); font-size: 11px; margin-top: 2px;">
+            ${r.outcome === "flaky" ? "Passed on retry (Flaky)" : "Healed locator automatically"}
+          </span>
+        </li>
+      `,
+          )
+          .join("")}</ul>`
+      : `<div class="empty">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        No reliability improvements needed.
+       </div>`;
+
+  // Detailed Results table rows
+  function getOutcomeExplanation(r: TestResult) {
     if (r.outcome === "passed")
       return "Everything worked exactly as expected. No action needed.";
-    if (r.outcome === "failed")
+    if (r.outcome === "failed") {
       return r.failureReason
         ? `Something went wrong: ${esc(r.failureReason)}`
         : "This check did not pass. Manual investigation is recommended.";
-    if (r.outcome === "flaky")
+    }
+    if (r.outcome === "flaky") {
       return "This test sometimes passes and sometimes fails without any code change — a sign the feature may be unstable.";
-    if (r.outcome === "healed")
+    }
+    if (r.outcome === "healed") {
       return "A small issue was detected and automatically repaired by the AI. It now passes, but is worth a quick review.";
-    if (r.outcome === "fixme")
+    }
+    if (r.outcome === "fixme") {
       return "This check was intentionally paused because it is known to be broken. It should be revisited soon.";
+    }
     return "";
   }
 
-  function outcomeRowClass(r: TestResult): string {
-    const map: Record<TestResult["outcome"], string> = {
-      passed: "row-pass",
-      failed: "row-fail",
-      flaky: "row-flaky",
-      healed: "row-healed",
-      fixme: "row-fixme",
-    };
-    return map[r.outcome];
-  }
+  const OUTCOME_WORD: Record<TestResult["outcome"], string> = {
+    passed: "Passed",
+    failed: "Failed",
+    flaky: "Unreliable",
+    healed: "Auto-fixed",
+    fixme: "Skipped",
+  };
 
-  /* ── overall verdict ── */
-  const verdict =
-    successPct >= 90
-      ? { label: "Excellent", color: "#16a34a", bg: "#f0fdf4", desc: "Almost everything is working perfectly." }
-      : successPct >= 70
-        ? { label: "Good", color: "#ca8a04", bg: "#fefce8", desc: "Most things work, but a few areas need attention." }
-        : successPct >= 50
-          ? { label: "Needs Work", color: "#ea580c", bg: "#fff7ed", desc: "Several checks failed. Review the details below." }
-          : { label: "Critical", color: "#dc2626", bg: "#fff1f2", desc: "Many checks failed. Immediate action is recommended." };
+  const OUTCOME_ICON: Record<TestResult["outcome"], string> = {
+    passed: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>`,
+    failed: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>`,
+    flaky: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>`,
+    healed: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>`,
+    fixme: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4" /><line x1="19" y1="5" x2="19" y2="19" /></svg>`,
+  };
 
-  /* ── result rows ── */
-  const resultRows = report.results
+  const resultsTableRows = report.results
     .map(
-      (r) =>
-        `<tr class="${outcomeRowClass(r)}">` +
-        `<td class="td-flow"><span class="flow-name">${esc(r.flowId)}</span><span class="flow-file">${esc(r.fileName)}</span></td>` +
-        `<td class="td-outcome">${outcomeEmoji(r)} ${outcomeWord(r)}</td>` +
-        `<td class="td-detail">${outcomeExplain(r)}</td>` +
-        `</tr>`,
+      (r) => `
+    <tr class="r-${r.outcome === "fixme" ? "skip" : r.outcome === "healed" ? "heal" : r.outcome}" data-outcome="${r.outcome}" data-search-text="${esc(r.flowId)} ${esc(r.fileName)}">
+      <td data-label="Check">
+        <span class="flow-name">${esc(r.flowId)}</span>
+        <span class="flow-file">${esc(r.fileName)}</span>
+      </td>
+      <td data-label="Result">
+        <span class="pill pill-${r.outcome === "fixme" ? "skip" : r.outcome === "healed" ? "heal" : r.outcome}">
+          ${OUTCOME_ICON[r.outcome]} ${OUTCOME_WORD[r.outcome]}
+        </span>
+      </td>
+      <td class="td-detail" data-label="What This Means">
+        ${getOutcomeExplanation(r)}
+      </td>
+    </tr>
+  `,
     )
     .join("");
 
-  /* ── bucket card helper ── */
-  function bucketCard(
-    emoji: string,
-    title: string,
-    subtitle: string,
-    items: TestResult[],
-    emptyMsg: string,
-    itemHtml: (r: TestResult) => string,
-    accentColor: string,
-  ): string {
-    const body = items.length
-      ? `<ul class="bucket-list">${items.map((r) => `<li>${itemHtml(r)}</li>`).join("")}</ul>`
-      : `<p class="empty-msg">${emptyMsg}</p>`;
-    return (
-      `<div class="bucket-card" style="border-top:3px solid ${accentColor}">` +
-      `<div class="bucket-header">` +
-      `<span class="bucket-title">${emoji} ${esc(title)}</span>` +
-      `<span class="bucket-count" style="background:${accentColor}20;color:${accentColor}">${items.length}</span>` +
-      `</div>` +
-      `<p class="bucket-subtitle">${subtitle}</p>` +
-      body +
-      `</div>`
-    );
-  }
-
-  /* ── fix prompts ── */
-  const fixPromptsHtml = report.fixPrompts.length
-    ? report.fixPrompts
-        .map(
-          (f) =>
-            `<div class="fix-card">` +
-            `<div class="fix-test">🧪 ${esc(f.test)}</div>` +
-            `<div class="fix-row"><strong>What went wrong:</strong> ${esc(f.problem)}</div>` +
-            `<div class="fix-row fix-action"><strong>Recommended fix:</strong> ${esc(f.change)}</div>` +
-            `</div>`,
-        )
-        .join("")
-    : `<p class="empty-msg">No specific fixes required — great job!</p>`;
-
-  /* ── summary bullets ── */
-  const summaryHtml =
-    report.summary && report.summary.length
-      ? `<ul class="prose-list">${report.summary.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>`
+  const observationsHtml =
+    report.issues.length > 0
+      ? `
+      <div style="margin-top: var(--sp-6);">
+        <h2 class="section-h">
+          <span class="badge">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          Suite Observations
+        </h2>
+        <p class="section-desc">Issues spotted in the test suite setup that are worth addressal.</p>
+        <ul class="prose prose-warn">
+          ${report.issues
+            .map(
+              (issue) => `
+            <li>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>${esc(issue)}</span>
+            </li>
+          `,
+            )
+            .join("")}
+        </ul>
+      </div>
+    `
       : "";
 
-  /* ── issues & recs ── */
-  const issuesHtml = report.issues.length
-    ? `<ul class="prose-list">${report.issues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`
-    : `<p class="empty-msg">No issues detected.</p>`;
+  const recommendationsHtml =
+    report.recommendations.length > 0
+      ? `
+      <div style="margin-top: var(--sp-6);">
+        <h2 class="section-h">
+          <span class="badge">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18h6M10 21h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z" />
+            </svg>
+          </span>
+          Coverage Recommendations
+        </h2>
+        <p class="section-desc">Suggestions for how to improve test coverage and overall quality going forward.</p>
+        <ul class="prose">
+          ${report.recommendations
+            .map(
+              (rec) => `
+            <li>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18h6M10 21h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z" />
+              </svg>
+              <span>${esc(rec)}</span>
+            </li>
+          `,
+            )
+            .join("")}
+        </ul>
+      </div>
+    `
+      : "";
 
-  const recsHtml = report.recommendations.length
-    ? `<ul class="prose-list">${report.recommendations.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`
-    : `<p class="empty-msg">No additional recommendations at this time.</p>`;
+  const sideBySideHtml =
+    (report.better || report.recommendationsText)
+      ? `
+      <div class="side-by-side-grid">
+        <div class="better-section">
+          <h2 class="section-h">
+            <span class="badge" style="background-color: var(--warn-bg); color: var(--warn);">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </span>
+            What could be better
+          </h2>
+          <div class="prose-card">
+            ${esc(report.better || "No major frontend gaps or testability limitations identified.")}
+          </div>
+        </div>
+        <div class="recommendations-section">
+          <h2 class="section-h">
+            <span class="badge" style="background-color: var(--heal-bg); color: var(--heal);">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .3 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+                <path d="M9 18h6" />
+                <path d="M10 22h4" />
+              </svg>
+            </span>
+            Recommendations
+          </h2>
+          <div class="prose-card">
+            ${esc(report.recommendationsText || "No actionable recommendations needed at this time.")}
+          </div>
+        </div>
+      </div>
+    `
+      : "";
+
+  const journeysHtml =
+    report.summary && report.summary.length > 0
+      ? `
+      <ul class="prose">
+        ${report.summary
+          .map(
+            (item) => `
+          <li>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>${esc(item)}</span>
+          </li>
+        `,
+          )
+          .join("")}
+      </ul>
+    `
+      : `<p class="empty-msg">No plain-English summary is available for this run.</p>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -229,265 +483,566 @@ export function renderHtml(report: RunReport): string {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Test Report — ${esc(report.url)}</title>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('report-theme');
+      const isDark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
   <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-         background:#f8fafc;color:#1e293b;line-height:1.6;font-size:15px}
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    ${cssContent}
 
-    /* layout */
-    .page{max-width:860px;margin:0 auto;padding:2rem 1.25rem 4rem}
-
-    /* header */
-    .report-header{background:#0f172a;color:#f1f5f9;border-radius:14px;
-                   padding:1.75rem 2rem;margin-bottom:1.75rem}
-    .report-header h1{font-size:1.35rem;font-weight:800;letter-spacing:-0.02em;margin-bottom:.5rem}
-    .report-meta{font-size:.78rem;color:#94a3b8;line-height:2}
-    .report-meta strong{color:#e2e8f0}
-
-    /* verdict */
-    .verdict{display:flex;align-items:center;gap:1.5rem;background:${verdict.bg};
-             border:1px solid ${verdict.color}30;border-radius:14px;
-             padding:1.5rem 1.75rem;margin-bottom:1.75rem}
-    .verdict-score{font-size:3.25rem;font-weight:900;color:${verdict.color};
-                   line-height:1;letter-spacing:-0.04em;flex-shrink:0}
-    .verdict-right .verdict-label{font-size:.65rem;font-weight:800;
-                                   letter-spacing:.1em;text-transform:uppercase;
-                                   color:${verdict.color};margin-bottom:.35rem}
-    .verdict-right .verdict-count{font-size:1rem;font-weight:700;color:#1e293b}
-    .verdict-right .verdict-desc{font-size:.85rem;color:#475569;margin-top:.2rem}
-
-    /* stats strip */
-    .stats{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1.75rem}
-    .stat{background:white;border:1px solid #e2e8f0;border-radius:10px;
-          padding:.55rem .9rem;font-size:.78rem;color:#64748b;min-width:90px;
-          box-shadow:0 1px 3px rgba(0,0,0,.04)}
-    .stat strong{display:block;font-size:1.05rem;font-weight:800;color:#1e293b}
-
-    /* section heading */
-    .section-h{font-size:1rem;font-weight:800;color:#1e293b;
-               margin:2rem 0 .4rem;display:flex;align-items:center;gap:.6rem}
-    .section-h .tag{font-size:.62rem;font-weight:700;letter-spacing:.06em;
-                    text-transform:uppercase;background:#e2e8f0;color:#64748b;
-                    border-radius:999px;padding:.15rem .55rem}
-    .section-desc{font-size:.83rem;color:#64748b;margin-bottom:.9rem;line-height:1.55}
-
-    /* buckets */
-    .buckets{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
-             gap:.9rem;margin-bottom:1.75rem}
-    .bucket-card{background:white;border:1px solid #e2e8f0;border-radius:12px;
-                 padding:1rem 1.1rem;box-shadow:0 1px 4px rgba(0,0,0,.04)}
-    .bucket-header{display:flex;align-items:center;justify-content:space-between;
-                   margin-bottom:.3rem}
-    .bucket-title{font-weight:800;font-size:.88rem;color:#1e293b}
-    .bucket-count{font-size:.7rem;font-weight:700;border-radius:999px;
-                  padding:.15rem .55rem}
-    .bucket-subtitle{font-size:.75rem;color:#64748b;margin-bottom:.65rem;line-height:1.4}
-    .bucket-list{list-style:none;padding:0}
-    .bucket-list li{font-size:.8rem;color:#334155;padding:.3rem 0;
-                    border-bottom:1px solid #f1f5f9;line-height:1.45}
-    .bucket-list li:last-child{border-bottom:none}
-    .bucket-list .li-sub{display:block;font-size:.72rem;color:#94a3b8;margin-top:.1rem}
-    .empty-msg{font-size:.8rem;color:#94a3b8;font-style:italic;padding:.25rem 0}
-
-    /* results table */
-    .results-table{width:100%;border-collapse:collapse;background:white;
-                   border-radius:12px;overflow:hidden;font-size:.8rem;
-                   box-shadow:0 1px 4px rgba(0,0,0,.05);margin-bottom:1.75rem}
-    .results-table thead tr{background:#0f172a}
-    .results-table thead th{padding:.7rem 1rem;text-align:left;color:#94a3b8;
-                             font-size:.67rem;font-weight:700;letter-spacing:.06em;
-                             text-transform:uppercase}
-    .results-table tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s}
-    .results-table tbody tr:last-child{border-bottom:none}
-    .td-flow{padding:.75rem 1rem;width:28%}
-    .td-outcome{padding:.75rem 1rem;width:16%;font-weight:700;white-space:nowrap}
-    .td-detail{padding:.75rem 1rem;color:#475569;line-height:1.45}
-    .flow-name{display:block;font-weight:700;color:#1e293b;margin-bottom:.15rem}
-    .flow-file{display:block;font-size:.68rem;color:#94a3b8;font-family:monospace}
-    .row-pass{background:#f0fdf4}
-    .row-fail{background:#fff1f2}
-    .row-flaky{background:#fffbeb}
-    .row-healed{background:#eff6ff}
-    .row-fixme{background:#f8fafc}
-
-    /* fix cards */
-    .fix-card{background:white;border:1px solid #e2e8f0;border-left:4px solid #f97316;
-              border-radius:10px;padding:1rem 1.2rem;margin-bottom:.7rem;
-              box-shadow:0 1px 3px rgba(0,0,0,.04)}
-    .fix-test{font-weight:800;font-size:.85rem;color:#1e293b;margin-bottom:.4rem}
-    .fix-row{font-size:.8rem;color:#475569;margin-bottom:.25rem;line-height:1.45}
-    .fix-action{color:#15803d;font-weight:500}
-
-    /* prose lists */
-    .prose-list{padding-left:1.2rem}
-    .prose-list li{font-size:.83rem;color:#334155;margin-bottom:.4rem;line-height:1.5}
-
-    /* glossary */
-    .glossary{background:white;border:1px solid #e2e8f0;border-radius:12px;
-              padding:1.4rem 1.5rem;margin-top:2rem}
-    .glossary h3{font-size:.72rem;font-weight:800;text-transform:uppercase;
-                 letter-spacing:.07em;color:#94a3b8;margin-bottom:.9rem}
-    .glossary dl{display:grid;grid-template-columns:max-content 1fr;
-                 gap:.4rem 1.1rem;font-size:.79rem}
-    .glossary dt{font-weight:700;color:#1e293b;white-space:nowrap}
-    .glossary dd{color:#475569;margin:0;line-height:1.45}
-
-    /* footer */
-    .report-footer{text-align:center;font-size:.72rem;color:#94a3b8;margin-top:2.5rem}
+    /* Downloaded-report overrides (standalone only). In the fixed-height (100vh)
+       layout the sidebar footer was pinned to the very bottom via margin-top:auto
+       and its last line (the "Generated" timestamp) was clipped below the fold.
+       Let the meta flow directly under the nav so it is always visible, and let
+       the sidebar scroll if a run ever has an unusually tall sidebar. */
+    #report-root .sidebar { overflow-y: auto; padding-bottom: 20px; }
+    #report-root .sidebar-footer { margin-top: 28px; }
+    #report-root .sidebar-meta .v { word-break: normal; overflow-wrap: anywhere; }
   </style>
 </head>
 <body>
-<div class="page">
+  <div class="test-report-container" id="report-root" style="height: 100vh;">
+    <script>
+      // Dark styles are scoped to .test-report-container.dark, so mirror the
+      // <html> dark state onto the container synchronously (no flash) before
+      // its children paint.
+      document
+        .getElementById("report-root")
+        .classList.toggle("dark", document.documentElement.classList.contains("dark"));
+    </script>
+    <div class="page">
+      
+      <!-- Left Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);">
+            <h1 style="margin: 0;">Test results for ${esc(report.url.replace(/https?:\/\//, ""))}</h1>
+            <button type="button" id="theme-toggle" class="theme-toggle-btn" title="Toggle Theme" aria-label="Toggle Theme">
+              <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+              <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+              </svg>
+            </button>
+          </div>
+        </div>
 
-  <!-- Header -->
-  <div class="report-header">
-    <h1>🤖 Automated UI Test Report</h1>
-    <div class="report-meta">
-      <strong>App tested:</strong> ${esc(report.url)}<br/>
-      <strong>Run ID:</strong> ${esc(report.runId)}<br/>
-      <strong>Generated:</strong> ${esc(report.generatedAt)}
+
+        <nav class="nav-tabs" aria-label="Report navigation">
+          <button type="button" class="tab-btn active" data-tab="dashboard">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="20" x2="4" y2="11" /><line x1="10" y1="20" x2="10" y2="4" /><line x1="16" y1="20" x2="16" y2="14" /><line x1="20" y1="20" x2="2" y2="20" />
+            </svg>
+            Dashboard Overview
+          </button>
+          <button type="button" class="tab-btn" data-tab="journeys">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><circle cx="3.5" cy="6" r="1" /><circle cx="3.5" cy="12" r="1" /><circle cx="3.5" cy="18" r="1" />
+            </svg>
+            What Was Tested
+          </button>
+          <button type="button" class="tab-btn" data-tab="results">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 3h6M10 3v6L4.5 18a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9V3" />
+            </svg>
+            Detailed Results
+          </button>
+          <button type="button" class="tab-btn" data-tab="glossary">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M19 17H6a2 2 0 0 0-2 2" />
+            </svg>
+            Glossary &amp; References
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-meta">
+            <div>
+              <span class="k">App tested</span>
+              <span class="v">${esc(report.url)}</span>
+            </div>
+            <div>
+              <span class="k">Run ID</span>
+              <span class="v mono">${esc(report.runId)}</span>
+            </div>
+            <div>
+              <span class="k">Generated</span>
+              <span class="v">${esc(new Date(report.generatedAt).toLocaleString())}</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="report-content">
+
+        <!-- TAB 1: DASHBOARD OVERVIEW -->
+        <div id="panel-dashboard" class="tab-panel active">
+          
+          <!-- Conic progress verdict banner -->
+          <section class="verdict ${verdict.cls}" aria-labelledby="verdict-label">
+            <div class="verdict-score" style="--percentage: ${successPct}">
+              ${successPct}%
+            </div>
+            <div class="verdict-body">
+              <span class="verdict-badge" id="verdict-label">
+                ${
+                  successPct >= 50
+                    ? `
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                `
+                    : `
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                `
+                }
+                ${verdict.label}
+              </span>
+              <div class="verdict-count">
+                <b>${passedCount}</b> of <b>${totalCount}</b> checks passed
+              </div>
+              <p class="verdict-desc">${verdict.desc}</p>
+            </div>
+          </section>
+
+          <!-- Quick Stats Grid -->
+          <section class="stats" aria-label="Quick statistics">
+            <div class="stat" id="stat-card-passed" style="position: relative; cursor: pointer;">
+              <div class="stat-top">
+                <span style="color: var(--pass)">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </span>
+                <span class="stat-num">${passedCount}</span>
+              </div>
+              <div class="stat-label">Passed</div>
+              ${passedPopoverHtml}
+            </div>
+
+            <div class="stat" id="stat-card-failed" style="position: relative; cursor: pointer;">
+              <div class="stat-top">
+                <span style="color: var(--fail)">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </span>
+                <span class="stat-num">${report.results.filter((r) => r.outcome === "failed").length}</span>
+              </div>
+              <div class="stat-label">Failed</div>
+              ${failedPopoverHtml}
+            </div>
+
+            <div class="stat">
+              <div class="stat-top">
+                <span style="color: var(--warn)">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                </span>
+                <span class="stat-num">${report.results.filter((r) => r.outcome === "flaky").length}</span>
+              </div>
+              <div class="stat-label">Unreliable</div>
+            </div>
+
+            <div class="stat">
+              <div class="stat-top">
+                <span style="color: var(--heal)">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>
+                </span>
+                <span class="stat-num">${report.results.filter((r) => r.outcome === "healed").length}</span>
+              </div>
+              <div class="stat-label">Auto-fixed</div>
+            </div>
+          </section>
+
+          <!-- Findings Summary Card -->
+          <div class="summary-card">
+            ${summaryBannerHtml}
+          </div>
+
+          ${
+            report.testSummary && report.testSummary.trim().length > 0
+              ? `
+          <!-- AI-generated Test Summary -->
+          <div class="test-summary-block">
+            <h2 class="section-h">
+              <span class="badge">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
+              </span>
+              Test Summary
+            </h2>
+            <p class="test-summary">${esc(report.testSummary)}</p>
+          </div>
+          `
+              : ""
+          }
+
+          <!-- Results Breakdown buckets -->
+          <h2 class="section-h">
+            <span class="badge">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="20" x2="4" y2="11" /><line x1="10" y1="20" x2="10" y2="4" /><line x1="16" y1="20" x2="16" y2="14" /><line x1="20" y1="20" x2="2" y2="20" />
+              </svg>
+            </span>
+            Results Breakdown
+          </h2>
+          <p class="section-desc">
+            Results are grouped into three categories so you can instantly see what is working, what needs fixing, and what could be made more reliable.
+          </p>
+
+          <div class="buckets">
+            <div class="bucket b-pass">
+              <div class="bucket-header">
+                <span class="bucket-title">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--pass)"><polyline points="20 6 9 17 4 12" /></svg>
+                  Working Well
+                </span>
+                <span class="bucket-count">${passedBuckets.length}</span>
+              </div>
+              <p class="bucket-sub">These checks passed — the features are working as intended.</p>
+              ${passedBucketsHtml}
+            </div>
+
+            <div class="bucket b-fail">
+              <div class="bucket-header">
+                <span class="bucket-title">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fail)"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  Needs Attention
+                </span>
+                <span class="bucket-count">${needsAttentionBuckets.length}</span>
+              </div>
+              <p class="bucket-sub">These checks failed and should be investigated as soon as possible.</p>
+              ${needsAttentionBucketsHtml}
+            </div>
+
+            <div class="bucket b-warn">
+              <div class="bucket-header">
+                <span class="bucket-title">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn)"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>
+                  Could Be Reliable
+                </span>
+                <span class="bucket-count">${whereToImproveBuckets.length}</span>
+              </div>
+              <p class="bucket-sub">These work, but were fragile, inconsistent, or needed an automatic fix.</p>
+              ${whereToImproveBucketsHtml}
+            </div>
+          </div>
+
+          ${observationsHtml}
+          ${sideBySideHtml}
+          ${recommendationsHtml}
+        </div>
+
+        <!-- TAB 2: WHAT WAS TESTED -->
+        <div id="panel-journeys" class="tab-panel">
+          <h2 class="section-h">
+            <span class="badge">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><circle cx="3.5" cy="6" r="1" /><circle cx="3.5" cy="12" r="1" /><circle cx="3.5" cy="18" r="1" />
+              </svg>
+            </span>
+            What Was Tested
+          </h2>
+          <p class="section-desc">A plain-English summary of what our automated checks verified on your app:</p>
+          ${journeysHtml}
+        </div>
+
+        <!-- TAB 3: DETAILED RESULTS -->
+        <div id="panel-results" class="tab-panel">
+          <h2 class="section-h">
+            <span class="badge">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 3h6M10 3v6L4.5 18a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9V3" />
+              </svg>
+            </span>
+            Detailed Results <span class="tag">Interactive</span>
+          </h2>
+          <p class="section-desc">
+            Each row is one automated check. Search or filter to find specific results instantly.
+          </p>
+
+          <!-- Table Controls -->
+          <div class="table-controls">
+            <div class="search-wrapper">
+              <span class="search-icon">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+              <input type="text" id="search-input" placeholder="Search checks or files..." aria-label="Search test cases" />
+            </div>
+            <div class="filter-group" role="group" aria-label="Filter test cases by outcome">
+              <button type="button" class="filter-btn active" data-filter="all">All (${report.results.length})</button>
+              <button type="button" class="filter-btn" data-filter="pass">Passed (${passedCount})</button>
+              <button type="button" class="filter-btn" data-filter="fail">Failed (${report.results.filter((r) => r.outcome === "failed").length})</button>
+              <button type="button" class="filter-btn" data-filter="flaky">Flaky (${report.results.filter((r) => r.outcome === "flaky").length})</button>
+              <button type="button" class="filter-btn" data-filter="heal">Auto-fixed (${report.results.filter((r) => r.outcome === "healed").length})</button>
+              <button type="button" class="filter-btn" data-filter="skip">Skipped (${report.results.filter((r) => r.outcome === "fixme").length})</button>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <table class="results">
+            <thead>
+              <tr>
+                <th scope="col" style="width: 40%;">Check &amp; File</th>
+                <th scope="col" style="width: 20%;">Result</th>
+                <th scope="col" style="width: 40%;">What This Means</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${resultsTableRows}
+            </tbody>
+          </table>
+
+          <!-- Recommended Fixes -->
+          ${
+            report.fixPrompts && report.fixPrompts.length > 0
+              ? `
+            <div style="margin-top: var(--sp-6);">
+              <h2 class="section-h">
+                <span class="badge">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>
+                </span>
+                Recommended Fixes
+              </h2>
+              <p class="section-desc">
+                For each failing check, the AI has diagnosed the problem and suggested exactly what should be changed to resolve it.
+              </p>
+              ${report.fixPrompts
+                .map(
+                  (fix) => `
+                <div class="fix-card">
+                  <div class="fix-test">🧪 ${esc(fix.test)}</div>
+                  <div class="fix-row"><strong>What went wrong:</strong> ${esc(fix.problem)}</div>
+                  <div class="fix-row fix-action"><strong>Recommended fix:</strong> ${esc(fix.change)}</div>
+                </div>
+              `,
+                )
+                .join("")}
+            </div>
+          `
+              : ""
+          }
+        </div>
+
+
+        <!-- TAB 4: GLOSSARY -->
+        <div id="panel-glossary" class="tab-panel">
+          <h2 class="section-h">
+            <span class="badge">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M19 17H6a2 2 0 0 0-2 2" />
+              </svg>
+            </span>
+            Glossary &amp; References
+          </h2>
+          <p class="section-desc">A guide to the technical metrics and terms used throughout this report.</p>
+          <div class="glossary">
+            <dl>
+              <dt>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--pass)"><polyline points="20 6 9 17 4 12" /></svg>
+                Passed
+              </dt>
+              <dd>The check ran and everything worked exactly as expected. No action needed.</dd>
+              
+              <dt>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fail)"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                Failed
+              </dt>
+              <dd>The check ran but something did not work correctly. This should be investigated and fixed.</dd>
+              
+              <dt>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn)"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                Unreliable
+              </dt>
+              <dd>The test sometimes passes and sometimes fails with no code changes — a "flaky" test, a sign the feature may be unstable.</dd>
+              
+              <dt>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--heal)"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>
+                Auto-fixed
+              </dt>
+              <dd>The AI spotted a small issue (e.g. a changed button label) and automatically repaired the test. Worth a quick review.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <footer class="report-footer">
+          Generated by AI &nbsp;·&nbsp; ${esc(new Date(report.generatedAt).toUTCString())}
+        </footer>
+
+      </main>
+
     </div>
   </div>
 
-  <!-- Overall Verdict -->
-  <div class="verdict">
-    <div class="verdict-score">${successPct}%</div>
-    <div class="verdict-right">
-      <div class="verdict-label">${verdict.label}</div>
-      <div class="verdict-count">${report.successRate.passed} out of ${report.successRate.total} checks passed</div>
-      <div class="verdict-desc">${verdict.desc}</div>
-    </div>
-  </div>
+  <script>
+    let currentFilter = 'all';
 
-  <!-- Quick Stats -->
-  <div class="stats">
-    <div class="stat"><strong>✅ ${s.passed}</strong>Passed</div>
-    <div class="stat"><strong>❌ ${s.failed}</strong>Failed</div>
-    <div class="stat"><strong>⚠️ ${s.flaky}</strong>Unreliable</div>
-    <div class="stat"><strong>🔧 ${s.healed}</strong>Auto-fixed</div>
-    <div class="stat"><strong>⏭️ ${s.fixme}</strong>Skipped</div>
-    <div class="stat"><strong>${report.coverage.percent}%</strong>Coverage</div>
-    <div class="stat"><strong>${pct(report.flakeRate)}</strong>Flake rate</div>
-    <div class="stat"><strong>${pct(report.healSuccessRate)}</strong>Auto-heal rate</div>
-  </div>
+    // Tab switching logic
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    
+    function switchTab(tabId) {
+      tabButtons.forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabId) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      tabPanels.forEach(panel => {
+        if (panel.id === 'panel-' + tabId) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+    }
 
-  ${
-    summaryHtml
-      ? `<!-- What Was Tested -->
-  <div class="section-h">📋 What Was Tested</div>
-  <p class="section-desc">Here is a plain-English summary of what our automated checks verified on your app:</p>
-  ${summaryHtml}`
-      : ""
-  }
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchTab(btn.getAttribute('data-tab'));
+      });
+    });
 
-  <!-- Results Breakdown -->
-  <div class="section-h">📊 Results Breakdown</div>
-  <p class="section-desc">
-    Your tests are grouped into three categories so you can instantly see what is working,
-    what needs fixing, and what could be made more reliable.
-  </p>
-  <div class="buckets">
-    ${bucketCard(
-      "✅",
-      "Working Well",
-      "These checks passed — the features are working as intended.",
-      b.passed,
-      "Every check passed!",
-      (r) => `<strong>${esc(r.flowId)}</strong>`,
-      "#16a34a",
-    )}
-    ${bucketCard(
-      "❌",
-      "Needs Immediate Attention",
-      "These checks failed and should be investigated as soon as possible.",
-      b.needsAttention,
-      "Nothing needs urgent attention right now. 🎉",
-      (r) =>
-        `<strong>${esc(r.flowId)}</strong>` +
-        (r.failureReason
-          ? `<span class="li-sub">${esc(r.failureReason)}</span>`
-          : ""),
-      "#dc2626",
-    )}
-    ${bucketCard(
-      "🔧",
-      "Could Be More Reliable",
-      "These work, but were fragile, inconsistent, or needed an automatic fix.",
-      b.whereToImprove,
-      "No reliability improvements needed right now.",
-      (r) =>
-        `<strong>${esc(r.flowId)}</strong>` +
-        `<span class="li-sub">${r.outcome === "flaky" ? "Passes sometimes, fails other times" : "Was broken but automatically repaired"}</span>`,
-      "#ea580c",
-    )}
-  </div>
+    // Hover popover logic
+    const passedCard = document.getElementById('stat-card-passed');
+    const failedCard = document.getElementById('stat-card-failed');
+    const popoverPassed = document.getElementById('popover-passed');
+    const popoverFailed = document.getElementById('popover-failed');
 
-  <!-- All Test Results -->
-  <div class="section-h">🧪 All Test Results <span class="tag">Plain English</span></div>
-  <p class="section-desc">
-    Each row below represents one automated check. The <em>Result</em> column gives you the outcome at a glance,
-    and <em>What This Means</em> explains it in everyday language — no technical knowledge required.
-  </p>
-  <table class="results-table">
-    <thead>
-      <tr>
-        <th>Check Name &amp; File</th>
-        <th>Result</th>
-        <th>What This Means</th>
-      </tr>
-    </thead>
-    <tbody>${resultRows}</tbody>
-  </table>
+    if (passedCard && popoverPassed) {
+      passedCard.addEventListener('mouseenter', () => popoverPassed.style.display = 'block');
+      passedCard.addEventListener('mouseleave', () => popoverPassed.style.display = 'none');
+      passedCard.addEventListener('click', () => {
+        currentFilter = 'pass';
+        updateFilterButtons();
+        switchTab('results');
+        filterTable();
+      });
+    }
 
-  ${
-    report.fixPrompts.length
-      ? `<!-- Recommended Fixes -->
-  <div class="section-h">🛠️ Recommended Fixes</div>
-  <p class="section-desc">
-    For each failing check, the AI has diagnosed the problem and suggested exactly what should be changed to resolve it.
-  </p>
-  ${fixPromptsHtml}`
-      : ""
-  }
+    if (failedCard && popoverFailed) {
+      failedCard.addEventListener('mouseenter', () => popoverFailed.style.display = 'block');
+      failedCard.addEventListener('mouseleave', () => popoverFailed.style.display = 'none');
+      failedCard.addEventListener('click', () => {
+        currentFilter = 'fail';
+        updateFilterButtons();
+        switchTab('results');
+        filterTable();
+      });
+    }
 
-  <!-- Issues Found -->
-  <div class="section-h">🔍 Issues Found</div>
-  <p class="section-desc">Problems spotted in the app or the test suite that are worth investigating.</p>
-  ${issuesHtml}
+    // Warning card links in Dashboard Overview
+    document.querySelectorAll('.link-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const testName = btn.getAttribute('data-test-name');
+        if (testName) {
+          document.getElementById('search-input').value = testName;
+          currentFilter = 'all';
+          updateFilterButtons();
+          switchTab('results');
+          filterTable();
+        }
+      });
+    });
 
-  <!-- Recommendations -->
-  <div class="section-h">💡 Recommendations</div>
-  <p class="section-desc">Suggestions for how to improve test coverage and overall quality going forward.</p>
-  ${recsHtml}
+    // Table search & filter logic
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        filterTable();
+      });
+    }
 
-  <!-- Glossary -->
-  <div class="glossary">
-    <h3>📖 Glossary — What do these terms mean?</h3>
-    <dl>
-      <dt>✅ Passed</dt>
-      <dd>The check ran and everything worked exactly as expected. No action needed.</dd>
-      <dt>❌ Failed</dt>
-      <dd>The check ran but something did not work correctly. This should be investigated and fixed.</dd>
-      <dt>⚠️ Unreliable</dt>
-      <dd>The test sometimes passes and sometimes fails with no code changes. Known as a "flaky" test — a sign the feature may be unstable.</dd>
-      <dt>🔧 Auto-fixed</dt>
-      <dd>The AI spotted a small issue (e.g. a changed button label) and automatically repaired the test so it could pass. Worth a quick review to confirm the fix is correct.</dd>
-      <dt>⏭️ Skipped</dt>
-      <dd>This check was intentionally paused because it is known to be broken. It should be revisited and fixed soon.</dd>
-      <dt>Coverage</dt>
-      <dd>The percentage of planned user journeys that were actually tested. Higher is better — aim for 100%.</dd>
-      <dt>Flake rate</dt>
-      <dd>How often tests gave inconsistent, unreliable results. Lower is better — ideally 0%.</dd>
-      <dt>Auto-heal rate</dt>
-      <dd>How often the AI successfully repaired a broken check automatically. Higher means less manual fixing needed.</dd>
-    </dl>
-  </div>
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFilter = btn.getAttribute('data-filter');
+        updateFilterButtons();
+        filterTable();
+      });
+    });
 
-  <div class="report-footer">
-    Generated by AI UI Test Suite &nbsp;·&nbsp; ${esc(report.generatedAt)}
-  </div>
+    function updateFilterButtons() {
+      filterButtons.forEach(btn => {
+        if (btn.getAttribute('data-filter') === currentFilter) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
 
-</div>
+    function filterTable() {
+      const query = (document.getElementById('search-input')?.value || '').toLowerCase();
+      const filter = currentFilter;
+      const rows = document.querySelectorAll('table.results tbody tr');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const outcome = row.getAttribute('data-outcome');
+        const searchText = (row.getAttribute('data-search-text') || '').toLowerCase();
+
+        let matchesFilter = false;
+        if (filter === 'all') matchesFilter = true;
+        else if (filter === 'pass' && outcome === 'passed') matchesFilter = true;
+        else if (filter === 'fail' && outcome === 'failed') matchesFilter = true;
+        else if (filter === 'flaky' && outcome === 'flaky') matchesFilter = true;
+        else if (filter === 'heal' && outcome === 'healed') matchesFilter = true;
+        else if (filter === 'skip' && outcome === 'fixme') matchesFilter = true;
+
+        const matchesSearch = searchText.includes(query);
+
+        if (matchesFilter && matchesSearch) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      const emptyState = document.getElementById('empty-table-state');
+      if (emptyState) {
+        if (visibleCount === 0) {
+          emptyState.style.display = 'block';
+        } else {
+          emptyState.style.display = 'none';
+        }
+      }
+    }
+
+    // Theme toggle button logic
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        // Dark styles live on .test-report-container.dark, so keep it in sync.
+        const root = document.getElementById('report-root');
+        if (root) root.classList.toggle('dark', isDark);
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        localStorage.setItem('report-theme', isDark ? 'dark' : 'light');
+      });
+    }
+  </script>
 </body>
 </html>
 `;

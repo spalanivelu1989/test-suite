@@ -151,7 +151,11 @@ export interface RunReport {
   fixPrompts: FixPrompt[];
   issues: string[];
   recommendations: string[];
+  better?: string;
+  recommendationsText?: string;
   summary?: string[];
+  /** AI-generated prose paragraph synthesizing the run (above Results Breakdown). */
+  testSummary?: string;
   planMarkdown: string | null;
   generatedSpecs: { file: string; code: string }[];
 }

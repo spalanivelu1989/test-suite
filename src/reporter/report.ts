@@ -18,7 +18,10 @@ export interface ReportInput {
   fixPrompts: FixPrompt[];
   issues: string[];
   recommendations: string[];
+  better?: string;
+  recommendationsText?: string;
   summary?: string[];
+  testSummary?: string;
   planMarkdown: string | null;
   generatedSpecs: { file: string; code: string }[];
   flows?: Flow[];
@@ -40,7 +43,10 @@ export function buildReport(input: ReportInput): RunReport {
     fixPrompts: input.fixPrompts,
     issues: input.issues,
     recommendations: input.recommendations,
+    better: input.better ?? "",
+    recommendationsText: input.recommendationsText ?? "",
     summary: input.summary ?? [],
+    testSummary: input.testSummary ?? "",
     planMarkdown: input.planMarkdown,
     generatedSpecs: input.generatedSpecs,
   };

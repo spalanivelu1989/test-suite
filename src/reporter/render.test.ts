@@ -43,6 +43,8 @@ const report: RunReport = {
     },
   ],
   issues: ["contact form lacks validation"],
+  better: "UI gap info",
+  recommendationsText: "Fix the gallery filters",
   recommendations: ["add aria labels"],
   planMarkdown: "# Plan\n## 1. Home",
   generatedSpecs: [{ file: "home.spec.ts", code: "code" }],
@@ -57,7 +59,9 @@ test("renderMarkdown includes success rate, breakdown, fix prompts, issues, reco
   assert.match(md, /## Fix prompts/);
   assert.match(md, /missing button/);
   assert.match(md, /## Issues found/);
+  assert.match(md, /## What could be better/);
   assert.match(md, /## Recommendations/);
+  assert.match(md, /## Coverage Recommendations/);
 });
 
 test("renderHtml is self-contained and escapes content", () => {
@@ -70,7 +74,7 @@ test("renderHtml is self-contained and escapes content", () => {
   // score appears as the large verdict number
   assert.match(html, /40%/);
   // passes count appears in the verdict text
-  assert.match(html, /2 out of 5 checks passed/);
+  assert.match(html, /<b>2<\/b> of <b>5<\/b> checks passed/);
   // XSS escaping
   assert.ok(!html.includes("<script>bad</script>"));
   assert.match(html, /&lt;script&gt;/);

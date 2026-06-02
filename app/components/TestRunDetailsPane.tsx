@@ -335,7 +335,7 @@ function highlightTypeScript(code: string) {
 
     html = html.replace(
       /(["'`])(.*?)\1/g,
-      '<span style="color: #a3e635;">$1$2$1</span>',
+      '<span style="color: #a6d189;">$1$2$1</span>',
     );
 
     const keywords = [
@@ -363,7 +363,7 @@ function highlightTypeScript(code: string) {
     const kwRegex = new RegExp(`\\b(${keywords.join("|")})\\b`, "g");
     html = html.replace(
       kwRegex,
-      '<span style="color: #c084fc; font-weight: bold;">$1</span>',
+      '<span style="color: #ca9ee6; font-weight: bold;">$1</span>',
     );
 
     const testTerms = [
@@ -379,11 +379,11 @@ function highlightTypeScript(code: string) {
       "locator",
     ];
     const termRegex = new RegExp(`\\b(${testTerms.join("|")})\\b`, "g");
-    html = html.replace(termRegex, '<span style="color: #60a5fa;">$1</span>');
+    html = html.replace(termRegex, '<span style="color: #8caaee;">$1</span>');
 
     html = html.replace(
       /(\/\/.*)$/g,
-      '<span style="color: #71717a; font-style: italic;">$1</span>',
+      '<span style="color: #838ba7; font-style: italic;">$1</span>',
     );
 
     return (
@@ -397,12 +397,12 @@ function highlightTypeScript(code: string) {
         <Text
           w="30px"
           minW="30px"
-          color="#71717a"
+          color="#838ba7"
           textAlign="right"
           pr={2.5}
           userSelect="none"
           borderRight="1px solid"
-          borderColor="#27272a"
+          borderColor="#414559"
           mr={3}
         >
           {idx + 1}
@@ -411,7 +411,7 @@ function highlightTypeScript(code: string) {
           flex={1}
           whiteSpace="pre-wrap"
           wordBreak="break-all"
-          color="#e4e4e7"
+          color="#b5bfe2"
           dangerouslySetInnerHTML={{ __html: html || " " }}
         />
       </Flex>
@@ -439,32 +439,32 @@ function AWSCodeViewer({
   return (
     <Box
       border="1px solid"
-      borderColor="#27272a"
+      borderColor="#414559"
       borderRadius="md"
       overflow="hidden"
       display="flex"
       flexDirection="column"
       h="100%"
       minH="200px"
-      bg="#09090b"
+      bg="#232634"
     >
       <Flex
-        bg="#18181b"
+        bg="#232634"
         px={3}
         py={2}
         align="center"
         justify="space-between"
         borderBottom="1px solid"
-        borderColor="#27272a"
+        borderColor="#414559"
         userSelect="none"
       >
         <HStack gap={2}>
-          <Code2 size={13} style={{ color: "#00b388" }} />
+          <Code2 size={13} style={{ color: "#81c8be" }} />
           <Text
             fontSize="13px"
             fontWeight="bold"
             fontFamily="mono"
-            color="#e4e4e7"
+            color="#b5bfe2"
           >
             {filename}
           </Text>
@@ -473,8 +473,8 @@ function AWSCodeViewer({
           <Badge
             variant="subtle"
             fontSize="11px"
-            bg="#27272a"
-            color="#00b388"
+            bg="#414559"
+            color="#81c8be"
             borderRadius="sm"
           >
             TypeScript
@@ -485,8 +485,8 @@ function AWSCodeViewer({
             fontSize="12px"
             height="20px"
             px={2.5}
-            color="#e4e4e7"
-            _hover={{ bg: "#27272a", color: "white" }}
+            color="#b5bfe2"
+            _hover={{ bg: "#414559", color: "white" }}
             onClick={() => onCopy(filename, code)}
             cursor="pointer"
             display="flex"
@@ -504,15 +504,15 @@ function AWSCodeViewer({
         flex={1}
         fontFamily="mono"
         fontSize="13px"
-        bg="#09090b"
+        bg="#232634"
         css={{
           "&::-webkit-scrollbar": { width: "8px", height: "8px" },
-          "&::-webkit-scrollbar-track": { background: "#09090b" },
+          "&::-webkit-scrollbar-track": { background: "#232634" },
           "&::-webkit-scrollbar-thumb": {
-            background: "#27272a",
+            background: "#414559",
             borderRadius: "4px",
           },
-          "&::-webkit-scrollbar-thumb:hover": { background: "#3f3f46" },
+          "&::-webkit-scrollbar-thumb:hover": { background: "#51576d" },
         }}
       >
         {highlightTypeScript(code)}
@@ -1158,8 +1158,8 @@ export function TestRunDetailsPane({
                         px={2.5}
                         py={0.5}
                         borderRadius="sm"
-                        borderColor={isDark ? "#00b388" : "#008b6b"}
-                        color={isDark ? "#00b388" : "#008b6b"}
+                        borderColor={isDark ? "#81c8be" : "#008b6b"}
+                        color={isDark ? "#81c8be" : "#008b6b"}
                       >
                         IDE NAVIGATOR
                       </Badge>
@@ -1176,7 +1176,7 @@ export function TestRunDetailsPane({
                         border="1px solid"
                         borderColor={isDark ? "zinc.800" : "zinc.200"}
                         borderRadius="md"
-                        bg={isDark ? "#12141a" : "white"}
+                        bg={isDark ? "#232634" : "white"}
                         overflow="hidden"
                       >
                         {/* Search Input */}
@@ -1195,8 +1195,8 @@ export function TestRunDetailsPane({
                               padding: "6px 10px",
                               fontSize: "12px",
                               borderRadius: "4px",
-                              border: `1px solid ${isDark ? "#27272a" : "#d4d4d8"}`,
-                              backgroundColor: isDark ? "#09090b" : "#ffffff",
+                              border: `1px solid ${isDark ? "#414559" : "#d4d4d8"}`,
+                              backgroundColor: isDark ? "#232634" : "#ffffff",
                               color: isDark ? "#ffffff" : "#18181b",
                               outline: "none",
                               transition: "all 0.2s ease-in-out",
@@ -1231,7 +1231,7 @@ export function TestRunDetailsPane({
                                 >
                                   <span
                                     style={{
-                                      color: isDark ? "#00b388" : "#008b6b",
+                                      color: isDark ? "#81c8be" : "#008b6b",
                                       fontSize: "14px",
                                     }}
                                   >
@@ -1298,7 +1298,7 @@ export function TestRunDetailsPane({
                                         bg={
                                           isSelected
                                             ? isDark
-                                              ? "rgba(0, 179, 136, 0.1)"
+                                              ? "rgba(129, 200, 190, 0.1)"
                                               : "rgba(0, 139, 107, 0.06)"
                                             : "transparent"
                                         }
@@ -1306,7 +1306,7 @@ export function TestRunDetailsPane({
                                         borderLeftColor={
                                           isSelected
                                             ? isDark
-                                              ? "#00b388"
+                                              ? "#81c8be"
                                               : "#008b6b"
                                             : "transparent"
                                         }
@@ -1314,7 +1314,7 @@ export function TestRunDetailsPane({
                                         _hover={{
                                           bg: isSelected
                                             ? isDark
-                                              ? "rgba(0, 179, 136, 0.15)"
+                                              ? "rgba(129, 200, 190, 0.15)"
                                               : "rgba(0, 139, 107, 0.1)"
                                             : isDark
                                               ? "rgba(255, 255, 255, 0.05)"
@@ -1333,7 +1333,7 @@ export function TestRunDetailsPane({
                                             style={{
                                               color: isSelected
                                                 ? isDark
-                                                  ? "#00b388"
+                                                  ? "#81c8be"
                                                   : "#008b6b"
                                                 : "zinc.500",
                                               fontSize: "13px",
@@ -1354,7 +1354,7 @@ export function TestRunDetailsPane({
                                                   ? "#ffffff"
                                                   : "#111827"
                                                 : isDark
-                                                  ? "#a1a1aa"
+                                                  ? "#949cbb"
                                                   : "#4b5563"
                                             }
                                             whiteSpace="nowrap"
@@ -1430,14 +1430,14 @@ export function TestRunDetailsPane({
                             border="1px solid"
                             borderColor={isDark ? "zinc.800" : "zinc.200"}
                             borderRadius="md"
-                            bg={isDark ? "#12141a" : "white"}
+                            bg={isDark ? "#232634" : "white"}
                             boxShadow={
                               isDark ? "0 4px 20px rgba(0,0,0,0.3)" : "sm"
                             }
                           >
                             {/* Editor Tab Bar */}
                             <Flex
-                              bg={isDark ? "#090a0f" : "#f8fafc"}
+                              bg={isDark ? "#232634" : "#f8fafc"}
                               borderBottom="1px solid"
                               borderColor={isDark ? "zinc.800" : "zinc.200"}
                               align="center"
@@ -1466,17 +1466,17 @@ export function TestRunDetailsPane({
                                   bg={
                                     rightPaneTab === "narrative"
                                       ? isDark
-                                        ? "#12141a"
+                                        ? "#232634"
                                         : "white"
                                       : "transparent"
                                   }
                                   borderBottom={
                                     rightPaneTab === "narrative"
-                                      ? `2px solid ${isDark ? "#00b388" : "#008b6b"}`
+                                      ? `2px solid ${isDark ? "#81c8be" : "#008b6b"}`
                                       : "none"
                                   }
                                   _hover={{
-                                    bg: isDark ? "#181b24" : "zinc.100",
+                                    bg: isDark ? "#292c3c" : "zinc.100",
                                   }}
                                   cursor="pointer"
                                   onClick={() => setRightPaneTab("narrative")}
@@ -1507,17 +1507,17 @@ export function TestRunDetailsPane({
                                   bg={
                                     rightPaneTab === "code"
                                       ? isDark
-                                        ? "#12141a"
+                                        ? "#232634"
                                         : "white"
                                       : "transparent"
                                   }
                                   borderBottom={
                                     rightPaneTab === "code"
-                                      ? `2px solid ${isDark ? "#00b388" : "#008b6b"}`
+                                      ? `2px solid ${isDark ? "#81c8be" : "#008b6b"}`
                                       : "none"
                                   }
                                   _hover={{
-                                    bg: isDark ? "#181b24" : "zinc.100",
+                                    bg: isDark ? "#292c3c" : "zinc.100",
                                   }}
                                   cursor="pointer"
                                   onClick={() => setRightPaneTab("code")}
@@ -1565,7 +1565,7 @@ export function TestRunDetailsPane({
                                   {/* Flow Metadata Cards Grid */}
                                   <Box
                                     border="1px solid"
-                                    borderColor={isDark ? "#27272a" : "#e4e4e7"}
+                                    borderColor={isDark ? "#414559" : "#e4e4e7"}
                                     borderRadius="sm"
                                     p={3}
                                     bg="transparent"
@@ -1687,12 +1687,12 @@ export function TestRunDetailsPane({
                                     <Box
                                       bg={
                                         isDark
-                                          ? "rgba(0, 179, 136, 0.03)"
+                                          ? "rgba(129, 200, 190, 0.03)"
                                           : "rgba(0, 139, 107, 0.015)"
                                       }
                                       border="1px solid"
                                       borderColor={
-                                        isDark ? "#27272a" : "#e4e4e7"
+                                        isDark ? "#414559" : "#e4e4e7"
                                       }
                                       p={4}
                                       borderRadius="sm"
@@ -1740,7 +1740,7 @@ export function TestRunDetailsPane({
                                       <Box
                                         border="1px solid"
                                         borderColor={
-                                          isDark ? "#27272a" : "#e4e4e7"
+                                          isDark ? "#414559" : "#e4e4e7"
                                         }
                                         borderRadius="sm"
                                         bg="transparent"
@@ -1764,12 +1764,12 @@ export function TestRunDetailsPane({
                                             stepIcon = (
                                               <CircleCheck
                                                 size={15}
-                                                color="#10b981"
+                                                color="#a6d189"
                                                 style={{
                                                   flexShrink: 0,
                                                   marginTop: "2px",
                                                   filter: isDark
-                                                    ? "drop-shadow(0 0 4px rgba(16,185,129,0.3))"
+                                                    ? "drop-shadow(0 0 4px rgba(166,209,137,0.3))"
                                                     : "none",
                                                 }}
                                               />
@@ -1781,12 +1781,12 @@ export function TestRunDetailsPane({
                                             stepIcon = (
                                               <CircleX
                                                 size={15}
-                                                color="#ef4444"
+                                                color="#e78284"
                                                 style={{
                                                   flexShrink: 0,
                                                   marginTop: "2px",
                                                   filter: isDark
-                                                    ? "drop-shadow(0 0 4px rgba(239,68,68,0.3))"
+                                                    ? "drop-shadow(0 0 4px rgba(231,130,132,0.3))"
                                                     : "none",
                                                 }}
                                               />
@@ -1797,7 +1797,7 @@ export function TestRunDetailsPane({
                                             stepIcon = (
                                               <CircleCheck
                                                 size={15}
-                                                color="#10b981"
+                                                color="#a6d189"
                                                 style={{
                                                   flexShrink: 0,
                                                   marginTop: "2px",
@@ -1818,11 +1818,11 @@ export function TestRunDetailsPane({
                                                   : "none"
                                               }
                                               borderColor={
-                                                isDark ? "#27272a" : "#e4e4e7"
+                                                isDark ? "#414559" : "#e4e4e7"
                                               }
                                               _hover={{
                                                 bg: isDark
-                                                  ? "#181b24"
+                                                  ? "#292c3c"
                                                   : "zinc.100",
                                               }}
                                               transition="background 0.2s"
@@ -1989,7 +1989,7 @@ export function TestRunDetailsPane({
                   >
                     <Heading
                       size="xs"
-                      color={isDark ? "#e6b800" : "#805e02"}
+                      color={isDark ? "#e5c890" : "#805e02"}
                       mb={3}
                       display="flex"
                       alignItems="center"
@@ -2171,7 +2171,7 @@ export function TestRunDetailsPane({
             <Box
               ref={logContainerRef}
               bg="black"
-              color="#38bdf8"
+              color="#99d1db"
               p={4}
               borderRadius="sm"
               fontFamily="mono"
