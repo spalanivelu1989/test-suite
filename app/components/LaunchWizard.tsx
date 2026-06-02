@@ -98,6 +98,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
         return;
       }
       onLaunchSuccess(data.runId);
+      setSubmitting(false);
     } catch {
       setError("Could not reach the server. Is it running?");
       setSubmitting(false);

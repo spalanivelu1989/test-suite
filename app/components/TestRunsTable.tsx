@@ -41,6 +41,7 @@ interface TestRunsTableProps {
   isLoading: boolean;
   onRefresh: () => void;
   onViewReport: (run: Run) => void;
+  cancellingMap?: Record<string, boolean>;
 }
 
 export function TestRunsTable({
@@ -53,10 +54,16 @@ export function TestRunsTable({
   isLoading,
   onRefresh,
   onViewReport,
+  cancellingMap = {},
 }: TestRunsTableProps) {
   const { theme } = useThemeMode();
   const colors = getAWSColors(theme);
   const isDark = theme === "dark";
+
+  const selectedRun = runs.find((r) => r.id === selectedRunId);
+  const isSelectedRunning = selectedRun?.status === "running";
+  const isCurrentlyCancelling = selectedRunId ? (cancellingMap?.[selectedRunId] ?? false) : false;
+  const isStopEnabled = !!selectedRunId && isSelectedRunning && !isCurrentlyCancelling;
 
   const [terminateTarget, setTerminateTarget] = useState<Run | null>(null);
   const [isTerminating, setIsTerminating] = useState(false);
@@ -156,16 +163,16 @@ export function TestRunsTable({
             size="xs"
             variant="outline"
             borderColor={colors.border}
-            color={selectedRunId ? colors.text : colors.subtext}
-            disabled={!selectedRunId}
+            color={isStopEnabled ? colors.text : colors.subtext}
+            disabled={!isStopEnabled}
             height="24px"
             px={3}
             borderRadius="md"
-            cursor={selectedRunId ? "pointer" : "not-allowed"}
-            opacity={selectedRunId ? 1 : 0.6}
+            cursor={isStopEnabled ? "pointer" : "not-allowed"}
+            opacity={isStopEnabled || isCurrentlyCancelling ? 1 : 0.6}
             transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
             _hover={
-              selectedRunId
+              isStopEnabled
                 ? {
                     bg: "rgba(239, 159, 118, 0.08)",
                     borderColor: "#ef9f76",
@@ -174,18 +181,24 @@ export function TestRunsTable({
                   }
                 : {}
             }
-            _active={selectedRunId ? { transform: "translateY(0)" } : {}}
+            _active={isStopEnabled ? { transform: "translateY(0)" } : {}}
             onClick={() => {
-              if (selectedRunId) {
-                const run = runs.find((r) => r.id === selectedRunId);
-                if (run && run.status === "running") {
-                  onStopRun(run.id);
-                }
+              if (isStopEnabled && selectedRunId) {
+                onStopRun(selectedRunId);
               }
             }}
           >
-            <StopCircle size={11} style={{ marginRight: "4px" }} />
-            Stop Run
+            {isCurrentlyCancelling ? (
+              <>
+                <RefreshCw size={11} className="animate-spin" style={{ marginRight: "4px" }} />
+                Stopping...
+              </>
+            ) : (
+              <>
+                <StopCircle size={11} style={{ marginRight: "4px" }} />
+                Stop Run
+              </>
+            )}
           </Button>
 
           {/* Terminate Run button */}
@@ -265,13 +278,6 @@ export function TestRunsTable({
                 fontSize="12px"
                 py={2.5}
               >
-                Status Checks
-              </Table.ColumnHeader>
-              <Table.ColumnHeader
-                color={colors.subtext}
-                fontSize="12px"
-                py={2.5}
-              >
                 Launch Time
               </Table.ColumnHeader>
               <Table.ColumnHeader
@@ -288,7 +294,7 @@ export function TestRunsTable({
             {runs.length === 0 ? (
               <Table.Row>
                 <Table.Cell
-                  colSpan={7}
+                  colSpan={6}
                   textAlign="center"
                   py={8}
                   color={colors.subtext}
@@ -402,20 +408,6 @@ export function TestRunsTable({
                     <Table.Cell
                       py={2.5}
                       fontSize="13px"
-                      fontWeight="medium"
-                      color={
-                        checksColor === "green"
-                          ? "green.600"
-                          : checksColor === "red"
-                            ? "red.500"
-                            : colors.text
-                      }
-                    >
-                      {checksText}
-                    </Table.Cell>
-                    <Table.Cell
-                      py={2.5}
-                      fontSize="13px"
                       color={colors.subtext}
                       fontFamily="mono"
                     >
@@ -488,6 +480,13 @@ export function TestRunsTable({
             opacity: 0.3;
             transform: scale(0.7);
           }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
         }
       `}</style>
 

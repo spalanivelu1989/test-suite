@@ -453,6 +453,244 @@ export function TestReportView({
     );
   }
 
+  if (run.status === "failed" || run.status === "cancelled") {
+    const isCancelled = run.status === "cancelled";
+    return (
+      <div className={`test-report-container${darkClass}`}>
+        <div className="page">
+          {/* Report Left Sidebar */}
+          <aside className="sidebar">
+            <div className="sidebar-header">
+              <h1>Test results for {run.config.url.replace(/https?:\/\//, "")}</h1>
+            </div>
+
+            {runs && runs.length > 0 && onSelectRun && (
+              <Box
+                position="relative"
+                ref={dropdownRef}
+                className="run-selector-container"
+              >
+                <Text
+                  as="label"
+                  className="run-selector-label"
+                  mb={1}
+                  display="block"
+                >
+                  Select Test Run
+                </Text>
+
+                {/* Trigger Button */}
+                <Box
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  w="full"
+                  minH="48px"
+                  py={2.5}
+                  px={3.5}
+                  bg="var(--surface-2)"
+                  border="1px solid"
+                  borderColor="var(--border)"
+                  borderRadius="var(--radius-sm)"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  gap={2}
+                  cursor="pointer"
+                  transition="all 0.15s ease"
+                  _hover={{ borderColor: "var(--accent)" }}
+                >
+                  <VStack align="flex-start" gap={0.5} overflow="hidden" flex={1}>
+                    <Text fontSize="11.5px" fontWeight="semibold" truncate w="full">
+                      {run.config.url.replace(/https?:\/\//, "")}
+                    </Text>
+                    <HStack gap={1.5} fontSize="10px" color="var(--text-3)">
+                      <Text fontFamily="var(--mono)">{run.id.slice(0, 8)}</Text>
+                      <Text>•</Text>
+                      <Text>
+                        {new Date(run.createdAt).toLocaleString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                    </HStack>
+                  </VStack>
+                  <ChevronDown
+                    size={16}
+                    style={{
+                      opacity: 0.7,
+                      transform: isDropdownOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s ease",
+                      flexShrink: 0,
+                    }}
+                  />
+                </Box>
+
+                {/* Dropdown Options List */}
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <MotionBox
+                      position="absolute"
+                      top="calc(100% + 6px)"
+                      left={0}
+                      right={0}
+                      zIndex={100}
+                      bg="var(--surface)"
+                      border="1px solid"
+                      borderColor="var(--border)"
+                      borderRadius="var(--radius-sm)"
+                      boxShadow="var(--shadow-lg)"
+                      maxH="280px"
+                      overflowY="auto"
+                      py={1.5}
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.12, ease: "easeOut" }}
+                      style={{ transformOrigin: "top" }}
+                    >
+                      {runs.map((r) => {
+                        const isSelected = r.id === run?.id;
+                        const dateStr = new Date(r.createdAt).toLocaleString(
+                          undefined,
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        );
+                        return (
+                          <Box
+                            key={r.id}
+                            onClick={() => {
+                              onSelectRun(r);
+                              setIsDropdownOpen(false);
+                            }}
+                            px={3.5}
+                            py={2}
+                            cursor="pointer"
+                            bg={isSelected ? "var(--accent-soft)" : "transparent"}
+                            color={
+                              isSelected ? "var(--accent-text)" : "var(--text)"
+                            }
+                            transition="all 0.15s ease"
+                            _hover={{
+                              bg: isSelected
+                                ? "var(--accent-soft)"
+                                : "var(--surface-2)",
+                            }}
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="space-between"
+                            gap={2}
+                          >
+                            <VStack
+                              align="flex-start"
+                              gap={0.5}
+                              overflow="hidden"
+                              flex={1}
+                            >
+                              <Text
+                                fontSize="11.5px"
+                                fontWeight="semibold"
+                                truncate
+                                w="full"
+                              >
+                                {r.config.url.replace(/https?:\/\//, "")}
+                              </Text>
+                              <HStack
+                                gap={1.5}
+                                fontSize="10px"
+                                color="var(--text-3)"
+                              >
+                                <Text fontFamily="var(--mono)">
+                                  {r.id.slice(0, 8)}
+                                </Text>
+                                <Text>•</Text>
+                                <Text>{dateStr}</Text>
+                              </HStack>
+                            </VStack>
+                            {isSelected && (
+                              <Check
+                                size={14}
+                                style={{ color: "var(--accent)", flexShrink: 0 }}
+                              />
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </MotionBox>
+                  )}
+                </AnimatePresence>
+              </Box>
+            )}
+
+            <div className="sidebar-footer">
+              <div className="sidebar-meta">
+                <div>
+                  <span className="k">App tested</span>
+                  <span className="v">{run.config.url}</span>
+                </div>
+                <div>
+                  <span className="k">Run ID</span>
+                  <span className="v mono">{run.id}</span>
+                </div>
+                <div>
+                  <span className="k">Status</span>
+                  <span className="v">{run.status.toUpperCase()}</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Report Right Content Area */}
+          <main
+            className="report-content"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "60px 40px",
+              gap: "16px",
+            }}
+          >
+            <span style={{ fontSize: "40px" }}>
+              {isCancelled ? "⏹️" : "❌"}
+            </span>
+            <div style={{ textAlign: "center" }}>
+              <h3
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "bold",
+                  color: "var(--text)",
+                  marginBottom: "8px",
+                }}
+              >
+                {isCancelled ? "Run Stopped" : "Run Failed"}
+              </h3>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "var(--text-3)",
+                  maxWidth: "450px",
+                  lineHeight: "1.5",
+                }}
+              >
+                {isCancelled
+                  ? "This test run was stopped by the user. No report was generated."
+                  : `This test run failed during execution: ${run.error || "Unknown pipeline error"}. No report was generated.`}
+              </p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   if (run.status === "pending" || run.status === "running" || !report) {
     return (
       <div

@@ -360,8 +360,10 @@ export default function HomePage() {
                 overflow="hidden"
                 transition="all 0.2s ease"
                 _hover={{
-                  borderColor: "rgba(133, 193, 220, 0.6)",
-                  bg: isDark ? "#414559" : "#eef2f6",
+                  borderColor: isDark
+                    ? "rgba(153, 209, 219, 0.6)"
+                    : "rgba(15, 45, 89, 0.5)",
+                  bg: isDark ? "#414559" : "#f1f5f9",
                 }}
               >
                 <Flex justify="space-between" align="start">
@@ -378,13 +380,14 @@ export default function HomePage() {
                     <HStack align="baseline" gap={2}>
                       <Text
                         fontSize="36px"
-                        fontWeight="900"
+                        fontWeight="normal"
                         lineHeight="1"
                         color="transparent"
                         letterSpacing="-0.5px"
                         style={{
-                          background:
-                            "linear-gradient(to right, #ca9ee6, #85c1dc)",
+                          background: isDark
+                            ? "linear-gradient(to right, #99d1db, #8caaee)"
+                            : "linear-gradient(to right, #0f2d59, #1d4ed8)",
                           WebkitBackgroundClip: "text",
                           WebkitTextFillColor: "transparent",
                         }}
@@ -449,9 +452,9 @@ export default function HomePage() {
                 transition="all 0.2s ease"
                 _hover={{
                   borderColor: isDark
-                    ? "rgba(244, 184, 228, 0.5)"
-                    : "rgba(244, 184, 228, 0.4)",
-                  bg: isDark ? "#414559" : "#fdf2f8",
+                    ? "rgba(153, 209, 219, 0.6)"
+                    : "rgba(15, 45, 89, 0.5)",
+                  bg: isDark ? "#414559" : "#f1f5f9",
                 }}
               >
                 <Flex justify="space-between" align="start">
@@ -467,13 +470,14 @@ export default function HomePage() {
                     </Text>
                     <Text
                       fontSize="36px"
-                      fontWeight="900"
+                      fontWeight="normal"
                       lineHeight="1"
                       color="transparent"
                       letterSpacing="-0.5px"
                       style={{
-                        background:
-                          "linear-gradient(to right, #f4b8e4, #ca9ee6)",
+                        background: isDark
+                          ? "linear-gradient(to right, #99d1db, #8caaee)"
+                          : "linear-gradient(to right, #0f2d59, #1d4ed8)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                       }}
@@ -550,6 +554,7 @@ export default function HomePage() {
                 setSelectedRun(run);
                 setActiveTab("test-report");
               }}
+              cancellingMap={cancellingMap}
             />
           </Box>
         )}

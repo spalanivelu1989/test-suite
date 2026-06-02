@@ -491,6 +491,7 @@ export function RunView({ id }: { id: string }) {
                 setSelectedRun(run);
                 setActiveTab("test-report");
               }}
+              cancellingMap={cancellingMap}
             />
           </Box>
         )}
