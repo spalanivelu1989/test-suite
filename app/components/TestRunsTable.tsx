@@ -409,13 +409,13 @@ function TerminateRunDialog({
                 align="center"
                 justify="center"
               >
-                <AlertTriangle size={13} color="#f87171" strokeWidth={2.5} />
+                <AlertTriangle size={13} color={isDark ? "#f87171" : "#dc2626"} strokeWidth={2.5} />
               </Flex>
               <Dialog.Title flex={1}>
                 <Text
                   fontSize="13.5px"
                   fontWeight="bold"
-                  color="white"
+                  color="var(--aws-header-text)"
                   letterSpacing="0.1px"
                 >
                   Terminate test run?
@@ -427,8 +427,8 @@ function TerminateRunDialog({
                 px={1.5}
                 minW="22px"
                 h="22px"
-                color="rgba(255,255,255,0.7)"
-                _hover={{ bg: "rgba(255,255,255,0.1)", color: "white" }}
+                color={isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)"}
+                _hover={{ bg: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)", color: isDark ? "white" : "black" }}
                 onClick={onCancel}
                 disabled={isTerminating}
                 aria-label="Close"
