@@ -687,7 +687,8 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: colors.cardBg, color: AWS_COLORS.orange.main }}
+            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Details
           </Tabs.Trigger>
@@ -700,7 +701,8 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: colors.cardBg, color: AWS_COLORS.orange.main }}
+            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Status Checks & Report
           </Tabs.Trigger>
@@ -713,7 +715,8 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: colors.cardBg, color: AWS_COLORS.orange.main }}
+            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             User Flows & Spec Files
           </Tabs.Trigger>
@@ -726,7 +729,8 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: colors.cardBg, color: AWS_COLORS.orange.main }}
+            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Monitoring
           </Tabs.Trigger>
@@ -739,7 +743,8 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: colors.cardBg, color: AWS_COLORS.orange.main }}
+            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Console Logs
           </Tabs.Trigger>
@@ -752,7 +757,8 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: colors.cardBg, color: AWS_COLORS.orange.main }}
+            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Test Plan & Specs Code
           </Tabs.Trigger>
