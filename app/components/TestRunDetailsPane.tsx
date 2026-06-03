@@ -1943,7 +1943,7 @@ export function TestRunDetailsPane({
                   )
                 )}
 
-                {/* 3. Issues Found & Recommendations */}
+                {/* 3. Observations & Recommendations */}
                 <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
                   <Box
                     bg={isDark ? "white/5" : "gray.50"}
@@ -1960,7 +1960,7 @@ export function TestRunDetailsPane({
                       alignItems="center"
                       gap={2}
                     >
-                      Issues Found
+                      Observations
                     </Heading>
                     {report.issues && report.issues.length > 0 ? (
                       <VStack align="stretch" gap={2} pl={2}>

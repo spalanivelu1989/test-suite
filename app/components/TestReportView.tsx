@@ -1599,7 +1599,8 @@ export function TestReportView({
             </div>
 
             {/* Observations & Recommendations */}
-            {report.issues.length > 0 && (
+            {/* Hide Suite Observations for now
+            report.issues.length > 0 && (
               <div style={{ marginTop: "var(--sp-6)" }}>
                 <h2 className="section-h">
                   <span className="badge">
@@ -1620,7 +1621,8 @@ export function TestReportView({
                   ))}
                 </ul>
               </div>
-            )}
+            )
+            */}
 
             {/* Side-by-Side: What could be better & Recommendations */}
             {(report.better || report.recommendationsText) && (

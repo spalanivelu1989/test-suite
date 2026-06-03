@@ -67,7 +67,7 @@ test("renderMarkdown includes success rate, breakdown, fix prompts, issues, reco
 test("renderHtml is self-contained and escapes content", () => {
   const evil: RunReport = {
     ...report,
-    issues: ["<script>bad</script>"],
+    better: "<script>bad</script>",
   };
   const html = renderHtml(evil);
   assert.match(html, /<!doctype html>/);

@@ -375,6 +375,8 @@ export function renderHtml(report: RunReport): string {
     )
     .join("");
 
+  const observationsHtml = "";
+  /* Hide Suite Observations for now
   const observationsHtml =
     report.issues.length > 0
       ? `
@@ -405,6 +407,7 @@ export function renderHtml(report: RunReport): string {
       </div>
     `
       : "";
+  */
 
   const recommendationsHtml =
     report.recommendations.length > 0
