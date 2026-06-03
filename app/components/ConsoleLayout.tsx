@@ -221,6 +221,19 @@ export function ConsoleLayout({
           borderColor="rgba(255,255,255,0.12)"
           bg="rgba(0,0,0,0.15)"
         >
+          {/* Centered logo above the toggle */}
+          <Flex justify="center" mb={3} w="full">
+            <img
+              src="/images/tlogo.png"
+              alt="Suite Logo"
+              style={{
+                height: "28px",
+                width: "auto",
+                opacity: 0.95,
+              }}
+            />
+          </Flex>
+
           <Flex
             align="center"
             justify={sidebarOpen ? "space-between" : "center"}
