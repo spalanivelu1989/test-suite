@@ -14,25 +14,17 @@ export interface Narrative {
 }
 
 const SYSTEM =
-  "You are an expert QA consultant and senior diagnostic engineer reviewing an automated UI test run. Your task is to analyze the results and produce a professional, client-oriented, and highly diagnostic narrative report. Return ONLY a " +
-  'JSON object: { "fixPrompts": [{"test":"","problem":"","change":""}], ' +
-  '"issues": [""], "better": "", "recommendationsText": "", "summary": [""], "testSummary": "" }. ' +
-  "fixPrompts cover failing/quarantined tests (concrete problem + exact change). " +
-  "issues are problems found in the app or suite as a list of short strings. " +
-  "better is a single cohesive prose paragraph (3-6 sentences) summarizing what could be better on the frontend, written in a professional, client-oriented, and diagnostic tone. Identify frontend gaps, UX/accessibility, and testability/discoverability limitations (e.g. missing filters, navigation omissions, elements hidden in DOM, reCAPTCHA blocks) and note how they impact user discoverability and automation reliability. " +
-  "recommendationsText is a single cohesive prose paragraph (3-6 sentences) offering clear, actionable next steps, written in a professional, client-oriented, and diagnostic tone. Focus on fixing UI defects first, improving testability/accessibility (e.g. exposing inputs in accessible DOM, bypass mechanisms for CAPTCHAs in non-prod), and specifying the exact test names to re-run to confirm fixes. " +
-  "summary is an array of strings, where each string is a narrative-driven, engaging story (2-4 sentences) in plain English for EACH test carried out in the run (ordered the same as the tests), explaining the user journey like a tech journalist telling it to a generalist audience. Instead of using dry technical terms, robot templates, or ambiguous descriptions, it should bring the test flow to life, narrate the simulated user action, explain what the specific check verified (the 'how' and 'why'), and outline what the success or failure means for the actual end-user's experience. " +
-  "testSummary is a SINGLE concise prose paragraph (3-6 sentences), third person, " +
-  "business-friendly, that synthesizes the whole run. It MUST use the exact counts and " +
-  "success rate given in the 'Authoritative counts' block of the user message verbatim, " +
-  "and MUST NOT invent numbers, tests, or findings. State how many tests passed, failed, " +
-  "and were auto-fixed (healed), give the success rate, then describe where the failures " +
-  "and auto-fixes are concentrated based ONLY on the listed tests and their failure reasons. " +
-  "Mention auto-fixed (healed) and unreliable (flaky) tests where relevant. If there were no " +
-  "failures, say so plainly. It MUST start with the target URL name (e.g. 'senthilcaesar.github.io') instead of generic text like 'The suite is in'. Example tone: 'senthilcaesar.github.io is in good shape overall: 23 tests passed, " +
-  "2 failed, and 2 were auto-fixed, for a 92% success rate. The failures are concentrated in " +
-  "navigation/content discovery...'. " +
-  "No prose outside the JSON.";
+  "You are an expert QA consultant and senior diagnostic engineer reviewing an automated UI test run. Your task is to analyze the results and produce a professional, client-oriented, and highly diagnostic narrative report in strict JSON format. " +
+  "Return ONLY a JSON object matching this schema: " +
+  '{ "fixPrompts": [{"test":"","problem":"","change":""}], "issues": [""], "better": "", "recommendationsText": "", "summary": [""], "testSummary": "" }. ' +
+  "Do not include any explanation or prose outside the JSON. " +
+  "\nField Instructions:\n" +
+  "1. 'fixPrompts': Covers failing/quarantined tests with concrete problems and exact fixes.\n" +
+  "2. 'issues': Bullet list of app or test suite setup problems as short strings.\n" +
+  "3. 'better': A single paragraph (3-6 sentences) summarizing frontend/UX/accessibility gaps and testability limitations (e.g. missing filters, hidden DOM elements, CAPTCHAs) and their impact.\n" +
+  "4. 'recommendationsText': A single paragraph (3-6 sentences) proposing actionable next steps: prioritize UI defect fixes, improve testability/accessibility, and name exact tests to re-run.\n" +
+  "5. 'summary': An array of detailed, narrative-driven explanations (3-5 sentences) in plain English for EACH test (ordered the same as the results list). Explain the user journey like a tech journalist telling it to a generalist audience, but ground it in technical facts: name the specific routes/paths navigated (e.g., '/dashboard'), exact UI elements/inputs/buttons clicked/typed, and the precise assertions or verifications performed (e.g. checked that badge incremented or redirect occurred) so the reader understands both the user flow and the exact test mechanics.\n" +
+  "6. 'testSummary': A single executive summary paragraph (3-6 sentences) in the third person. It MUST start with the target URL name (e.g. 'senthilcaesar.github.io'). Verbatim-use the counts/rate from the 'Authoritative counts' block (do not invent numbers). State the counts of passed, failed, auto-fixed (healed), and flaky tests, and describe where the outcomes are concentrated.";
 
 export function buildNarrativePrompt(
   results: TestResult[],
