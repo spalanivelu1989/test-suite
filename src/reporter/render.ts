@@ -111,6 +111,9 @@ export function renderHtml(report: RunReport): string {
   const failedTestNames = report.results
     .filter((r) => r.outcome === "failed")
     .map((r) => r.flowId);
+  const healedTestNames = report.results
+    .filter((r) => r.outcome === "healed")
+    .map((r) => r.flowId);
 
   // Verdict config
   const verdict =
@@ -204,7 +207,7 @@ export function renderHtml(report: RunReport): string {
               .map(
                 (r) => `
               <li>
-                <button type="button" class="link-btn" data-test-name="${esc(r.flowId)}">${esc(r.flowId)} (${r.outcome === "flaky" ? "Flaky" : "Coming Soon"})</button>
+                <button type="button" class="link-btn" data-test-name="${esc(r.flowId)}">${esc(r.flowId)} (${r.outcome === "flaky" ? "Flaky" : "Healed"})</button>
               </li>
             `,
               )
@@ -249,6 +252,18 @@ export function renderHtml(report: RunReport): string {
         <div class="stat-popover-title">Failed Tests (${failedTestNames.length})</div>
         <ul class="stat-popover-list">
           ${failedTestNames.map((name) => `<li title="${esc(name)}">${esc(name)}</li>`).join("")}
+        </ul>
+      </div>
+    `
+      : "";
+
+  const healedPopoverHtml =
+    healedTestNames.length > 0
+      ? `
+      <div class="stat-popover" id="popover-healed" style="display: none;">
+        <div class="stat-popover-title">Healed Tests (${healedTestNames.length})</div>
+        <ul class="stat-popover-list">
+          ${healedTestNames.map((name) => `<li title="${esc(name)}">${esc(name)}</li>`).join("")}
         </ul>
       </div>
     `
@@ -324,7 +339,7 @@ export function renderHtml(report: RunReport): string {
     passed: "Passed",
     failed: "Failed",
     flaky: "Unreliable",
-    healed: "Coming Soon",
+    healed: "Healed",
     fixme: "Skipped",
   };
 
@@ -622,7 +637,7 @@ export function renderHtml(report: RunReport): string {
 
           <!-- Quick Stats Grid -->
           <section class="stats" aria-label="Quick statistics">
-            <div class="stat" id="stat-card-passed" style="position: relative; cursor: pointer;">
+            <div class="stat stat-passed" id="stat-card-passed" style="position: relative; cursor: pointer;">
               <div class="stat-top">
                 <span style="color: var(--pass)">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -633,7 +648,7 @@ export function renderHtml(report: RunReport): string {
               ${passedPopoverHtml}
             </div>
 
-            <div class="stat" id="stat-card-failed" style="position: relative; cursor: pointer;">
+            <div class="stat stat-failed" id="stat-card-failed" style="position: relative; cursor: pointer;">
               <div class="stat-top">
                 <span style="color: var(--fail)">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
@@ -646,14 +661,15 @@ export function renderHtml(report: RunReport): string {
 
 
 
-            <div class="stat">
+            <div class="stat stat-healed" id="stat-card-healed" style="position: relative; cursor: pointer;">
               <div class="stat-top">
                 <span style="color: var(--heal)">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>
                 </span>
                 <span class="stat-num">${report.results.filter((r) => r.outcome === "healed").length}</span>
               </div>
-              <div class="stat-label">Coming Soon</div>
+              <div class="stat-label">Healed</div>
+              ${healedPopoverHtml}
             </div>
           </section>
 
@@ -779,7 +795,7 @@ export function renderHtml(report: RunReport): string {
               <button type="button" class="filter-btn active" data-filter="all">All (${report.results.length})</button>
               <button type="button" class="filter-btn" data-filter="pass">Passed (${passedCount})</button>
               <button type="button" class="filter-btn" data-filter="fail">Failed (${report.results.filter((r) => r.outcome === "failed").length})</button>
-              <button type="button" class="filter-btn" data-filter="heal">Coming Soon (${report.results.filter((r) => r.outcome === "healed").length})</button>
+              <button type="button" class="filter-btn" data-filter="heal">Healed (${report.results.filter((r) => r.outcome === "healed").length})</button>
             </div>
           </div>
 
@@ -892,6 +908,20 @@ export function renderHtml(report: RunReport): string {
       failedCard.addEventListener('mouseleave', () => popoverFailed.style.display = 'none');
       failedCard.addEventListener('click', () => {
         currentFilter = 'fail';
+        updateFilterButtons();
+        switchTab('results');
+        filterTable();
+      });
+    }
+
+    const healedCard = document.getElementById('stat-card-healed');
+    const popoverHealed = document.getElementById('popover-healed');
+
+    if (healedCard && popoverHealed) {
+      healedCard.addEventListener('mouseenter', () => popoverHealed.style.display = 'block');
+      healedCard.addEventListener('mouseleave', () => popoverHealed.style.display = 'none');
+      healedCard.addEventListener('click', () => {
+        currentFilter = 'heal';
         updateFilterButtons();
         switchTab('results');
         filterTable();

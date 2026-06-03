@@ -14,6 +14,9 @@ import {
   Dialog,
   Portal,
 } from "@chakra-ui/react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const MotionBox = motion.create(Box);
 import {
   CircleCheck,
   CircleX,
@@ -72,8 +75,13 @@ export function TestRunsTable({
     if (!terminateTarget) return;
     setIsTerminating(true);
     try {
-      await onTerminateRun(terminateTarget.id);
+      await Promise.all([
+        onTerminateRun(terminateTarget.id),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
       setTerminateTarget(null);
+    } catch (err) {
+      console.error("Failed to terminate run:", err);
     } finally {
       setIsTerminating(false);
     }
@@ -525,6 +533,27 @@ function TerminateRunDialog({
   const shortId = target ? `i-${target.id.slice(0, 17)}` : "";
   const statusStyle = target ? getStatusStyle(target.status) : null;
 
+  const [termStep, setTermStep] = useState(0);
+
+  const steps = [
+    { text: "Processing termination request..." },
+    { text: "Stopping active processes and closing browser sessions..." },
+    { text: "Permanently deleting log files, workspace files, and run history..." },
+  ];
+
+  React.useEffect(() => {
+    if (!isTerminating) {
+      setTermStep(0);
+      return;
+    }
+    const t1 = setTimeout(() => setTermStep(1), 650);
+    const t2 = setTimeout(() => setTermStep(2), 1350);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [isTerminating]);
+
   return (
     <Dialog.Root
       open={isOpen}
@@ -553,223 +582,317 @@ function TerminateRunDialog({
             shadow="xl"
             p={0}
           >
-            {/* Header bar */}
-            <Flex
-              align="center"
-              gap={2.5}
-              px={5}
-              py={3}
-              bg="var(--aws-header-bg)"
-              borderBottom="2px solid"
-              borderColor="red.500"
-            >
-              <Flex
-                w="22px"
-                h="22px"
-                bg="rgba(231, 130, 132, 0.18)"
-                border="1px solid rgba(231, 130, 132, 0.6)"
-                borderRadius="md"
-                align="center"
-                justify="center"
-              >
-                <AlertTriangle
-                  size={13}
-                  color={isDark ? "#e78284" : "#dc2626"}
-                  strokeWidth={2.5}
-                />
-              </Flex>
-              <Dialog.Title flex={1}>
-                <Text
-                  fontSize="13.5px"
-                  fontWeight="bold"
-                  color="var(--aws-header-text)"
-                  letterSpacing="0.1px"
-                >
-                  Terminate test run?
-                </Text>
-              </Dialog.Title>
-              <Button
-                variant="ghost"
-                size="xs"
-                px={1.5}
-                minW="22px"
-                h="22px"
-                color={isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)"}
-                _hover={{
-                  bg: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
-                  color: isDark ? "white" : "black",
-                }}
-                onClick={onCancel}
-                disabled={isTerminating}
-                aria-label="Close"
-              >
-                <X size={13} />
-              </Button>
-            </Flex>
+            {isTerminating ? (
+              <Box py={10} px={6} textAlign="center" bg={colors.cardBg}>
+                <VStack gap={5} align="center">
+                  {/* Glowing spinner graphic */}
+                  <Box position="relative" w="72px" h="72px" display="flex" alignItems="center" justifyContent="center">
+                    {/* Ring 1: outer fast spinner */}
+                    <MotionBox
+                      position="absolute"
+                      w="72px"
+                      h="72px"
+                      borderRadius="full"
+                      border="2px dashed"
+                      borderColor="red.500"
+                      opacity={0.6}
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
+                    />
+                    {/* Ring 2: middle slow reverse spinner */}
+                    <MotionBox
+                      position="absolute"
+                      w="58px"
+                      h="58px"
+                      borderRadius="full"
+                      border="1.5px dashed"
+                      borderColor="orange.400"
+                      opacity={0.4}
+                      animate={{ rotate: -360 }}
+                      transition={{ duration: 3.5, repeat: Infinity, ease: "linear" }}
+                    />
+                    {/* Ring 3: inner pulsing glow */}
+                    <MotionBox
+                      position="absolute"
+                      w="44px"
+                      h="44px"
+                      borderRadius="full"
+                      bg="red.500/10"
+                      animate={{ scale: [0.92, 1.08, 0.92], opacity: [0.25, 0.6, 0.25] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    {/* Danger Trash Icon */}
+                    <MotionBox
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <Trash2 size={20} color="#e78284" />
+                    </MotionBox>
+                  </Box>
 
-            {/* Body */}
-            <Box px={5} py={4}>
-              <Text
-                fontSize="12.5px"
-                color={colors.text}
-                mb={3}
-                lineHeight="1.55"
-              >
-                Once a test run is terminated, all logs, generated specs, and
-                workspace files are{" "}
-                <Box as="span" fontWeight="bold">
-                  permanently deleted
-                </Box>
-                . This action cannot be undone.
-              </Text>
+                  {/* Processing Narrative text with slide up transitions */}
+                  <VStack gap={1} minH="54px" justify="center">
+                    <Text fontSize="13px" fontWeight="black" letterSpacing="0.05em" textTransform="uppercase" color="red.400">
+                      Terminating Run
+                    </Text>
+                    
+                    <Box h="36px" overflow="hidden" position="relative" w="100%" display="flex" justifyContent="center" alignItems="center">
+                      <AnimatePresence mode="wait">
+                        <MotionBox
+                          key={termStep}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.25, ease: "easeOut" }}
+                          fontSize="12px"
+                          color={colors.subtext}
+                          maxW="340px"
+                          textAlign="center"
+                          fontWeight="medium"
+                        >
+                          {steps[termStep]?.text}
+                        </MotionBox>
+                      </AnimatePresence>
+                    </Box>
+                  </VStack>
 
-              {/* Run details */}
-              <Box
-                border="1px solid"
-                borderColor={colors.border}
-                borderRadius="lg"
-                bg={isDark ? "rgba(255,255,255,0.02)" : "#fafbfc"}
-                overflow="hidden"
-              >
+                  {/* Progress Indicator Dots */}
+                  <HStack gap={1.5}>
+                    {steps.map((_, idx) => (
+                      <MotionBox
+                        key={idx}
+                        w="5px"
+                        h="5px"
+                        borderRadius="full"
+                        bg={idx === termStep ? "red.400" : (isDark ? "slate.700" : "slate.300")}
+                        animate={idx === termStep ? { scale: [1, 1.3, 1] } : {}}
+                        transition={{ duration: 1, repeat: idx === termStep ? Infinity : 0 }}
+                      />
+                    ))}
+                  </HStack>
+                </VStack>
+              </Box>
+            ) : (
+              <>
+                {/* Header bar */}
                 <Flex
-                  px={3}
-                  py={1.5}
-                  bg={isDark ? "rgba(255,255,255,0.04)" : "#f2f3f3"}
-                  borderBottom="1px solid"
-                  borderColor={colors.border}
                   align="center"
-                  gap={1.5}
+                  gap={2.5}
+                  px={5}
+                  py={3}
+                  bg="var(--aws-header-bg)"
+                  borderBottom="2px solid"
+                  borderColor="red.500"
                 >
-                  <Box
-                    w="3px"
-                    h="10px"
-                    bg="var(--aws-orange-main)"
-                    borderRadius="full"
-                  />
-                  <Text
-                    fontSize="10px"
-                    fontWeight="bold"
-                    color={colors.subtext}
-                    textTransform="uppercase"
-                    letterSpacing="0.5px"
+                  <Flex
+                    w="22px"
+                    h="22px"
+                    bg="rgba(231, 130, 132, 0.18)"
+                    border="1px solid rgba(231, 130, 132, 0.6)"
+                    borderRadius="md"
+                    align="center"
+                    justify="center"
                   >
-                    Test run details
-                  </Text>
+                    <AlertTriangle
+                      size={13}
+                      color={isDark ? "#e78284" : "#dc2626"}
+                      strokeWidth={2.5}
+                    />
+                  </Flex>
+                  <Dialog.Title flex={1}>
+                    <Text
+                      fontSize="13.5px"
+                      fontWeight="bold"
+                      color="var(--aws-header-text)"
+                      letterSpacing="0.1px"
+                    >
+                      Terminate test run?
+                    </Text>
+                  </Dialog.Title>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    px={1.5}
+                    minW="22px"
+                    h="22px"
+                    color={isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)"}
+                    _hover={{
+                      bg: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+                      color: isDark ? "white" : "black",
+                    }}
+                    onClick={onCancel}
+                    disabled={isTerminating}
+                    aria-label="Close"
+                  >
+                    <X size={13} />
+                  </Button>
                 </Flex>
 
-                {target && (
-                  <VStack align="stretch" gap={0} fontSize="11.5px">
-                    <DialogRow label="Run ID" isDark={isDark} colors={colors}>
-                      <Text
-                        fontFamily="mono"
-                        color="var(--aws-orange-main)"
-                        fontWeight="semibold"
-                      >
-                        {shortId}
-                      </Text>
-                    </DialogRow>
-                    <DialogRow
-                      label="Target URL"
-                      isDark={isDark}
-                      colors={colors}
-                    >
-                      <Text
-                        color={colors.text}
-                        truncate
-                        maxW="280px"
-                        title={target.config.url}
-                      >
-                        {target.config.url}
-                      </Text>
-                    </DialogRow>
-                    <DialogRow
-                      label="State"
-                      isDark={isDark}
-                      colors={colors}
-                      isLast
-                    >
-                      {statusStyle && (
-                        <Badge
-                          variant="subtle"
-                          borderRadius="md"
-                          fontSize="10.5px"
-                          fontWeight="semibold"
-                          display="inline-flex"
-                          alignItems="center"
-                          gap={1.5}
-                          px={2}
-                          py={0.5}
-                          bg={statusStyle.bg}
-                          color={
-                            isDark ? statusStyle.darkColor : statusStyle.color
-                          }
-                          borderColor={statusStyle.border}
-                          borderWidth="1px"
-                        >
-                          <Box
-                            w="5px"
-                            h="5px"
-                            borderRadius="full"
-                            bg={statusStyle.dotColor}
-                          />
-                          {statusStyle.label}
-                        </Badge>
-                      )}
-                    </DialogRow>
-                  </VStack>
-                )}
-              </Box>
-            </Box>
+                {/* Body */}
+                <Box px={5} py={4}>
+                  <Text
+                    fontSize="12.5px"
+                    color={colors.text}
+                    mb={3}
+                    lineHeight="1.55"
+                  >
+                    Once a test run is terminated, all logs, generated specs, and
+                    workspace files are{" "}
+                    <Box as="span" fontWeight="bold">
+                      permanently deleted
+                    </Box>
+                    . This action cannot be undone.
+                  </Text>
 
-            {/* Footer */}
-            <Flex
-              px={5}
-              py={3}
-              bg={isDark ? "rgba(0,0,0,0.25)" : "#f8fafc"}
-              borderTop="1px solid"
-              borderColor={colors.border}
-              justify="flex-end"
-              gap={2}
-            >
-              <Button
-                size="sm"
-                variant="outline"
-                borderColor={colors.border}
-                color={colors.text}
-                bg="transparent"
-                _hover={{ bg: colors.rowHover }}
-                fontWeight="semibold"
-                fontSize="11.5px"
-                height="28px"
-                px={3.5}
-                onClick={onCancel}
-                disabled={isTerminating}
-                borderRadius="md"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                bg="#e78284"
-                color="#232634"
-                _hover={{ bg: "#ea999c" }}
-                _active={{ bg: "#e78284" }}
-                fontWeight="bold"
-                fontSize="11.5px"
-                height="28px"
-                px={3.5}
-                onClick={onConfirm}
-                disabled={isTerminating}
-                borderRadius="md"
-              >
-                {isTerminating ? (
-                  <RefreshCw size={11} className="animate-spin" style={{ marginRight: "6px" }} />
-                ) : (
-                  <Trash2 size={11} style={{ marginRight: "6px" }} />
-                )}
-                {isTerminating ? "Terminating..." : "Terminate"}
-              </Button>
-            </Flex>
+                  {/* Run details */}
+                  <Box
+                    border="1px solid"
+                    borderColor={colors.border}
+                    borderRadius="lg"
+                    bg={isDark ? "rgba(255,255,255,0.02)" : "#fafbfc"}
+                    overflow="hidden"
+                  >
+                    <Flex
+                      px={3}
+                      py={1.5}
+                      bg={isDark ? "rgba(255,255,255,0.04)" : "#f2f3f3"}
+                      borderBottom="1px solid"
+                      borderColor={colors.border}
+                      align="center"
+                      gap={1.5}
+                    >
+                      <Box
+                        w="3px"
+                        h="10px"
+                        bg="var(--aws-orange-main)"
+                        borderRadius="full"
+                      />
+                      <Text
+                        fontSize="10px"
+                        fontWeight="bold"
+                        color={colors.subtext}
+                        textTransform="uppercase"
+                        letterSpacing="0.5px"
+                      >
+                        Test run details
+                      </Text>
+                    </Flex>
+
+                    {target && (
+                      <VStack align="stretch" gap={0} fontSize="11.5px">
+                        <DialogRow label="Run ID" isDark={isDark} colors={colors}>
+                          <Text
+                            fontFamily="mono"
+                            color="var(--aws-orange-main)"
+                            fontWeight="semibold"
+                          >
+                            {shortId}
+                          </Text>
+                        </DialogRow>
+                        <DialogRow
+                          label="Target URL"
+                          isDark={isDark}
+                          colors={colors}
+                        >
+                          <Text
+                            color={colors.text}
+                            truncate
+                            maxW="280px"
+                            title={target.config.url}
+                          >
+                            {target.config.url}
+                          </Text>
+                        </DialogRow>
+                        <DialogRow
+                          label="State"
+                          isDark={isDark}
+                          colors={colors}
+                          isLast
+                        >
+                          {statusStyle && (
+                            <Badge
+                              variant="subtle"
+                              borderRadius="md"
+                              fontSize="10.5px"
+                              fontWeight="semibold"
+                              display="inline-flex"
+                              alignItems="center"
+                              gap={1.5}
+                              px={2}
+                              py={0.5}
+                              bg={statusStyle.bg}
+                              color={
+                                isDark ? statusStyle.darkColor : statusStyle.color
+                              }
+                              borderColor={statusStyle.border}
+                              borderWidth="1px"
+                            >
+                              <Box
+                                w="5px"
+                                h="5px"
+                                borderRadius="full"
+                                bg={statusStyle.dotColor}
+                              />
+                              {statusStyle.label}
+                            </Badge>
+                          )}
+                        </DialogRow>
+                      </VStack>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* Footer */}
+                <Flex
+                  px={5}
+                  py={3}
+                  bg={isDark ? "rgba(0,0,0,0.25)" : "#f8fafc"}
+                  borderTop="1px solid"
+                  borderColor={colors.border}
+                  justify="flex-end"
+                  gap={2}
+                >
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    borderColor={colors.border}
+                    color={colors.text}
+                    bg="transparent"
+                    _hover={{ bg: colors.rowHover }}
+                    fontWeight="semibold"
+                    fontSize="11.5px"
+                    height="28px"
+                    px={3.5}
+                    onClick={onCancel}
+                    disabled={isTerminating}
+                    borderRadius="md"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    bg="#e78284"
+                    color="#232634"
+                    _hover={{ bg: "#ea999c" }}
+                    _active={{ bg: "#e78284" }}
+                    fontWeight="bold"
+                    fontSize="11.5px"
+                    height="28px"
+                    px={3.5}
+                    onClick={onConfirm}
+                    disabled={isTerminating}
+                    borderRadius="md"
+                  >
+                    {isTerminating ? (
+                      <RefreshCw size={11} className="animate-spin" style={{ marginRight: "6px" }} />
+                    ) : (
+                      <Trash2 size={11} style={{ marginRight: "6px" }} />
+                    )}
+                    {isTerminating ? "Terminating..." : "Terminate"}
+                  </Button>
+                </Flex>
+              </>
+            )}
           </Dialog.Content>
         </Dialog.Positioner>
       </Portal>

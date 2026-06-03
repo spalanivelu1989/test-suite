@@ -520,6 +520,18 @@
     border-color 0.25s ease;
 }
 
+.test-report-container .stat.stat-passed {
+  background: linear-gradient(135deg, var(--surface) 45%, var(--pass-bg) 100%);
+}
+
+.test-report-container .stat.stat-failed {
+  background: linear-gradient(135deg, var(--surface) 45%, var(--fail-bg) 100%);
+}
+
+.test-report-container .stat.stat-healed {
+  background: linear-gradient(135deg, var(--surface) 45%, var(--heal-bg) 100%);
+}
+
 .test-report-container .stat:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
@@ -853,6 +865,35 @@
   color: var(--text-3);
   width: 1.15rem;
   height: 1.15rem;
+}
+
+.test-report-container .clear-search-btn {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.test-report-container .clear-search-btn:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+.test-report-container .clear-search-btn svg {
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 .test-report-container .filter-group {

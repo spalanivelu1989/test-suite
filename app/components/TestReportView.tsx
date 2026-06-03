@@ -198,7 +198,7 @@ const OUTCOME_LABEL: Record<TestOutcome, string> = {
   passed: "Passed",
   failed: "Failed",
   flaky: "Unreliable",
-  healed: "Coming Soon",
+  healed: "Healed",
   fixme: "Skipped",
 };
 
@@ -270,9 +270,9 @@ export function TestReportView({
   const [searchQuery, setSearchQuery] = useState("");
   const [currentFilter, setCurrentFilter] = useState("all");
 
-  const [hoveredCard, setHoveredCard] = useState<"passed" | "failed" | null>(
-    null,
-  );
+  const [hoveredCard, setHoveredCard] = useState<
+    "passed" | "failed" | "healed" | null
+  >(null);
 
   const passedTestNames = useMemo(() => {
     if (!report || !report.results) return [];
@@ -285,6 +285,13 @@ export function TestReportView({
     if (!report || !report.results) return [];
     return report.results
       .filter((r) => r.outcome === "failed")
+      .map((r) => r.flowId);
+  }, [report]);
+
+  const healedTestNames = useMemo(() => {
+    if (!report || !report.results) return [];
+    return report.results
+      .filter((r) => r.outcome === "healed")
       .map((r) => r.flowId);
   }, [report]);
 
@@ -1068,7 +1075,7 @@ export function TestReportView({
             {/* Quick Stats Grid */}
             <section className="stats" aria-label="Quick statistics">
               <div
-                className="stat"
+                className="stat stat-passed"
                 style={{ position: "relative", cursor: "pointer" }}
                 onMouseEnter={() => setHoveredCard("passed")}
                 onMouseLeave={() => setHoveredCard(null)}
@@ -1101,7 +1108,7 @@ export function TestReportView({
                 )}
               </div>
               <div
-                className="stat"
+                className="stat stat-failed"
                 style={{ position: "relative", cursor: "pointer" }}
                 onMouseEnter={() => setHoveredCard("failed")}
                 onMouseLeave={() => setHoveredCard(null)}
@@ -1139,7 +1146,16 @@ export function TestReportView({
                 )}
               </div>
 
-              <div className="stat">
+              <div
+                className="stat stat-healed"
+                style={{ position: "relative", cursor: "pointer" }}
+                onMouseEnter={() => setHoveredCard("healed")}
+                onMouseLeave={() => setHoveredCard(null)}
+                onClick={() => {
+                  setActiveSubTab("results");
+                  setCurrentFilter("heal");
+                }}
+              >
                 <div className="stat-top">
                   <span style={{ color: "var(--heal)" }}>
                     <WrenchIcon />
@@ -1151,7 +1167,22 @@ export function TestReportView({
                     }
                   </span>
                 </div>
-                <div className="stat-label">Coming Soon</div>
+                <div className="stat-label">Healed</div>
+
+                {hoveredCard === "healed" && healedTestNames.length > 0 && (
+                  <div className="stat-popover">
+                    <div className="stat-popover-title">
+                      Healed Tests ({healedTestNames.length})
+                    </div>
+                    <ul className="stat-popover-list">
+                      {healedTestNames.map((name, idx) => (
+                        <li key={idx} title={name}>
+                          {name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -1222,7 +1253,7 @@ export function TestReportView({
                             onClick={() => focusTest(r.flowId)}
                           >
                             {r.flowId} (
-                            {r.outcome === "flaky" ? "Flaky" : "Coming Soon"})
+                            {r.outcome === "flaky" ? "Flaky" : "Healed"})
                           </button>
                         </li>
                       ))}
@@ -1516,7 +1547,19 @@ export function TestReportView({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   aria-label="Search test cases"
+                  style={{ paddingRight: searchQuery ? "2.2rem" : "1.0rem" }}
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="clear-search-btn"
+                    onClick={() => setSearchQuery("")}
+                    aria-label="Clear search query"
+                    title="Clear search"
+                  >
+                    <XIcon />
+                  </button>
+                )}
               </div>
               <div
                 className="filter-group"
@@ -1549,7 +1592,7 @@ export function TestReportView({
                   className={`filter-btn ${currentFilter === "heal" ? "active" : ""}`}
                   onClick={() => setCurrentFilter("heal")}
                 >
-                  Coming Soon ({filterCounts.heal})
+                  Healed ({filterCounts.heal})
                 </button>
               </div>
             </div>

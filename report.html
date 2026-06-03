@@ -586,6 +586,18 @@
           transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.25s ease;
         }
 
+        .stat.stat-passed {
+          background: linear-gradient(135deg, var(--surface) 45%, var(--pass-bg) 100%);
+        }
+
+        .stat.stat-failed {
+          background: linear-gradient(135deg, var(--surface) 45%, var(--fail-bg) 100%);
+        }
+
+        .stat.stat-healed {
+          background: linear-gradient(135deg, var(--surface) 45%, var(--heal-bg) 100%);
+        }
+
         .stat:hover {
           transform: translateY(-1px);
           box-shadow: var(--shadow-md);
