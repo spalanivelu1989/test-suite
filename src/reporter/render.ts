@@ -8,7 +8,7 @@ const OUTCOME_LABEL: Record<TestResult["outcome"], string> = {
   passed: "PASS",
   failed: "FAIL",
   flaky: "FLAKY",
-  healed: "HEALED",
+  healed: "PASS",
   fixme: "FIXME",
 };
 
@@ -102,17 +102,18 @@ function esc(s: string): string {
 /** T16: self-contained HTML report — plain English for all audiences (R5, R16). */
 export function renderHtml(report: RunReport): string {
   const successPct = ratePct(report);
-  const passedCount = report.successRate.passed;
+  const passingCount = report.successRate.passed;
+  const passedCount = report.results.filter((r) => r.outcome === "passed" || r.outcome === "healed").length;
   const totalCount = report.successRate.total;
 
   const passedTestNames = report.results
-    .filter((r) => r.outcome === "passed")
+    .filter((r) => r.outcome === "passed" || r.outcome === "healed")
     .map((r) => r.flowId);
   const failedTestNames = report.results
     .filter((r) => r.outcome === "failed")
     .map((r) => r.flowId);
-  const healedTestNames = report.results
-    .filter((r) => r.outcome === "healed")
+  const flakyTestNames = report.results
+    .filter((r) => r.outcome === "flaky")
     .map((r) => r.flowId);
 
   // Verdict config
@@ -141,12 +142,12 @@ export function renderHtml(report: RunReport): string {
               desc: "Many checks failed. Immediate action is recommended.",
             };
 
-  const passedBuckets = report.results.filter((r) => r.outcome === "passed");
+  const passedBuckets = report.results.filter((r) => r.outcome === "passed" || r.outcome === "healed");
   const needsAttentionBuckets = report.results.filter(
     (r) => r.outcome === "failed" || r.outcome === "fixme",
   );
   const whereToImproveBuckets = report.results.filter(
-    (r) => r.outcome === "flaky" || r.outcome === "healed",
+    (r) => r.outcome === "flaky",
   );
 
   // Read CSS styles from file
@@ -201,13 +202,13 @@ export function renderHtml(report: RunReport): string {
         </div>
         <div class="banner-content">
           <h3>Reliability Note: ${whereToImproveBuckets.length} Inconsistent Run(s)</h3>
-          <p>Some checks passed but required retries or automatic AI healing. These flows are working but should be audited for stability:</p>
+          <p>Some checks passed but required retries. These flows are working but should be audited for stability:</p>
           <ul class="banner-list">
             ${whereToImproveBuckets
               .map(
                 (r) => `
               <li>
-                <button type="button" class="link-btn" data-test-name="${esc(r.flowId)}">${esc(r.flowId)} (${r.outcome === "flaky" ? "Flaky" : "Healed"})</button>
+                <button type="button" class="link-btn" data-test-name="${esc(r.flowId)}">${esc(r.flowId)} (Flaky)</button>
               </li>
             `,
               )
@@ -257,17 +258,19 @@ export function renderHtml(report: RunReport): string {
     `
       : "";
 
-  const healedPopoverHtml =
-    healedTestNames.length > 0
+  const unreliablePopoverHtml =
+    flakyTestNames.length > 0
       ? `
-      <div class="stat-popover" id="popover-healed" style="display: none;">
-        <div class="stat-popover-title">Healed Tests (${healedTestNames.length})</div>
+      <div class="stat-popover" id="popover-unreliable" style="display: none;">
+        <div class="stat-popover-title">Unreliable Tests (${flakyTestNames.length})</div>
         <ul class="stat-popover-list">
-          ${healedTestNames.map((name) => `<li title="${esc(name)}">${esc(name)}</li>`).join("")}
+          ${flakyTestNames.map((name) => `<li title="${esc(name)}">${esc(name)}</li>`).join("")}
         </ul>
       </div>
     `
       : "";
+
+
 
   // Results Breakdown Buckets
   const passedBucketsHtml =
@@ -303,7 +306,7 @@ export function renderHtml(report: RunReport): string {
         <li>
           <span style="font-weight: 600;">${esc(r.flowId)}</span>
           <span style="display: block; color: var(--text-3); font-size: 11px; margin-top: 2px;">
-            ${r.outcome === "flaky" ? "Passed on retry (Flaky)" : "Healed locator automatically"}
+            Passed on retry (Flaky)
           </span>
         </li>
       `,
@@ -339,7 +342,7 @@ export function renderHtml(report: RunReport): string {
     passed: "Passed",
     failed: "Failed",
     flaky: "Unreliable",
-    healed: "Healed",
+    healed: "Passed",
     fixme: "Skipped",
   };
 
@@ -347,20 +350,20 @@ export function renderHtml(report: RunReport): string {
     passed: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>`,
     failed: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>`,
     flaky: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>`,
-    healed: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>`,
+    healed: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>`,
     fixme: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4" /><line x1="19" y1="5" x2="19" y2="19" /></svg>`,
   };
 
   const resultsTableRows = report.results
     .map(
       (r) => `
-    <tr class="r-${r.outcome === "fixme" ? "skip" : r.outcome === "healed" ? "heal" : r.outcome}" data-outcome="${r.outcome}" data-search-text="${esc(r.flowId)} ${esc(r.fileName)}">
+    <tr class="r-${r.outcome === "fixme" ? "skip" : (r.outcome === "healed" ? "pass" : r.outcome)}" data-outcome="${r.outcome}" data-search-text="${esc(r.flowId)} ${esc(r.fileName)}">
       <td data-label="Check">
         <span class="flow-name">${esc(r.flowId)}</span>
         <span class="flow-file">${esc(r.fileName)}</span>
       </td>
       <td data-label="Result">
-        <span class="pill pill-${r.outcome === "fixme" ? "skip" : r.outcome === "healed" ? "heal" : r.outcome}">
+        <span class="pill pill-${r.outcome === "fixme" ? "skip" : (r.outcome === "healed" ? "pass" : r.outcome)}">
           ${OUTCOME_ICON[r.outcome]} ${OUTCOME_WORD[r.outcome]}
         </span>
       </td>
@@ -384,7 +387,7 @@ export function renderHtml(report: RunReport): string {
           </span>
           Suite Observations
         </h2>
-        <p class="section-desc">Issues spotted in the test suite setup that are worth addressal.</p>
+        <p class="section-desc">Issues spotted in the test suite setup that are worth addressing.</p>
         <ul class="prose prose-warn">
           ${report.issues
             .map(
@@ -629,7 +632,7 @@ export function renderHtml(report: RunReport): string {
                 ${verdict.label}
               </span>
               <div class="verdict-count">
-                <b>${passedCount}</b> of <b>${totalCount}</b> checks passed
+                <b>${passingCount}</b> of <b>${totalCount}</b> checks passed
               </div>
               <p class="verdict-desc">${verdict.desc}</p>
             </div>
@@ -659,17 +662,15 @@ export function renderHtml(report: RunReport): string {
               ${failedPopoverHtml}
             </div>
 
-
-
-            <div class="stat stat-healed" id="stat-card-healed" style="position: relative; cursor: pointer;">
+            <div class="stat stat-unreliable" id="stat-card-unreliable" style="position: relative; cursor: pointer;">
               <div class="stat-top">
-                <span style="color: var(--heal)">
-                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>
+                <span style="color: var(--warn)">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                 </span>
-                <span class="stat-num">${report.results.filter((r) => r.outcome === "healed").length}</span>
+                <span class="stat-num">${report.results.filter((r) => r.outcome === "flaky").length}</span>
               </div>
-              <div class="stat-label">Healed</div>
-              ${healedPopoverHtml}
+              <div class="stat-label">Unreliable</div>
+              ${unreliablePopoverHtml}
             </div>
           </section>
 
@@ -795,7 +796,7 @@ export function renderHtml(report: RunReport): string {
               <button type="button" class="filter-btn active" data-filter="all">All (${report.results.length})</button>
               <button type="button" class="filter-btn" data-filter="pass">Passed (${passedCount})</button>
               <button type="button" class="filter-btn" data-filter="fail">Failed (${report.results.filter((r) => r.outcome === "failed").length})</button>
-              <button type="button" class="filter-btn" data-filter="heal">Healed (${report.results.filter((r) => r.outcome === "healed").length})</button>
+              <button type="button" class="filter-btn" data-filter="flaky">Unreliable (${report.results.filter((r) => r.outcome === "flaky").length})</button>
             </div>
           </div>
 
@@ -914,19 +915,21 @@ export function renderHtml(report: RunReport): string {
       });
     }
 
-    const healedCard = document.getElementById('stat-card-healed');
-    const popoverHealed = document.getElementById('popover-healed');
+    const unreliableCard = document.getElementById('stat-card-unreliable');
+    const popoverUnreliable = document.getElementById('popover-unreliable');
 
-    if (healedCard && popoverHealed) {
-      healedCard.addEventListener('mouseenter', () => popoverHealed.style.display = 'block');
-      healedCard.addEventListener('mouseleave', () => popoverHealed.style.display = 'none');
-      healedCard.addEventListener('click', () => {
-        currentFilter = 'heal';
+    if (unreliableCard && popoverUnreliable) {
+      unreliableCard.addEventListener('mouseenter', () => popoverUnreliable.style.display = 'block');
+      unreliableCard.addEventListener('mouseleave', () => popoverUnreliable.style.display = 'none');
+      unreliableCard.addEventListener('click', () => {
+        currentFilter = 'flaky';
         updateFilterButtons();
         switchTab('results');
         filterTable();
       });
     }
+
+
 
     // Warning card links in Dashboard Overview
     document.querySelectorAll('.link-btn').forEach(btn => {
@@ -981,11 +984,10 @@ export function renderHtml(report: RunReport): string {
 
         let matchesFilter = false;
         if (filter === 'all') matchesFilter = true;
-        else if (filter === 'pass' && outcome === 'passed') matchesFilter = true;
+        else if (filter === 'pass' && (outcome === 'passed' || outcome === 'healed')) matchesFilter = true;
         else if (filter === 'fail' && outcome === 'failed') matchesFilter = true;
-        else if (filter === 'flaky' && outcome === 'flaky') matchesFilter = true;
-        else if (filter === 'heal' && outcome === 'healed') matchesFilter = true;
         else if (filter === 'skip' && outcome === 'fixme') matchesFilter = true;
+        else if (filter === 'flaky' && outcome === 'flaky') matchesFilter = true;
 
         const matchesSearch = searchText.includes(query);
 

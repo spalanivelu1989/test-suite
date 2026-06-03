@@ -198,7 +198,7 @@ const OUTCOME_LABEL: Record<TestOutcome, string> = {
   passed: "Passed",
   failed: "Failed",
   flaky: "Unreliable",
-  healed: "Healed",
+  healed: "Passed",
   fixme: "Skipped",
 };
 
@@ -206,7 +206,7 @@ const OUTCOME_EMOJI: Record<TestOutcome, React.ReactNode> = {
   passed: <CheckIcon />,
   failed: <XIcon />,
   flaky: <AlertIcon />,
-  healed: <WrenchIcon />,
+  healed: <CheckIcon />,
   fixme: <SkipIcon />,
 };
 
@@ -271,13 +271,13 @@ export function TestReportView({
   const [currentFilter, setCurrentFilter] = useState("all");
 
   const [hoveredCard, setHoveredCard] = useState<
-    "passed" | "failed" | "healed" | null
+    "passed" | "failed" | "unreliable" | null
   >(null);
 
   const passedTestNames = useMemo(() => {
     if (!report || !report.results) return [];
     return report.results
-      .filter((r) => r.outcome === "passed")
+      .filter((r) => r.outcome === "passed" || r.outcome === "healed")
       .map((r) => r.flowId);
   }, [report]);
 
@@ -288,10 +288,10 @@ export function TestReportView({
       .map((r) => r.flowId);
   }, [report]);
 
-  const healedTestNames = useMemo(() => {
+  const flakyTestNames = useMemo(() => {
     if (!report || !report.results) return [];
     return report.results
-      .filter((r) => r.outcome === "healed")
+      .filter((r) => r.outcome === "flaky")
       .map((r) => r.flowId);
   }, [report]);
 
@@ -307,12 +307,12 @@ export function TestReportView({
     };
     if (report && report.results) {
       for (const r of report.results) {
-        if (r.outcome === "passed") {
+        if (r.outcome === "passed" || r.outcome === "healed") {
           buckets.passed.push(r);
         } else if (r.outcome === "failed" || r.outcome === "fixme") {
           buckets.needsAttention.push(r);
         } else {
-          buckets.whereToImprove.push(r); // flaky or healed
+          buckets.whereToImprove.push(r); // flaky
         }
       }
     }
@@ -361,10 +361,9 @@ export function TestReportView({
     if (report && report.results) {
       counts.all = report.results.length;
       for (const r of report.results) {
-        if (r.outcome === "passed") counts.pass++;
+        if (r.outcome === "passed" || r.outcome === "healed") counts.pass++;
         else if (r.outcome === "failed") counts.fail++;
         else if (r.outcome === "flaky") counts.flaky++;
-        else if (r.outcome === "healed") counts.heal++;
         else if (r.outcome === "fixme") counts.skip++;
       }
     }
@@ -377,13 +376,11 @@ export function TestReportView({
     return report.results.filter((r) => {
       let matchesFilter = false;
       if (currentFilter === "all") matchesFilter = true;
-      else if (currentFilter === "pass" && r.outcome === "passed")
+      else if (currentFilter === "pass" && (r.outcome === "passed" || r.outcome === "healed"))
         matchesFilter = true;
       else if (currentFilter === "fail" && r.outcome === "failed")
         matchesFilter = true;
       else if (currentFilter === "flaky" && r.outcome === "flaky")
-        matchesFilter = true;
-      else if (currentFilter === "heal" && r.outcome === "healed")
         matchesFilter = true;
       else if (currentFilter === "skip" && r.outcome === "fixme")
         matchesFilter = true;
@@ -424,19 +421,17 @@ export function TestReportView({
   };
 
   const getRowClass = (r: TestResult) => {
-    if (r.outcome === "passed") return "r-pass";
+    if (r.outcome === "passed" || r.outcome === "healed") return "r-pass";
     if (r.outcome === "failed") return "r-fail";
     if (r.outcome === "flaky") return "r-flaky";
-    if (r.outcome === "healed") return "r-heal";
     if (r.outcome === "fixme") return "r-skip";
     return "";
   };
 
   const getPillClass = (r: TestResult) => {
-    if (r.outcome === "passed") return "pill-pass";
+    if (r.outcome === "passed" || r.outcome === "healed") return "pill-pass";
     if (r.outcome === "failed") return "pill-fail";
     if (r.outcome === "flaky") return "pill-flaky";
-    if (r.outcome === "healed") return "pill-heal";
     if (r.outcome === "fixme") return "pill-skip";
     return "";
   };
@@ -700,51 +695,247 @@ export function TestReportView({
 
   if (run.status === "pending" || run.status === "running" || !report) {
     return (
-      <div
-        className={`test-report-container${darkClass}`}
-        style={{
-          padding: "60px 40px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "20px",
-        }}
-      >
-        <div
-          className="loader-ring"
-          style={{
-            width: "40px",
-            height: "40px",
-            border: "3px solid rgba(6, 182, 212, 0.15)",
-            borderTopColor: "rgba(6, 182, 212, 0.9)",
-            borderRadius: "50%",
-            animation: "spin 1s infinite linear",
-          }}
-        />
-        <div style={{ textAlign: "center" }}>
-          <h3
+      <div className={`test-report-container${darkClass}`}>
+        <div className="page">
+          {/* Report Left Sidebar */}
+          <aside className="sidebar">
+            <div className="sidebar-header">
+              <h1>Test results for {run.config.url.replace(/https?:\/\//, "")}</h1>
+            </div>
+
+            {runs && runs.length > 0 && onSelectRun && (
+              <Box
+                position="relative"
+                ref={dropdownRef}
+                className="run-selector-container"
+              >
+                <Text
+                  as="label"
+                  className="run-selector-label"
+                  mb={1}
+                  display="block"
+                >
+                  Select Test Run
+                </Text>
+
+                {/* Trigger Button */}
+                <Box
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  w="full"
+                  minH="48px"
+                  py={2.5}
+                  px={3.5}
+                  bg="var(--surface-2)"
+                  border="1px solid"
+                  borderColor="var(--border)"
+                  borderRadius="var(--radius-sm)"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  gap={2}
+                  cursor="pointer"
+                  transition="all 0.15s ease"
+                  _hover={{ borderColor: "var(--accent)" }}
+                >
+                  <VStack align="flex-start" gap={0.5} overflow="hidden" flex={1}>
+                    <Text fontSize="11.5px" fontWeight="semibold" truncate w="full">
+                      {run.config.url.replace(/https?:\/\//, "")}
+                    </Text>
+                    <HStack gap={1.5} fontSize="10px" color="var(--text-3)">
+                      <Text fontFamily="var(--mono)">{run.id.slice(0, 8)}</Text>
+                      <Text>•</Text>
+                      <Text>
+                        {new Date(run.createdAt).toLocaleString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                    </HStack>
+                  </VStack>
+                  <ChevronDown
+                    size={16}
+                    style={{
+                      opacity: 0.7,
+                      transform: isDropdownOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s ease",
+                      flexShrink: 0,
+                    }}
+                  />
+                </Box>
+
+                {/* Dropdown Options List */}
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <MotionBox
+                      position="absolute"
+                      top="calc(100% + 6px)"
+                      left={0}
+                      right={0}
+                      zIndex={100}
+                      bg="var(--surface)"
+                      border="1px solid"
+                      borderColor="var(--border)"
+                      borderRadius="var(--radius-sm)"
+                      boxShadow="var(--shadow-lg)"
+                      maxH="280px"
+                      overflowY="auto"
+                      py={1.5}
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.12, ease: "easeOut" }}
+                      style={{ transformOrigin: "top" }}
+                    >
+                      {runs.map((r) => {
+                        const isSelected = r.id === run?.id;
+                        const dateStr = new Date(r.createdAt).toLocaleString(
+                          undefined,
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        );
+                        return (
+                          <Box
+                            key={r.id}
+                            onClick={() => {
+                              onSelectRun(r);
+                              setIsDropdownOpen(false);
+                            }}
+                            px={3.5}
+                            py={2}
+                            cursor="pointer"
+                            bg={isSelected ? "var(--accent-soft)" : "transparent"}
+                            color={
+                              isSelected ? "var(--accent-text)" : "var(--text)"
+                            }
+                            transition="all 0.15s ease"
+                            _hover={{
+                              bg: isSelected
+                                ? "var(--accent-soft)"
+                                : "var(--surface-2)",
+                            }}
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="space-between"
+                            gap={2}
+                          >
+                            <VStack
+                              align="flex-start"
+                              gap={0.5}
+                              overflow="hidden"
+                              flex={1}
+                            >
+                              <Text
+                                fontSize="11.5px"
+                                fontWeight="semibold"
+                                truncate
+                                w="full"
+                              >
+                                {r.config.url.replace(/https?:\/\//, "")}
+                              </Text>
+                              <HStack
+                                gap={1.5}
+                                fontSize="10px"
+                                color="var(--text-3)"
+                              >
+                                <Text fontFamily="var(--mono)">
+                                  {r.id.slice(0, 8)}
+                                </Text>
+                                <Text>•</Text>
+                                <Text>{dateStr}</Text>
+                              </HStack>
+                            </VStack>
+                            {isSelected && (
+                              <Check
+                                size={14}
+                                style={{ color: "var(--accent)", flexShrink: 0 }}
+                              />
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </MotionBox>
+                  )}
+                </AnimatePresence>
+              </Box>
+            )}
+
+            <div className="sidebar-footer">
+              <div className="sidebar-meta">
+                <div>
+                  <span className="k">App tested</span>
+                  <span className="v">{run.config.url}</span>
+                </div>
+                <div>
+                  <span className="k">Run ID</span>
+                  <span className="v mono">{run.id}</span>
+                </div>
+                <div>
+                  <span className="k">Status</span>
+                  <span className="v">{run.status.toUpperCase()}</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Report Right Content Area */}
+          <main
+            className="report-content"
             style={{
-              fontSize: "16px",
-              fontWeight: "bold",
-              marginBottom: "6px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "60px 40px",
+              gap: "20px",
+              flex: 1,
             }}
           >
-            Test Run is {run.status === "pending" ? "Queued" : "Active"}
-          </h3>
-          <p
-            style={{
-              fontSize: "13px",
-              color: "var(--text-3)",
-              maxWidth: "450px",
-            }}
-          >
-            The pipeline is currently executing stage:{" "}
-            <strong style={{ color: "var(--accent)" }}>
-              {run.stage.toUpperCase()}
-            </strong>
-            . The test report will automatically load here once the run reaches
-            completion.
-          </p>
+            <div
+              className="loader-ring"
+              style={{
+                width: "40px",
+                height: "40px",
+                border: "3px solid rgba(6, 182, 212, 0.15)",
+                borderTopColor: "rgba(6, 182, 212, 0.9)",
+                borderRadius: "50%",
+                animation: "spin 1s infinite linear",
+              }}
+            />
+            <div style={{ textAlign: "center" }}>
+              <h3
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "bold",
+                  marginBottom: "6px",
+                }}
+              >
+                Test Run is {run.status === "pending" ? "Queued" : "Active"}
+              </h3>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "var(--text-3)",
+                  maxWidth: "450px",
+                  lineHeight: "1.5",
+                }}
+              >
+                The pipeline is currently executing stage:{" "}
+                <strong style={{ color: "var(--accent)" }}>
+                  {run.stage.toUpperCase()}
+                </strong>
+                . The test report will automatically load here once the run reaches
+                completion.
+              </p>
+            </div>
+          </main>
         </div>
         <style
           dangerouslySetInnerHTML={{
@@ -1088,7 +1279,9 @@ export function TestReportView({
                   <span style={{ color: "var(--pass)" }}>
                     <CheckIcon />
                   </span>
-                  <span className="stat-num">{report.successRate.passed}</span>
+                  <span className="stat-num">
+                    {report.successRate.passed}
+                  </span>
                 </div>
                 <div className="stat-label">Passed</div>
 
@@ -1145,37 +1338,33 @@ export function TestReportView({
                   </div>
                 )}
               </div>
-
               <div
-                className="stat stat-healed"
+                className="stat stat-unreliable"
                 style={{ position: "relative", cursor: "pointer" }}
-                onMouseEnter={() => setHoveredCard("healed")}
+                onMouseEnter={() => setHoveredCard("unreliable")}
                 onMouseLeave={() => setHoveredCard(null)}
                 onClick={() => {
                   setActiveSubTab("results");
-                  setCurrentFilter("heal");
+                  setCurrentFilter("flaky");
                 }}
               >
                 <div className="stat-top">
-                  <span style={{ color: "var(--heal)" }}>
-                    <WrenchIcon />
+                  <span style={{ color: "var(--warn)" }}>
+                    <AlertIcon />
                   </span>
                   <span className="stat-num">
-                    {
-                      report.results.filter((r) => r.outcome === "healed")
-                        .length
-                    }
+                    {filterCounts.flaky}
                   </span>
                 </div>
-                <div className="stat-label">Healed</div>
+                <div className="stat-label">Unreliable</div>
 
-                {hoveredCard === "healed" && healedTestNames.length > 0 && (
+                {hoveredCard === "unreliable" && flakyTestNames.length > 0 && (
                   <div className="stat-popover">
                     <div className="stat-popover-title">
-                      Healed Tests ({healedTestNames.length})
+                      Unreliable Tests ({flakyTestNames.length})
                     </div>
                     <ul className="stat-popover-list">
-                      {healedTestNames.map((name, idx) => (
+                      {flakyTestNames.map((name, idx) => (
                         <li key={idx} title={name}>
                           {name}
                         </li>
@@ -1240,8 +1429,7 @@ export function TestReportView({
                       Run(s)
                     </h3>
                     <p>
-                      Some checks passed but required retries or automatic AI
-                      healing. These flows are working but should be audited for
+                      Some checks passed but required retries. These flows are working but should be audited for
                       stability:
                     </p>
                     <ul className="banner-list">
@@ -1252,8 +1440,7 @@ export function TestReportView({
                             className="link-btn"
                             onClick={() => focusTest(r.flowId)}
                           >
-                            {r.flowId} (
-                            {r.outcome === "flaky" ? "Flaky" : "Healed"})
+                            {r.flowId} (Flaky)
                           </button>
                         </li>
                       ))}
@@ -1383,8 +1570,7 @@ export function TestReportView({
                   </span>
                 </div>
                 <p className="bucket-sub">
-                  These work, but were fragile, inconsistent, or needed an
-                  automatic fix.
+                  These work, but were flaky or inconsistent during execution.
                 </p>
                 {b.whereToImprove.length > 0 ? (
                   <ul className="bucket-list">
@@ -1399,9 +1585,7 @@ export function TestReportView({
                             marginTop: "2px",
                           }}
                         >
-                          {r.outcome === "flaky"
-                            ? "Passed on retry (Flaky)"
-                            : "Healed locator automatically"}
+                          Passed on retry (Flaky)
                         </span>
                       </li>
                     ))}
@@ -1425,7 +1609,7 @@ export function TestReportView({
                 </h2>
                 <p className="section-desc">
                   Issues spotted in the test suite setup that are worth
-                  addressal.
+                  addressing.
                 </p>
                 <ul className="prose prose-warn">
                   {report.issues.map((issue, idx) => (
@@ -1589,10 +1773,10 @@ export function TestReportView({
                 </button>
                 <button
                   type="button"
-                  className={`filter-btn ${currentFilter === "heal" ? "active" : ""}`}
-                  onClick={() => setCurrentFilter("heal")}
+                  className={`filter-btn ${currentFilter === "flaky" ? "active" : ""}`}
+                  onClick={() => setCurrentFilter("flaky")}
                 >
-                  Healed ({filterCounts.heal})
+                  Unreliable ({filterCounts.flaky})
                 </button>
               </div>
             </div>

@@ -34,6 +34,23 @@ import { getAWSColors, AWS_COLORS, getStatusStyle } from "@/app/theme/aws";
 import { useThemeMode } from "@/app/providers";
 import type { Run } from "@/src/types";
 
+function formatDuration(createdAt: string, updatedAt: string): string {
+  const start = new Date(createdAt).getTime();
+  const end = new Date(updatedAt).getTime();
+  const durationMs = Math.max(0, end - start);
+  
+  if (durationMs < 1000) return "< 1s";
+  
+  const totalSecs = Math.floor(durationMs / 1000);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  
+  if (mins > 0) {
+    return `${mins}m ${secs}s`;
+  }
+  return `${secs}s`;
+}
+
 interface TestRunsTableProps {
   runs: Run[];
   selectedRunId: string | null;
@@ -292,6 +309,13 @@ export function TestRunsTable({
                 color={colors.subtext}
                 fontSize="12px"
                 py={2.5}
+              >
+                Duration
+              </Table.ColumnHeader>
+              <Table.ColumnHeader
+                color={colors.subtext}
+                fontSize="12px"
+                py={2.5}
                 w="110px"
               >
                 Actions
@@ -302,7 +326,7 @@ export function TestRunsTable({
             {runs.length === 0 ? (
               <Table.Row>
                 <Table.Cell
-                  colSpan={6}
+                  colSpan={7}
                   textAlign="center"
                   py={8}
                   color={colors.subtext}
@@ -420,6 +444,14 @@ export function TestRunsTable({
                       fontFamily="mono"
                     >
                       {new Date(run.createdAt).toLocaleString()}
+                    </Table.Cell>
+                    <Table.Cell
+                      py={2.5}
+                      fontSize="13px"
+                      color={colors.subtext}
+                      fontFamily="mono"
+                    >
+                      {formatDuration(run.createdAt, run.updatedAt)}
                     </Table.Cell>
                     <Table.Cell py={2} onClick={(e) => e.stopPropagation()}>
                       <Button

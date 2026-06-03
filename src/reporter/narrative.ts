@@ -21,11 +21,7 @@ const SYSTEM =
   "issues are problems found in the app or suite as a list of short strings. " +
   "better is a single cohesive prose paragraph (3-6 sentences) summarizing what could be better on the frontend, written in a professional, client-oriented, and diagnostic tone. Identify frontend gaps, UX/accessibility, and testability/discoverability limitations (e.g. missing filters, navigation omissions, elements hidden in DOM, reCAPTCHA blocks) and note how they impact user discoverability and automation reliability. " +
   "recommendationsText is a single cohesive prose paragraph (3-6 sentences) offering clear, actionable next steps, written in a professional, client-oriented, and diagnostic tone. Focus on fixing UI defects first, improving testability/accessibility (e.g. exposing inputs in accessible DOM, bypass mechanisms for CAPTCHAs in non-prod), and specifying the exact test names to re-run to confirm fixes. " +
-  "summary is a list of clear, non-technical, simple English bullet points explaining " +
-  "what features or user flows were tested (e.g. 'We verified that the user can filter items " +
-  "by Coding, Design, and Personal categories. We also verified that typing a query in the " +
-  "search bar narrows down results in real-time.'). Write in the third person, keeping descriptions " +
-  "friendly and understandable for business stakeholders or non-technical users. " +
+  "summary is an array of strings, where each string is a narrative-driven, engaging story (2-4 sentences) in plain English for EACH test carried out in the run (ordered the same as the tests), explaining the user journey like a tech journalist telling it to a generalist audience. Instead of using dry technical terms, robot templates, or ambiguous descriptions, it should bring the test flow to life, narrate the simulated user action, explain what the specific check verified (the 'how' and 'why'), and outline what the success or failure means for the actual end-user's experience. " +
   "testSummary is a SINGLE concise prose paragraph (3-6 sentences), third person, " +
   "business-friendly, that synthesizes the whole run. It MUST use the exact counts and " +
   "success rate given in the 'Authoritative counts' block of the user message verbatim, " +

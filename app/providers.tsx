@@ -176,12 +176,12 @@ export function Providers({ children }: { children: ReactNode }) {
             -webkit-user-select: none !important;
           }
           ::selection {
-            background-color: ${frappeAlpha(frappe.sapphire, 0.35)} !important;
-            color: ${frappe.text} !important;
+            background-color: ${theme === "dark" ? frappeAlpha(frappe.sapphire, 0.35) : "rgba(59, 130, 246, 0.2)"} !important;
+            color: ${theme === "dark" ? frappe.text : "#1a263b"} !important;
           }
           ::-moz-selection {
-            background-color: ${frappeAlpha(frappe.sapphire, 0.35)} !important;
-            color: ${frappe.text} !important;
+            background-color: ${theme === "dark" ? frappeAlpha(frappe.sapphire, 0.35) : "rgba(59, 130, 246, 0.2)"} !important;
+            color: ${theme === "dark" ? frappe.text : "#1a263b"} !important;
           }
         `,
           }}

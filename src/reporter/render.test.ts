@@ -78,4 +78,10 @@ test("renderHtml is self-contained and escapes content", () => {
   // XSS escaping
   assert.ok(!html.includes("<script>bad</script>"));
   assert.match(html, /&lt;script&gt;/);
+
+  // Unreliable card, filter button and popover
+  assert.match(html, /id="stat-card-unreliable"/);
+  assert.match(html, /Unreliable Tests \(1\)/);
+  assert.match(html, /id="popover-unreliable"/);
+  assert.match(html, /data-filter="flaky"/);
 });

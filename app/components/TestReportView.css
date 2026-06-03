@@ -532,6 +532,10 @@
   background: linear-gradient(135deg, var(--surface) 45%, var(--heal-bg) 100%);
 }
 
+.test-report-container .stat.stat-unreliable {
+  background: linear-gradient(135deg, var(--surface) 45%, var(--warn-bg) 100%);
+}
+
 .test-report-container .stat:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
