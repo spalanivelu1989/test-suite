@@ -42,7 +42,10 @@ export const CRAWL_MODE_SCENARIOS_PER_PAGE: Record<CrawlMode, number> = {
  * to 400 scenarios) and the crawl gate, so the two always agree.
  */
 export function effectivePageBudget(mode: CrawlMode, maxPages: number): number {
-  return mode === "direct" ? 1 : maxPages;
+  if (mode === "direct") {
+    return maxPages === 2 ? 1.5 : 1;
+  }
+  return maxPages;
 }
 
 /** Human-readable label for each crawl mode, displayed in the UI. */

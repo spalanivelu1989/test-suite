@@ -44,6 +44,23 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
   const [isDepthOpen, setIsDepthOpen] = useState(false);
   const [isPagesOpen, setIsPagesOpen] = useState(false);
 
+  const getExpectedTests = (pagesVal: string) => {
+    const pages = parseInt(pagesVal);
+    const budget = crawlMode === "direct" ? (pages === 2 ? 1.5 : 1) : pages;
+    const rate = crawlMode === "direct" ? 8 : crawlMode === "standard" ? 5 : crawlMode === "deep" ? 4 : 3;
+    return budget * rate;
+  };
+
+  const getPagesFullLabel = (value: string, defaultText: string) => {
+    if (crawlMode === "direct") {
+      return value === "2"
+        ? "1 page (Entry page only — Max 12 tests)"
+        : "1 page (Entry page only — Max 8 tests)";
+    }
+    const expected = getExpectedTests(value);
+    return `${defaultText} (Max ${expected} tests)`;
+  };
+
   const depthRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
 
@@ -282,6 +299,11 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                             key={opt.value}
                             onClick={() => {
                               setCrawlMode(opt.value);
+                              if (opt.value === "direct") {
+                                setMaxPages("1");
+                              } else if (maxPages === "1" || maxPages === "2") {
+                                setMaxPages("10");
+                              }
                               setIsDepthOpen(false);
                             }}
                             px={3}
@@ -369,11 +391,20 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   transition="all 0.15s ease"
                 >
                   <Text truncate>
-                    {maxPages === "5" && "5 pages (Quick test)"}
-                    {maxPages === "10" && "10 pages (Standard)"}
-                    {maxPages === "20" && "20 pages"}
-                    {maxPages === "50" && "50 pages (Thorough)"}
-                    {maxPages === "100" && "100 pages (Large suite)"}
+                    {crawlMode === "direct"
+                      ? getPagesFullLabel(maxPages, "")
+                      : getPagesFullLabel(
+                          maxPages,
+                          maxPages === "5"
+                            ? "5 pages (Quick test)"
+                            : maxPages === "10"
+                              ? "10 pages (Standard)"
+                              : maxPages === "20"
+                                ? "20 pages"
+                                : maxPages === "50"
+                                  ? "50 pages (Thorough)"
+                                  : "100 pages (Large suite)"
+                        )}
                   </Text>
                   <ChevronDown
                     size={14}
@@ -410,13 +441,19 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                       transition={{ duration: 0.12, ease: "easeOut" }}
                       style={{ transformOrigin: "top" }}
                     >
-                      {[
-                        { value: "5", label: "5 pages (Quick test)" },
-                        { value: "10", label: "10 pages (Standard)" },
-                        { value: "20", label: "20 pages" },
-                        { value: "50", label: "50 pages (Thorough)" },
-                        { value: "100", label: "100 pages (Large suite)" },
-                      ].map((opt) => {
+                      {(crawlMode === "direct"
+                        ? [
+                            { value: "1", label: "1 page (Entry page only — Max 8 tests)" },
+                            { value: "2", label: "1 page (Entry page only — Max 12 tests)" },
+                          ]
+                        : [
+                            { value: "5", label: "5 pages (Quick test)" },
+                            { value: "10", label: "10 pages (Standard)" },
+                            { value: "20", label: "20 pages" },
+                            { value: "50", label: "50 pages (Thorough)" },
+                            { value: "100", label: "100 pages (Large suite)" },
+                          ]
+                      ).map((opt) => {
                         const isSelected = maxPages === opt.value;
                         return (
                           <Box
@@ -454,7 +491,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                             }}
                             transition="background-color 0.12s ease"
                           >
-                            <Text truncate>{opt.label}</Text>
+                            <Text truncate>{getPagesFullLabel(opt.value, opt.label)}</Text>
                             {isSelected && (
                               <Check
                                 size={12}
@@ -524,8 +561,10 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                       : "Aggressive crawl"}{" "}
                 (
                 {crawlMode === "direct"
-                  ? "entry page only"
-                  : `${maxPages} pages max`}
+                  ? maxPages === "2"
+                    ? "entry page only — Max 12 tests"
+                    : "entry page only — Max 8 tests"
+                  : `${maxPages} pages max — Max ${getExpectedTests(maxPages)} tests`}
                 )
               </Text>
             </Box>

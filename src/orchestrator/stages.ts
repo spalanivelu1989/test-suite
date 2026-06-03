@@ -232,15 +232,14 @@ export async function generateTests(
 
   const prompt = [
     `Read the Markdown test plan at ${ws.specsDir}/plan.md.`,
-    "Group tests by narrative: produce ONE spec file per top-level plan section",
-    "(### N. <Section Title>), with every scenario in that section as a separate test()",
-    "inside a single test.describe('<Section Title>', ...) block.",
+    "Write each test scenario (#### N.M <Scenario Title>) into its own separate spec file.",
+    "Do NOT group multiple scenarios into a single file.",
     "For each scenario, open the page using playwright-cli and execute its steps using the CLI commands via Bash.",
-    "After all scenarios for a section have been explored, use the Write tool ONCE to save",
-    `the combined file to an absolute path under ${ws.testsDir}/ named <fs-friendly-section-title>.spec.ts`,
-    `(e.g. 'Quick Links Section' → ${ws.testsDir}/quick-links-section.spec.ts).`,
+    "After a scenario has been explored, use the Write tool to save it to an absolute path under",
+    `${ws.testsDir}/ named <fs-friendly-scenario-title>.spec.ts`,
+    `(e.g. 'Add Valid Todo' → ${ws.testsDir}/add-valid-todo.spec.ts).`,
     "Write spec files there and nowhere else (do NOT write to the repository's own tests/ directory).",
-    `Use the seed at ${ws.seedPath} as the starting template. Do NOT emit one file per scenario.`,
+    `Use the seed at ${ws.seedPath} as the starting template.`,
   ].join(" ");
 
   const res = await run({
