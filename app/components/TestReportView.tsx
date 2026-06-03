@@ -198,7 +198,7 @@ const OUTCOME_LABEL: Record<TestOutcome, string> = {
   passed: "Passed",
   failed: "Failed",
   flaky: "Unreliable",
-  healed: "Auto-fixed",
+  healed: "Coming Soon",
   fixme: "Skipped",
 };
 
@@ -967,13 +967,7 @@ export function TestReportView({
             >
               <FlaskIcon /> Detailed Results
             </button>
-            <button
-              type="button"
-              className={`tab-btn ${activeSubTab === "glossary" ? "active" : ""}`}
-              onClick={() => setActiveSubTab("glossary")}
-            >
-              <BookIcon /> Glossary &amp; References
-            </button>
+
           </nav>
 
           <div className="sidebar-footer">
@@ -1144,17 +1138,7 @@ export function TestReportView({
                   </div>
                 )}
               </div>
-              <div className="stat">
-                <div className="stat-top">
-                  <span style={{ color: "var(--warn)" }}>
-                    <AlertIcon />
-                  </span>
-                  <span className="stat-num">
-                    {report.results.filter((r) => r.outcome === "flaky").length}
-                  </span>
-                </div>
-                <div className="stat-label">Unreliable</div>
-              </div>
+
               <div className="stat">
                 <div className="stat-top">
                   <span style={{ color: "var(--heal)" }}>
@@ -1167,7 +1151,7 @@ export function TestReportView({
                     }
                   </span>
                 </div>
-                <div className="stat-label">Auto-fixed</div>
+                <div className="stat-label">Coming Soon</div>
               </div>
             </section>
 
@@ -1238,7 +1222,7 @@ export function TestReportView({
                             onClick={() => focusTest(r.flowId)}
                           >
                             {r.flowId} (
-                            {r.outcome === "flaky" ? "Flaky" : "Auto-fixed"})
+                            {r.outcome === "flaky" ? "Flaky" : "Coming Soon"})
                           </button>
                         </li>
                       ))}
@@ -1562,24 +1546,10 @@ export function TestReportView({
                 </button>
                 <button
                   type="button"
-                  className={`filter-btn ${currentFilter === "flaky" ? "active" : ""}`}
-                  onClick={() => setCurrentFilter("flaky")}
-                >
-                  Flaky ({filterCounts.flaky})
-                </button>
-                <button
-                  type="button"
                   className={`filter-btn ${currentFilter === "heal" ? "active" : ""}`}
                   onClick={() => setCurrentFilter("heal")}
                 >
-                  Auto-fixed ({filterCounts.heal})
-                </button>
-                <button
-                  type="button"
-                  className={`filter-btn ${currentFilter === "skip" ? "active" : ""}`}
-                  onClick={() => setCurrentFilter("skip")}
-                >
-                  Skipped ({filterCounts.skip})
+                  Coming Soon ({filterCounts.heal})
                 </button>
               </div>
             </div>
@@ -1654,64 +1624,7 @@ export function TestReportView({
             )}
           </div>
 
-          {/* TAB 4: GLOSSARY */}
-          <div
-            className={`tab-panel ${activeSubTab === "glossary" ? "active" : ""}`}
-          >
-            <section className="glossary">
-              <h2 className="section-h" style={{ marginTop: 0 }}>
-                <span className="badge">
-                  <BookIcon />
-                </span>
-                Glossary &amp; References <span className="tag">Reference</span>
-              </h2>
-              <p className="section-desc">
-                Understand the vocabulary and metrics used throughout this
-                automated UI test report.
-              </p>
-              <dl>
-                <dt>
-                  <span className="pill pill-pass">
-                    <CheckIcon /> Passed
-                  </span>
-                </dt>
-                <dd>
-                  The check ran and everything worked exactly as expected. No
-                  action needed.
-                </dd>
 
-                <dt>
-                  <span className="pill pill-fail">
-                    <XIcon /> Failed
-                  </span>
-                </dt>
-                <dd>
-                  The check ran but something did not work correctly. This
-                  should be investigated and fixed.
-                </dd>
-
-                <dt>
-                  <span className="pill pill-flaky">
-                    <AlertIcon /> Unreliable
-                  </span>
-                </dt>
-                <dd>
-                  The test sometimes passes and sometimes fails with no code
-                  changes — a "flaky" test, a sign the feature may be unstable.
-                </dd>
-
-                <dt>
-                  <span className="pill pill-heal">
-                    <WrenchIcon /> Auto-fixed
-                  </span>
-                </dt>
-                <dd>
-                  The AI spotted a small issue (e.g. a changed button label) and
-                  automatically repaired the test. Worth a quick review.
-                </dd>
-              </dl>
-            </section>
-          </div>
 
           {/* Report Footer */}
           <footer className="report-footer">

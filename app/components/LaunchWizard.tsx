@@ -110,27 +110,26 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
       as="form"
       onSubmit={onSubmit}
       display="grid"
-      gridTemplateColumns={{ base: "1fr", lg: "3fr 1fr" }}
+      gridTemplateColumns={{ base: "1fr", lg: "3.2fr 1.8fr" }}
       gap={6}
       w="full"
+      pb="200px"
+      alignItems="stretch"
     >
-      {/* Left panel: configurations */}
-      <VStack align="stretch" gap={5} pb="200px">
-        {/* Section 1: Target URL */}
-        <Box
-          position="relative"
-          bg={colors.subBg}
-          border="1px solid"
-          borderColor={colors.border}
-          borderRadius="xl"
-          p={5}
-          transition="all 0.2s ease"
-          _hover={{
-            borderColor: isDark
-              ? "rgba(133, 193, 220, 0.5)"
-              : "rgba(59, 130, 246, 0.4)",
-          }}
-        >
+      {/* Left panel: unified Configuration Panel */}
+      <Box
+        position="relative"
+        bg={colors.subBg}
+        border="1px solid"
+        borderColor={colors.border}
+        borderRadius="xl"
+        p={6}
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+      >
+        <VStack align="stretch" gap={6}>
+          {/* Section 1: Target URL */}
           <VStack align="stretch" gap={3}>
             <Text
               fontSize="13px"
@@ -164,23 +163,11 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               suites automatically.
             </Text>
           </VStack>
-        </Box>
 
-        {/* Section 4: Crawl Parameters */}
-        <Box
-          position="relative"
-          bg={colors.subBg}
-          border="1px solid"
-          borderColor={colors.border}
-          borderRadius="xl"
-          p={5}
-          transition="all 0.2s ease"
-          _hover={{
-            borderColor: isDark
-              ? "rgba(133, 193, 220, 0.5)"
-              : "rgba(59, 130, 246, 0.4)",
-          }}
-        >
+          {/* Separator */}
+          <Box borderTop="1px solid" borderColor={colors.border} my={1} />
+
+          {/* Section 2: Crawl Parameters */}
           <VStack align="stretch" gap={4}>
             <Text
               fontSize="13px"
@@ -189,9 +176,6 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               letterSpacing="0.03em"
               fontFamily="mono"
               textTransform="uppercase"
-              borderBottom="1px solid"
-              borderColor={colors.border}
-              pb={2.5}
             >
               Crawl Parameters
             </Text>
@@ -360,10 +344,8 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                 {/* Trigger Button */}
                 <Box
                   role="button"
-                  tabIndex={crawlMode === "direct" ? -1 : 0}
-                  onClick={() =>
-                    crawlMode !== "direct" && setIsPagesOpen(!isPagesOpen)
-                  }
+                  tabIndex={0}
+                  onClick={() => setIsPagesOpen(!isPagesOpen)}
                   w="full"
                   h="36px"
                   px={3}
@@ -374,30 +356,17 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   display="flex"
                   alignItems="center"
                   justifyContent="space-between"
-                  cursor={crawlMode === "direct" ? "not-allowed" : "pointer"}
-                  opacity={crawlMode === "direct" ? 0.5 : 1}
+                  cursor="pointer"
+                  opacity={1}
                   fontSize="13px"
                   color={colors.text}
-                  _hover={
-                    crawlMode === "direct"
-                      ? {}
-                      : {
-                          borderColor: isDark
-                            ? "rgba(133, 193, 220, 0.5)"
-                            : "rgba(59, 130, 246, 0.5)",
-                        }
-                  }
-                  _focus={
-                    crawlMode === "direct"
-                      ? {}
-                      : { borderColor: isDark ? "#85c1dc" : "#3b82f6" }
-                  }
+                  _hover={{
+                    borderColor: isDark
+                      ? "rgba(133, 193, 220, 0.5)"
+                      : "rgba(59, 130, 246, 0.5)",
+                  }}
+                  _focus={{ borderColor: isDark ? "#85c1dc" : "#3b82f6" }}
                   transition="all 0.15s ease"
-                  title={
-                    crawlMode === "direct"
-                      ? "Direct mode tests only the entry page; page count does not apply."
-                      : undefined
-                  }
                 >
                   <Text truncate>
                     {maxPages === "5" && "5 pages (Quick test)"}
@@ -419,7 +388,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
 
                 {/* Options List Menu */}
                 <AnimatePresence>
-                  {isPagesOpen && crawlMode !== "direct" && (
+                  {isPagesOpen && (
                     <MotionBox
                       position="absolute"
                       top="58px"
@@ -503,25 +472,26 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               </VStack>
             </HStack>
           </VStack>
-        </Box>
-      </VStack>
+        </VStack>
+      </Box>
 
-      {/* Right panel: Summary sticky widget */}
-      <Box display="flex" flexDirection="column" gap={4}>
-        <Box
-          bg={colors.cardBg}
-          border="1px solid"
-          borderColor={colors.border}
-          borderRadius="xl"
-          p={4}
-          position={{ lg: "sticky" }}
-          top={{ lg: "70px" }}
-          shadow="md"
-        >
+      {/* Right panel: Summary card */}
+      <Box
+        bg={isDark ? "#2d313f" : "#eceef1"}
+        border="1px solid"
+        borderColor={isDark ? "#484f67" : "#cbd5e1"}
+        borderRadius="xl"
+        p={6}
+        shadow="md"
+        display="flex"
+        flexDirection="column"
+        justifyContent="space-between"
+      >
+        <VStack align="stretch" gap={4}>
           <Heading
             size="xs"
             color={colors.text}
-            mb={4}
+            mb={1}
             borderBottom="1px solid"
             borderColor={colors.border}
             pb={2}
@@ -529,7 +499,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             Summary
           </Heading>
 
-          <VStack align="stretch" gap={3} mb={5} fontSize="13px">
+          <VStack align="stretch" gap={3} fontSize="13px">
             <Box>
               <Text fontWeight="bold" color={colors.text} mb={1}>
                 Target URL
@@ -560,13 +530,15 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               </Text>
             </Box>
           </VStack>
+        </VStack>
 
+        <VStack align="stretch" gap={3} mt={4}>
           <Button
             type="submit"
             disabled={submitting}
             w="full"
-            background={isDark ? SIDEBAR_GRADIENT.dark : SIDEBAR_GRADIENT.light}
-            color="white"
+            bg="#e5e4e2"
+            color="#1a263b"
             fontSize="12px"
             fontWeight="black"
             letterSpacing="0.06em"
@@ -575,32 +547,24 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             h="42px"
             borderRadius="lg"
             cursor={submitting ? "not-allowed" : "pointer"}
-            border="1.5px solid"
+            border="1px solid"
             borderColor={
-              isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.3)"
+              isDark ? "rgba(0, 0, 0, 0.15)" : "#1a263b"
             }
-            boxShadow="0 3px 12px rgba(0, 0, 0, 0.35)"
-            transition="all 0.2s ease"
+            boxShadow="0 3px 12px rgba(0, 0, 0, 0.1)"
+            transition="background-color 0.2s ease"
             _hover={
               submitting
                 ? {}
                 : {
-                    background: isDark
-                      ? SIDEBAR_GRADIENT.darkHover
-                      : SIDEBAR_GRADIENT.lightHover,
-                    borderColor: isDark
-                      ? "rgba(255, 255, 255, 0.2)"
-                      : "rgba(255, 255, 255, 0.55)",
-                    transform: "translateY(-1px)",
-                    boxShadow: "0 6px 20px rgba(0, 0, 0, 0.45)",
+                    bg: isDark ? "#f3f2f0" : "#dcdbd9",
                   }
             }
             _active={
               submitting
                 ? {}
                 : {
-                    transform: "translateY(0.5px)",
-                    boxShadow: "0 2px 8px rgba(133, 193, 220, 0.35)",
+                    bg: isDark ? "#d2d1cf" : "#c8c7c5",
                   }
             }
             display="flex"
@@ -610,12 +574,12 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           >
             {submitting ? (
               <>
-                <Spinner size="xs" color="white" />
+                <Spinner size="xs" color="currentColor" />
                 <span>Launching...</span>
               </>
             ) : (
               <>
-                <Play size={13} fill="white" />
+                <Play size={13} fill="currentColor" style={{ color: "currentColor" }} />
                 <span>Launch Test</span>
               </>
             )}
@@ -623,7 +587,6 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
 
           {error && (
             <Flex
-              mt={4}
               p={2.5}
               bg="red.500/10"
               border="1px solid"
@@ -641,7 +604,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               </Text>
             </Flex>
           )}
-        </Box>
+        </VStack>
       </Box>
     </Box>
   );

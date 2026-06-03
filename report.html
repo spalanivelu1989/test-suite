@@ -587,7 +587,7 @@
         }
 
         .stat:hover {
-          transform: translateY(-2px);
+          transform: translateY(-1px);
           box-shadow: var(--shadow-md);
           border-color: var(--border-strong);
         }
@@ -1608,9 +1608,7 @@
           <button type="button" class="tab-btn" data-tab="results">
             <svg class="icon"><use href="#i-flask" /></svg> Detailed Results
           </button>
-          <button type="button" class="tab-btn" data-tab="glossary">
-            <svg class="icon"><use href="#i-book" /></svg> Glossary &amp; Reference
-          </button>
+
         </nav>
 
         <div class="sidebar-footer">
@@ -1687,15 +1685,7 @@
               </div>
               <div class="stat-label">Failed</div>
             </div>
-            <div class="stat">
-              <div class="stat-top">
-                <svg class="icon" style="color: var(--warn)">
-                  <use href="#i-alert" />
-                </svg>
-                <span class="stat-num">0</span>
-              </div>
-              <div class="stat-label">Unreliable</div>
-            </div>
+
             <div class="stat">
               <div class="stat-top">
                 <svg class="icon" style="color: var(--heal)">
@@ -1703,7 +1693,7 @@
                 </svg>
                 <span class="stat-num">0</span>
               </div>
-              <div class="stat-label">Auto-fixed</div>
+              <div class="stat-label">Coming Soon</div>
             </div>
             <div class="stat">
               <div class="stat-top">
@@ -2034,9 +2024,7 @@
               <button type="button" class="filter-btn active" data-filter="all">All</button>
               <button type="button" class="filter-btn" data-filter="pass">Passed</button>
               <button type="button" class="filter-btn" data-filter="fail">Failed</button>
-              <button type="button" class="filter-btn" data-filter="flaky">Flaky</button>
-              <button type="button" class="filter-btn" data-filter="heal">Auto-fixed</button>
-              <button type="button" class="filter-btn" data-filter="skip">Skipped</button>
+              <button type="button" class="filter-btn" data-filter="heal">Coming Soon</button>
             </div>
           </div>
 
@@ -2191,84 +2179,7 @@
           </div>
         </div>
 
-        <!-- TAB 4: GLOSSARY -->
-        <div id="tab-glossary" class="tab-panel">
-          <section class="glossary">
-            <h2 class="section-h" style="margin-top: 0">
-              <span class="badge"
-                ><svg class="icon"><use href="#i-book" /></svg
-              ></span>
-              Glossary <span class="tag">Reference</span>
-            </h2>
-            <p class="section-desc">
-              Understand the vocabulary and metrics used throughout this automated UI test report.
-            </p>
-            <dl>
-              <dt>
-                <span class="pill pill-pass"
-                  ><svg class="icon"><use href="#i-check" /></svg> Passed</span
-                >
-              </dt>
-              <dd>
-                The check ran and everything worked exactly as expected. No action
-                needed.
-              </dd>
-              <dt>
-                <span class="pill pill-fail"
-                  ><svg class="icon"><use href="#i-x" /></svg> Failed</span
-                >
-              </dt>
-              <dd>
-                The check ran but something did not work correctly. This should be
-                investigated and fixed.
-              </dd>
-              <dt>
-                <span class="pill pill-flaky"
-                  ><svg class="icon"><use href="#i-alert" /></svg>
-                  Unreliable</span
-                >
-              </dt>
-              <dd>
-                The test sometimes passes and sometimes fails with no code changes
-                — a "flaky" test, a sign the feature may be unstable.
-              </dd>
-              <dt>
-                <span class="pill pill-heal"
-                  ><svg class="icon"><use href="#i-wrench" /></svg>
-                  Auto-fixed</span
-                >
-              </dt>
-              <dd>
-                The AI spotted a small issue (e.g. a changed button label) and
-                automatically repaired the test. Worth a quick review.
-              </dd>
-              <dt>
-                <span class="pill pill-skip"
-                  ><svg class="icon"><use href="#i-skip" /></svg> Skipped</span
-                >
-              </dt>
-              <dd>
-                This check was intentionally paused because it is known to be
-                broken. It should be revisited soon.
-              </dd>
-              <dt>Coverage</dt>
-              <dd>
-                The percentage of planned user journeys that were actually tested.
-                Higher is better — aim for 100%.
-              </dd>
-              <dt>Flake rate</dt>
-              <dd>
-                How often tests gave inconsistent, unreliable results. Lower is
-                better — ideally 0%.
-              </dd>
-              <dt>Auto-heal rate</dt>
-              <dd>
-                How often the AI successfully repaired a broken check
-                automatically. Higher means less manual fixing.
-              </dd>
-            </dl>
-          </section>
-        </div>
+
 
         <!-- Footer -->
         <footer class="report-footer">
@@ -2334,7 +2245,7 @@
         // Restore active tab
         try {
           const savedTab = localStorage.getItem('report-active-tab');
-          if (savedTab === 'dashboard' || savedTab === 'journeys' || savedTab === 'results' || savedTab === 'glossary') {
+          if (savedTab === 'dashboard' || savedTab === 'journeys' || savedTab === 'results') {
             showTab(savedTab);
           } else {
             showTab('dashboard');
@@ -2437,12 +2348,12 @@
           filterBtns.forEach(btn => {
             const filter = btn.getAttribute('data-filter');
             const count = counts[filter] || 0;
-            // Get original label (e.g. "Passed" or "Auto-fixed")
+            // Get original label (e.g. "Passed" or "Coming Soon")
             let label = "All";
             if (filter === 'pass') label = "Passed";
             else if (filter === 'fail') label = "Failed";
             else if (filter === 'flaky') label = "Flaky";
-            else if (filter === 'heal') label = "Auto-fixed";
+            else if (filter === 'heal') label = "Coming Soon";
             else if (filter === 'skip') label = "Skipped";
 
             btn.textContent = `${label} (${count})`;
@@ -2500,7 +2411,7 @@
                   <p>Some checks passed but required retries or automatic AI healing. These flows are working but should be audited for stability:</p>
                   <ul class="banner-list">
                     ${flakyTests.slice(0, 3).map(name => `<li><button type="button" class="link-btn" onclick="focusTest('${escapeHtml(name)}')">${escapeHtml(name)} (Flaky)</button></li>`).join('')}
-                    ${healedTests.slice(0, 3).map(name => `<li><button type="button" class="link-btn" onclick="focusTest('${escapeHtml(name)}')">${escapeHtml(name)} (Auto-fixed)</button></li>`).join('')}
+                    ${healedTests.slice(0, 3).map(name => `<li><button type="button" class="link-btn" onclick="focusTest('${escapeHtml(name)}')">${escapeHtml(name)} (Coming Soon)</button></li>`).join('')}
                   </ul>
                 </div>
               </div>

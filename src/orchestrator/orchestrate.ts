@@ -133,7 +133,7 @@ export async function runPipeline(
   const specs = await readGeneratedSpecs(ws);
   const planMarkdown = await readPlan(ws);
   const coverage = coverageFromResults(deps.curatedFlows, results);
-  const narrative = await generateNarrative(results, specs, deps.claude);
+  const narrative = await generateNarrative(results, specs, deps.claude, config.url);
 
   const report = buildReport({
     runId,

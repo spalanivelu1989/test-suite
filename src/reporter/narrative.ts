@@ -33,7 +33,7 @@ const SYSTEM =
   "and were auto-fixed (healed), give the success rate, then describe where the failures " +
   "and auto-fixes are concentrated based ONLY on the listed tests and their failure reasons. " +
   "Mention auto-fixed (healed) and unreliable (flaky) tests where relevant. If there were no " +
-  "failures, say so plainly. Example tone: 'The suite is in good shape overall: 23 tests passed, " +
+  "failures, say so plainly. It MUST start with the target URL name (e.g. 'senthilcaesar.github.io') instead of generic text like 'The suite is in'. Example tone: 'senthilcaesar.github.io is in good shape overall: 23 tests passed, " +
   "2 failed, and 2 were auto-fixed, for a 92% success rate. The failures are concentrated in " +
   "navigation/content discovery...'. " +
   "No prose outside the JSON.";
@@ -41,6 +41,7 @@ const SYSTEM =
 export function buildNarrativePrompt(
   results: TestResult[],
   specs: { file: string; code: string }[],
+  url?: string,
 ): string {
   const failing = results.filter(
     (r) => r.outcome === "failed" || r.outcome === "fixme",
@@ -55,7 +56,10 @@ export function buildNarrativePrompt(
   // Success rate matches computeSuccessRate(): passed + healed over total.
   const successPct =
     total === 0 ? 0 : Math.round(((passed + healedCount) / total) * 100);
+  const targetHost = url ? url.replace(/https?:\/\//, "").replace(/\/$/, "") : "unknown";
   const lines = [
+    `Target URL name: ${targetHost}`,
+    "",
     "Authoritative counts (use these exact numbers in testSummary; do not invent others):",
     `- Total tests: ${total}`,
     `- Passed: ${passed}`,
@@ -149,6 +153,7 @@ export async function generateNarrative(
   results: TestResult[],
   specs: { file: string; code: string }[],
   claude: ClaudeClient,
+  url?: string,
 ): Promise<Narrative> {
   // No failures and nothing to review → skip the call.
   if (results.length === 0)
@@ -164,7 +169,7 @@ export async function generateNarrative(
   const text = await claude.complete({
     purpose: "report-narrative",
     system: SYSTEM,
-    prompt: buildNarrativePrompt(results, specs),
+    prompt: buildNarrativePrompt(results, specs, url),
   });
   return parseNarrative(text);
 }

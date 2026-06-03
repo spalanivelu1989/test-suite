@@ -315,17 +315,27 @@ export function RunView({ id }: { id: string }) {
             >
               <Box
                 p={3.5}
-                bg={colors.subBg}
+                bg={
+                  isDark
+                    ? "linear-gradient(135deg, rgba(133, 193, 220, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
+                    : "linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
+                }
                 border="1px solid"
                 borderColor={colors.border}
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
+                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
                 _hover={{
-                  borderColor: "var(--aws-orange-main)",
-                  bg: isDark ? "#51576d" : "#f1f5f9",
+                  borderColor: isDark
+                    ? "rgba(133, 193, 220, 0.5)"
+                    : "rgba(59, 130, 246, 0.4)",
+                  bg: isDark
+                    ? "linear-gradient(135deg, rgba(133, 193, 220, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
+                    : "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
+                  transform: "translateY(-1px)",
+                  shadow: "md",
                 }}
-                transition="all 0.2s ease"
               >
                 <Server
                   size={18}
@@ -348,17 +358,27 @@ export function RunView({ id }: { id: string }) {
 
               <Box
                 p={3.5}
-                bg={colors.subBg}
+                bg={
+                  isDark
+                    ? "linear-gradient(135deg, rgba(166, 209, 137, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
+                    : "linear-gradient(135deg, rgba(22, 163, 74, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
+                }
                 border="1px solid"
                 borderColor={colors.border}
                 borderRadius="lg"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
+                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
                 _hover={{
-                  borderColor: "var(--aws-orange-main)",
-                  bg: isDark ? "#51576d" : "#f1f5f9",
+                  borderColor: isDark
+                    ? "rgba(166, 209, 137, 0.5)"
+                    : "rgba(22, 163, 74, 0.4)",
+                  bg: isDark
+                    ? "linear-gradient(135deg, rgba(166, 209, 137, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
+                    : "linear-gradient(135deg, rgba(22, 163, 74, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
+                  transform: "translateY(-1px)",
+                  shadow: "md",
                 }}
-                transition="all 0.2s ease"
               >
                 <Layers
                   size={18}

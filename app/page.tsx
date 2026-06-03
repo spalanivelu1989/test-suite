@@ -349,7 +349,11 @@ export default function HomePage() {
               <Box
                 position="relative"
                 p={5}
-                bg={colors.subBg}
+                bg={
+                  isDark
+                    ? "linear-gradient(135deg, rgba(133, 193, 220, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
+                    : "linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
+                }
                 border="1px solid"
                 borderColor={
                   runningCount > 0 ? "rgba(133, 193, 220, 0.45)" : colors.border
@@ -358,12 +362,16 @@ export default function HomePage() {
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
                 overflow="hidden"
-                transition="all 0.2s ease"
+                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
                 _hover={{
                   borderColor: isDark
-                    ? "rgba(153, 209, 219, 0.6)"
-                    : "rgba(15, 45, 89, 0.5)",
-                  bg: isDark ? "#414559" : "#f1f5f9",
+                    ? "rgba(153, 209, 219, 0.5)"
+                    : "rgba(59, 130, 246, 0.4)",
+                  bg: isDark
+                    ? "linear-gradient(135deg, rgba(133, 193, 220, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
+                    : "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
+                  transform: "translateY(-1px)",
+                  shadow: "md",
                 }}
               >
                 <Flex justify="space-between" align="start">
@@ -442,19 +450,27 @@ export default function HomePage() {
               <Box
                 position="relative"
                 p={5}
-                bg={colors.subBg}
+                bg={
+                  isDark
+                    ? "linear-gradient(135deg, rgba(166, 209, 137, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
+                    : "linear-gradient(135deg, rgba(22, 163, 74, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
+                }
                 border="1px solid"
                 borderColor={colors.border}
                 borderRadius="xl"
                 cursor="pointer"
                 onClick={() => setActiveTab("test-runs")}
                 overflow="hidden"
-                transition="all 0.2s ease"
+                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
                 _hover={{
                   borderColor: isDark
-                    ? "rgba(153, 209, 219, 0.6)"
-                    : "rgba(15, 45, 89, 0.5)",
-                  bg: isDark ? "#414559" : "#f1f5f9",
+                    ? "rgba(166, 209, 137, 0.5)"
+                    : "rgba(22, 163, 74, 0.4)",
+                  bg: isDark
+                    ? "linear-gradient(135deg, rgba(166, 209, 137, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
+                    : "linear-gradient(135deg, rgba(22, 163, 74, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
+                  transform: "translateY(-1px)",
+                  shadow: "md",
                 }}
               >
                 <Flex justify="space-between" align="start">

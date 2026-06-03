@@ -204,7 +204,7 @@ export function renderHtml(report: RunReport): string {
               .map(
                 (r) => `
               <li>
-                <button type="button" class="link-btn" data-test-name="${esc(r.flowId)}">${esc(r.flowId)} (${r.outcome === "flaky" ? "Flaky" : "Auto-fixed"})</button>
+                <button type="button" class="link-btn" data-test-name="${esc(r.flowId)}">${esc(r.flowId)} (${r.outcome === "flaky" ? "Flaky" : "Coming Soon"})</button>
               </li>
             `,
               )
@@ -324,7 +324,7 @@ export function renderHtml(report: RunReport): string {
     passed: "Passed",
     failed: "Failed",
     flaky: "Unreliable",
-    healed: "Auto-fixed",
+    healed: "Coming Soon",
     fixme: "Skipped",
   };
 
@@ -568,12 +568,7 @@ export function renderHtml(report: RunReport): string {
             </svg>
             Detailed Results
           </button>
-          <button type="button" class="tab-btn" data-tab="glossary">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M19 17H6a2 2 0 0 0-2 2" />
-            </svg>
-            Glossary &amp; References
-          </button>
+
         </nav>
 
         <div class="sidebar-footer">
@@ -649,15 +644,7 @@ export function renderHtml(report: RunReport): string {
               ${failedPopoverHtml}
             </div>
 
-            <div class="stat">
-              <div class="stat-top">
-                <span style="color: var(--warn)">
-                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-                </span>
-                <span class="stat-num">${report.results.filter((r) => r.outcome === "flaky").length}</span>
-              </div>
-              <div class="stat-label">Unreliable</div>
-            </div>
+
 
             <div class="stat">
               <div class="stat-top">
@@ -666,7 +653,7 @@ export function renderHtml(report: RunReport): string {
                 </span>
                 <span class="stat-num">${report.results.filter((r) => r.outcome === "healed").length}</span>
               </div>
-              <div class="stat-label">Auto-fixed</div>
+              <div class="stat-label">Coming Soon</div>
             </div>
           </section>
 
@@ -792,9 +779,7 @@ export function renderHtml(report: RunReport): string {
               <button type="button" class="filter-btn active" data-filter="all">All (${report.results.length})</button>
               <button type="button" class="filter-btn" data-filter="pass">Passed (${passedCount})</button>
               <button type="button" class="filter-btn" data-filter="fail">Failed (${report.results.filter((r) => r.outcome === "failed").length})</button>
-              <button type="button" class="filter-btn" data-filter="flaky">Flaky (${report.results.filter((r) => r.outcome === "flaky").length})</button>
-              <button type="button" class="filter-btn" data-filter="heal">Auto-fixed (${report.results.filter((r) => r.outcome === "healed").length})</button>
-              <button type="button" class="filter-btn" data-filter="skip">Skipped (${report.results.filter((r) => r.outcome === "fixme").length})</button>
+              <button type="button" class="filter-btn" data-filter="heal">Coming Soon (${report.results.filter((r) => r.outcome === "healed").length})</button>
             </div>
           </div>
 
@@ -844,45 +829,7 @@ export function renderHtml(report: RunReport): string {
         </div>
 
 
-        <!-- TAB 4: GLOSSARY -->
-        <div id="panel-glossary" class="tab-panel">
-          <h2 class="section-h">
-            <span class="badge">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M19 17H6a2 2 0 0 0-2 2" />
-              </svg>
-            </span>
-            Glossary &amp; References
-          </h2>
-          <p class="section-desc">A guide to the technical metrics and terms used throughout this report.</p>
-          <div class="glossary">
-            <dl>
-              <dt>
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--pass)"><polyline points="20 6 9 17 4 12" /></svg>
-                Passed
-              </dt>
-              <dd>The check ran and everything worked exactly as expected. No action needed.</dd>
-              
-              <dt>
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fail)"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                Failed
-              </dt>
-              <dd>The check ran but something did not work correctly. This should be investigated and fixed.</dd>
-              
-              <dt>
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn)"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-                Unreliable
-              </dt>
-              <dd>The test sometimes passes and sometimes fails with no code changes — a "flaky" test, a sign the feature may be unstable.</dd>
-              
-              <dt>
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--heal)"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>
-                Auto-fixed
-              </dt>
-              <dd>The AI spotted a small issue (e.g. a changed button label) and automatically repaired the test. Worth a quick review.</dd>
-            </dl>
-          </div>
-        </div>
+
 
         <footer class="report-footer">
           Generated by AI &nbsp;·&nbsp; ${esc(new Date(report.generatedAt).toUTCString())}

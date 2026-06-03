@@ -759,12 +759,15 @@ function TerminateRunDialog({
                 height="28px"
                 px={3.5}
                 onClick={onConfirm}
-                loading={isTerminating}
-                loadingText="Terminating..."
+                disabled={isTerminating}
                 borderRadius="md"
               >
-                <Trash2 size={11} style={{ marginRight: "6px" }} />
-                Terminate
+                {isTerminating ? (
+                  <RefreshCw size={11} className="animate-spin" style={{ marginRight: "6px" }} />
+                ) : (
+                  <Trash2 size={11} style={{ marginRight: "6px" }} />
+                )}
+                {isTerminating ? "Terminating..." : "Terminate"}
               </Button>
             </Flex>
           </Dialog.Content>
