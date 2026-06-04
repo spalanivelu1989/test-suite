@@ -64,7 +64,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
   const getDepthHelperText = () => {
     switch (crawlMode) {
       case "direct":
-        return "This tests only the starting page you entered. The crawler will not click any links to other pages.";
+        return "This test stays entirely on the landing page and will not follow any links leading to other pages.";
       case "standard":
         return "This tests the starting page and all pages directly linked from it (1 click away). Perfect for verifying your main sections like Login, About, and Contact pages.";
       case "deep":
@@ -80,8 +80,8 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
     const expected = getExpectedTests(maxPages);
     if (crawlMode === "direct") {
       return maxPages === "2"
-        ? "Runs 12 tests on the starting page. Best for pages with multiple interactive features like signup forms, search bars, or buttons."
-        : "Runs 8 tests on the starting page. Best for simple pages with mostly text, images, and links.";
+        ? "Runs 12 tests on the landing page. Best for pages with multiple interactive features like signup forms, search bars, or buttons."
+        : "Runs 8 tests on the landing page. Best for simple pages with mostly text, images, and links.";
     }
     switch (maxPages) {
       case "5":
@@ -435,17 +435,17 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     {crawlMode === "direct"
                       ? getPagesFullLabel(maxPages, "")
                       : getPagesFullLabel(
-                          maxPages,
-                          maxPages === "5"
-                            ? "5 pages (Quick test)"
-                            : maxPages === "10"
-                              ? "10 pages (Standard)"
-                              : maxPages === "20"
-                                ? "20 pages"
-                                : maxPages === "50"
-                                  ? "50 pages (Thorough)"
-                                  : "100 pages (Large suite)"
-                        )}
+                        maxPages,
+                        maxPages === "5"
+                          ? "5 pages (Quick test)"
+                          : maxPages === "10"
+                            ? "10 pages (Standard)"
+                            : maxPages === "20"
+                              ? "20 pages"
+                              : maxPages === "50"
+                                ? "50 pages (Thorough)"
+                                : "100 pages (Large suite)"
+                      )}
                   </Text>
                   <ChevronDown
                     size={14}
@@ -484,16 +484,16 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     >
                       {(crawlMode === "direct"
                         ? [
-                            { value: "1", label: "1 page (Entry page only — Max 8 tests)" },
-                            { value: "2", label: "1 page (Entry page only — Max 12 tests)" },
-                          ]
+                          { value: "1", label: "1 page (Entry page only — Max 8 tests)" },
+                          { value: "2", label: "1 page (Entry page only — Max 12 tests)" },
+                        ]
                         : [
-                            { value: "5", label: "5 pages (Quick test)" },
-                            { value: "10", label: "10 pages (Standard)" },
-                            { value: "20", label: "20 pages" },
-                            { value: "50", label: "50 pages (Thorough)" },
-                            { value: "100", label: "100 pages (Large suite)" },
-                          ]
+                          { value: "5", label: "5 pages (Quick test)" },
+                          { value: "10", label: "10 pages (Standard)" },
+                          { value: "20", label: "20 pages" },
+                          { value: "50", label: "50 pages (Thorough)" },
+                          { value: "100", label: "100 pages (Large suite)" },
+                        ]
                       ).map((opt) => {
                         const isSelected = maxPages === opt.value;
                         return (
@@ -640,15 +640,15 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               submitting
                 ? {}
                 : {
-                    bg: isDark ? "#f3f2f0" : "#dcdbd9",
-                  }
+                  bg: isDark ? "#f3f2f0" : "#dcdbd9",
+                }
             }
             _active={
               submitting
                 ? {}
                 : {
-                    bg: isDark ? "#d2d1cf" : "#c8c7c5",
-                  }
+                  bg: isDark ? "#d2d1cf" : "#c8c7c5",
+                }
             }
             display="flex"
             alignItems="center"
