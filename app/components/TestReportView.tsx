@@ -10,7 +10,7 @@ import {
   Button,
   Spinner,
 } from "@chakra-ui/react";
-import { ChevronDown, Check, Download } from "lucide-react";
+import { ChevronDown, Check, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useThemeMode } from "@/app/providers";
 import "./TestReportView.css";
@@ -221,6 +221,21 @@ export function TestReportView({
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sidebar-collapsed") === "true";
+    }
+    return false;
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar-collapsed", String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -459,14 +474,28 @@ export function TestReportView({
     const isCancelled = run.status === "cancelled";
     return (
       <div className={`test-report-container${darkClass}`}>
-        <div className="page">
+        <div className={`page ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
           {/* Report Left Sidebar */}
           <aside className="sidebar">
             <div className="sidebar-header">
-              <h1>Test results for {run.config.url.replace(/https?:\/\//, "")}</h1>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", width: "100%" }}>
+                {!isSidebarCollapsed && (
+                  <h1 style={{ margin: 0 }}>
+                    Test results for {run.config.url.replace(/https?:\/\//, "")}
+                  </h1>
+                )}
+                <button
+                  type="button"
+                  className="sidebar-toggle-btn"
+                  onClick={toggleSidebar}
+                  title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                >
+                  {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                </button>
+              </div>
             </div>
 
-            {runs && runs.length > 0 && onSelectRun && (
+            {!isSidebarCollapsed && runs && runs.length > 0 && onSelectRun && (
               <Box
                 position="relative"
                 ref={dropdownRef}
@@ -630,22 +659,24 @@ export function TestReportView({
               </Box>
             )}
 
-            <div className="sidebar-footer">
-              <div className="sidebar-meta">
-                <div>
-                  <span className="k">App tested</span>
-                  <span className="v">{run.config.url}</span>
-                </div>
-                <div>
-                  <span className="k">Run ID</span>
-                  <span className="v mono">{run.id}</span>
-                </div>
-                <div>
-                  <span className="k">Status</span>
-                  <span className="v">{run.status.toUpperCase()}</span>
+            {!isSidebarCollapsed && (
+              <div className="sidebar-footer">
+                <div className="sidebar-meta">
+                  <div>
+                    <span className="k">App tested</span>
+                    <span className="v">{run.config.url}</span>
+                  </div>
+                  <div>
+                    <span className="k">Run ID</span>
+                    <span className="v mono">{run.id}</span>
+                  </div>
+                  <div>
+                    <span className="k">Status</span>
+                    <span className="v">{run.status.toUpperCase()}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </aside>
 
           {/* Report Right Content Area */}
@@ -696,14 +727,28 @@ export function TestReportView({
   if (run.status === "pending" || run.status === "running" || !report) {
     return (
       <div className={`test-report-container${darkClass}`}>
-        <div className="page">
+        <div className={`page ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
           {/* Report Left Sidebar */}
           <aside className="sidebar">
             <div className="sidebar-header">
-              <h1>Test results for {run.config.url.replace(/https?:\/\//, "")}</h1>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", width: "100%" }}>
+                {!isSidebarCollapsed && (
+                  <h1 style={{ margin: 0 }}>
+                    Test results for {run.config.url.replace(/https?:\/\//, "")}
+                  </h1>
+                )}
+                <button
+                  type="button"
+                  className="sidebar-toggle-btn"
+                  onClick={toggleSidebar}
+                  title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                >
+                  {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                </button>
+              </div>
             </div>
 
-            {runs && runs.length > 0 && onSelectRun && (
+            {!isSidebarCollapsed && runs && runs.length > 0 && onSelectRun && (
               <Box
                 position="relative"
                 ref={dropdownRef}
@@ -867,22 +912,24 @@ export function TestReportView({
               </Box>
             )}
 
-            <div className="sidebar-footer">
-              <div className="sidebar-meta">
-                <div>
-                  <span className="k">App tested</span>
-                  <span className="v">{run.config.url}</span>
-                </div>
-                <div>
-                  <span className="k">Run ID</span>
-                  <span className="v mono">{run.id}</span>
-                </div>
-                <div>
-                  <span className="k">Status</span>
-                  <span className="v">{run.status.toUpperCase()}</span>
+            {!isSidebarCollapsed && (
+              <div className="sidebar-footer">
+                <div className="sidebar-meta">
+                  <div>
+                    <span className="k">App tested</span>
+                    <span className="v">{run.config.url}</span>
+                  </div>
+                  <div>
+                    <span className="k">Run ID</span>
+                    <span className="v mono">{run.id}</span>
+                  </div>
+                  <div>
+                    <span className="k">Status</span>
+                    <span className="v">{run.status.toUpperCase()}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </aside>
 
           {/* Report Right Content Area */}
@@ -952,14 +999,28 @@ export function TestReportView({
 
   return (
     <div className={`test-report-container${darkClass}`}>
-      <div className="page">
+      <div className={`page ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         {/* Report Left Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-header">
-            <h1>Test results for {report.url.replace(/https?:\/\//, "")}</h1>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", width: "100%" }}>
+              {!isSidebarCollapsed && (
+                <h1 style={{ margin: 0 }}>
+                  Test results for {report.url.replace(/https?:\/\//, "")}
+                </h1>
+              )}
+              <button
+                type="button"
+                className="sidebar-toggle-btn"
+                onClick={toggleSidebar}
+                title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              >
+                {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              </button>
+            </div>
           </div>
 
-          {runs && runs.length > 0 && onSelectRun && (
+          {!isSidebarCollapsed && runs && runs.length > 0 && onSelectRun && (
             <Box
               position="relative"
               ref={dropdownRef}
@@ -1148,44 +1209,48 @@ export function TestReportView({
               type="button"
               className={`tab-btn ${activeSubTab === "dashboard" ? "active" : ""}`}
               onClick={() => setActiveSubTab("dashboard")}
+              title={isSidebarCollapsed ? "Dashboard Overview" : undefined}
             >
-              <ChartIcon /> Dashboard Overview
+              <ChartIcon /> {!isSidebarCollapsed && "Dashboard Overview"}
             </button>
             <button
               type="button"
               className={`tab-btn ${activeSubTab === "journeys" ? "active" : ""}`}
               onClick={() => setActiveSubTab("journeys")}
+              title={isSidebarCollapsed ? "What Was Tested" : undefined}
             >
-              <ListIcon /> What Was Tested
+              <ListIcon /> {!isSidebarCollapsed && "What Was Tested"}
             </button>
             <button
               type="button"
               className={`tab-btn ${activeSubTab === "results" ? "active" : ""}`}
               onClick={() => setActiveSubTab("results")}
+              title={isSidebarCollapsed ? "Detailed Results" : undefined}
             >
-              <FlaskIcon /> Detailed Results
+              <FlaskIcon /> {!isSidebarCollapsed && "Detailed Results"}
             </button>
-
           </nav>
 
-          <div className="sidebar-footer">
-            <div className="sidebar-meta">
-              <div>
-                <span className="k">App tested</span>
-                <span className="v">{report.url}</span>
-              </div>
-              <div>
-                <span className="k">Run ID</span>
-                <span className="v mono">{report.runId}</span>
-              </div>
-              <div>
-                <span className="k">Generated</span>
-                <span className="v">
-                  {new Date(report.generatedAt).toLocaleString()}
-                </span>
+          {!isSidebarCollapsed && (
+            <div className="sidebar-footer">
+              <div className="sidebar-meta">
+                <div>
+                  <span className="k">App tested</span>
+                  <span className="v">{report.url}</span>
+                </div>
+                <div>
+                  <span className="k">Run ID</span>
+                  <span className="v mono">{report.runId}</span>
+                </div>
+                <div>
+                  <span className="k">Generated</span>
+                  <span className="v">
+                    {new Date(report.generatedAt).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </aside>
 
         {/* Report Right Content Area */}

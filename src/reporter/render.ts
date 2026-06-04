@@ -550,44 +550,54 @@ export function renderHtml(report: RunReport): string {
         .getElementById("report-root")
         .classList.toggle("dark", document.documentElement.classList.contains("dark"));
     </script>
-    <div class="page">
+    <div class="page" id="page-root">
       
       <!-- Left Sidebar -->
       <aside class="sidebar">
         <div class="sidebar-header">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);">
-            <h1 style="margin: 0;">Test results for ${esc(report.url.replace(/https?:\/\//, ""))}</h1>
-            <button type="button" id="theme-toggle" class="theme-toggle-btn" title="Toggle Theme" aria-label="Toggle Theme">
-              <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="4" />
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-              </svg>
-              <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-              </svg>
-            </button>
+            <h1 class="sidebar-title" style="margin: 0;">Test results for ${esc(report.url.replace(/https?:\/\//, ""))}</h1>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" id="theme-toggle" class="theme-toggle-btn" title="Toggle Theme" aria-label="Toggle Theme">
+                <svg class="icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                </svg>
+                <svg class="icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+                </svg>
+              </button>
+              <button type="button" id="sidebar-toggle" class="sidebar-toggle-btn" title="Collapse Sidebar" aria-label="Collapse Sidebar">
+                <svg class="icon chevron-left-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                <svg class="icon chevron-right-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
 
         <nav class="nav-tabs" aria-label="Report navigation">
-          <button type="button" class="tab-btn active" data-tab="dashboard">
+          <button type="button" class="tab-btn active" data-tab="dashboard" title="Dashboard Overview">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="4" y1="20" x2="4" y2="11" /><line x1="10" y1="20" x2="10" y2="4" /><line x1="16" y1="20" x2="16" y2="14" /><line x1="20" y1="20" x2="2" y2="20" />
             </svg>
-            Dashboard Overview
+            <span class="tab-label">Dashboard Overview</span>
           </button>
-          <button type="button" class="tab-btn" data-tab="journeys">
+          <button type="button" class="tab-btn" data-tab="journeys" title="What Was Tested">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><circle cx="3.5" cy="6" r="1" /><circle cx="3.5" cy="12" r="1" /><circle cx="3.5" cy="18" r="1" />
             </svg>
-            What Was Tested
+            <span class="tab-label">What Was Tested</span>
           </button>
-          <button type="button" class="tab-btn" data-tab="results">
+          <button type="button" class="tab-btn" data-tab="results" title="Detailed Results">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 3h6M10 3v6L4.5 18a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9V3" />
             </svg>
-            Detailed Results
+            <span class="tab-label">Detailed Results</span>
           </button>
 
         </nav>
@@ -1022,6 +1032,36 @@ export function renderHtml(report: RunReport): string {
         if (root) root.classList.toggle('dark', isDark);
         document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
         localStorage.setItem('report-theme', isDark ? 'dark' : 'light');
+      });
+    }
+
+    // Sidebar collapse logic
+    const pageRoot = document.getElementById('page-root');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    if (sidebarToggle && pageRoot) {
+      const chevronLeft = sidebarToggle.querySelector('.chevron-left-icon');
+      const chevronRight = sidebarToggle.querySelector('.chevron-right-icon');
+
+      const isCollapsed = localStorage.getItem('report-sidebar-collapsed') === 'true';
+      if (isCollapsed) {
+        pageRoot.classList.add('sidebar-collapsed');
+        if (chevronLeft) chevronLeft.style.display = 'none';
+        if (chevronRight) chevronRight.style.display = 'block';
+        sidebarToggle.title = 'Expand Sidebar';
+      }
+
+      sidebarToggle.addEventListener('click', () => {
+        const collapsed = pageRoot.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('report-sidebar-collapsed', String(collapsed));
+        if (collapsed) {
+          if (chevronLeft) chevronLeft.style.display = 'none';
+          if (chevronRight) chevronRight.style.display = 'block';
+          sidebarToggle.title = 'Expand Sidebar';
+        } else {
+          if (chevronLeft) chevronLeft.style.display = 'block';
+          if (chevronRight) chevronRight.style.display = 'none';
+          sidebarToggle.title = 'Collapse Sidebar';
+        }
       });
     }
   </script>
