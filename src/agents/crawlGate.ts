@@ -9,6 +9,12 @@ import {
   CRAWL_MODE_DEPTH,
   effectivePageBudget,
 } from "../types";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import { join } from "node:path";
+import { mkdir } from "node:fs/promises";
+
+const execAsync = promisify(exec);
 
 // Code-enforced crawl scope (R2). The planner agent drives the browser by
 // shelling out to `npx playwright-cli` over the Bash tool, so the only place we
@@ -29,18 +35,31 @@ import {
 
 const NAV_VERBS = new Set(["open", "goto", "navigate"]);
 
+const INTERACTIVE_VERBS = new Set([
+  "click", "fill", "type", "select", "check", "uncheck",
+  "hover", "dblclick", "drag", "drop", "press"
+]);
+
+const KEY_NAMES = new Set([
+  "enter", "escape", "arrowdown", "arrowup", "arrowleft", "arrowright",
+  "backspace", "tab", "space", "shift", "control", "alt", "meta", "delete", "insert", "home", "end", "pageup", "pagedown"
+]);
+
 export interface CrawlGateConfig {
   mode: CrawlMode;
   maxPages: number;
   entryUrl: string;
   /** Surfaced to the run log each time the gate blocks a command. */
   onDeny?: (reason: string) => void;
+  workspaceRoot?: string;
 }
 
 /** A single playwright-cli invocation parsed out of a Bash command. */
 export interface ParsedCli {
   verb: string;
   urlArg?: string;
+  targetRef?: string;
+  session?: string;
 }
 
 /**
@@ -79,6 +98,14 @@ function originOf(normalized: string): string {
 export function parsePlaywrightCli(segment: string): ParsedCli | null {
   const idx = segment.search(/\bplaywright-cli\b/);
   if (idx === -1) return null;
+
+  // Extract session if present
+  let session: string | undefined;
+  const sessionMatch = segment.match(/(?:-s|--session)=\s*([^\s&;|]+)/) || segment.match(/(?:-s|--session)\s+([^\s&;|]+)/);
+  if (sessionMatch) {
+    session = sessionMatch[1].replace(/^['"]|['"]$/g, "");
+  }
+
   const tokens = segment
     .slice(idx + "playwright-cli".length)
     .trim()
@@ -98,15 +125,20 @@ export function parsePlaywrightCli(segment: string): ParsedCli | null {
   if (!verb) return null;
 
   let urlArg: string | undefined;
+  let targetRef: string | undefined;
+
   for (const a of args) {
     if (a.startsWith("-")) continue;
     const cleaned = a.replace(/^['"]|['"]$/g, "");
     if (/^https?:\/\//i.test(cleaned)) {
       urlArg = cleaned;
-      break;
+    }
+    if (!targetRef) {
+      targetRef = cleaned;
     }
   }
-  return { verb, urlArg };
+
+  return { verb, urlArg, targetRef, session };
 }
 
 /** Parse every playwright-cli call in a (possibly chained) Bash command. */
@@ -161,6 +193,52 @@ export interface CrawlGate {
   };
 }
 
+async function runCliCommand(cwd: string, args: string[]): Promise<string> {
+  const cmdStr = `npx playwright-cli ${args.join(" ")}`;
+  try {
+    const { stdout } = await execAsync(cmdStr, { cwd });
+    return stdout;
+  } catch (err) {
+    return "";
+  }
+}
+
+async function captureScreenshot(cwd: string, session: string | undefined, filename: string): Promise<void> {
+  const screenshotsDir = join(cwd, "screenshots");
+  try {
+    await mkdir(screenshotsDir, { recursive: true });
+  } catch {}
+
+  const args = [];
+  if (session) {
+    args.push(`-s=${session}`);
+  }
+  args.push("screenshot");
+  args.push(`--filename=screenshots/${filename}`);
+  await runCliCommand(cwd, args);
+}
+
+async function highlightElement(cwd: string, session: string | undefined, targetRef: string): Promise<void> {
+  const args = [];
+  if (session) {
+    args.push(`-s=${session}`);
+  }
+  args.push("highlight");
+  args.push(targetRef);
+  args.push(`--style="outline: 4px solid #ff9900; background-color: rgba(255, 153, 0, 0.2); outline-offset: 2px;"`);
+  await runCliCommand(cwd, args);
+}
+
+async function hideHighlight(cwd: string, session: string | undefined): Promise<void> {
+  const args = [];
+  if (session) {
+    args.push(`-s=${session}`);
+  }
+  args.push("highlight");
+  args.push("--hide");
+  await runCliCommand(cwd, args);
+}
+
 /**
  * Build a crawl gate for one planner run. The returned `hooks` enforce the
  * configured crawl scope at the tool boundary.
@@ -176,6 +254,9 @@ export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {
   let current: string | null = null;
   let blocked = false;
   let denials = 0;
+
+  let stepCounter = 0;
+  let activeAction: { verb: string; session?: string; stepNum: number } | null = null;
 
   const depthFor = (target: string): number => {
     if (depthOf.has(target)) return depthOf.get(target) as number;
@@ -227,7 +308,9 @@ export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {
       return { continue: true };
     }
     const cmd = (input.tool_input as { command?: string })?.command ?? "";
-    for (const { verb, urlArg } of parseAllCli(cmd)) {
+    const parsedList = parseAllCli(cmd);
+
+    for (const { verb, urlArg } of parsedList) {
       const isNav = NAV_VERBS.has(verb);
       if (blocked && (isNav || verb === "click")) {
         return deny(
@@ -242,6 +325,38 @@ export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {
         recordVisit(target); // optimistic: confirmed by PostToolUse output
       }
     }
+
+    if (cfg.workspaceRoot) {
+      const interactiveCmd = parsedList.find(p => INTERACTIVE_VERBS.has(p.verb));
+      if (interactiveCmd) {
+        stepCounter++;
+        const stepName = String(stepCounter).padStart(2, "0");
+        activeAction = {
+          verb: interactiveCmd.verb,
+          session: interactiveCmd.session,
+          stepNum: stepCounter
+        };
+
+        const shouldHighlight = interactiveCmd.targetRef && 
+          !interactiveCmd.targetRef.startsWith("http") &&
+          !KEY_NAMES.has(interactiveCmd.targetRef.toLowerCase());
+
+        if (shouldHighlight && interactiveCmd.targetRef) {
+          await highlightElement(cfg.workspaceRoot, interactiveCmd.session, interactiveCmd.targetRef);
+        }
+
+        await captureScreenshot(
+          cfg.workspaceRoot,
+          interactiveCmd.session,
+          `step-${stepName}-pre-${interactiveCmd.verb}.png`
+        );
+
+        if (shouldHighlight && interactiveCmd.targetRef) {
+          await hideHighlight(cfg.workspaceRoot, interactiveCmd.session);
+        }
+      }
+    }
+
     return { continue: true };
   };
 
@@ -251,12 +366,24 @@ export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {
     }
     const text = responseText((input as PostToolUseHookInput).tool_response);
     const url = parsePageUrl(text);
-    if (!url) return { continue: true };
-    const landed = normalizeUrl(url);
-    if (!landed || landed === current) return { continue: true };
-    // A navigation we didn't gate pre-call (a click or a redirect) landed here.
-    if (violationFor(landed)) blocked = true;
-    recordVisit(landed);
+    if (url) {
+      const landed = normalizeUrl(url);
+      if (landed && landed !== current) {
+        if (violationFor(landed)) blocked = true;
+        recordVisit(landed);
+      }
+    }
+
+    if (cfg.workspaceRoot && activeAction) {
+      const stepName = String(activeAction.stepNum).padStart(2, "0");
+      await captureScreenshot(
+        cfg.workspaceRoot,
+        activeAction.session,
+        `step-${stepName}-post-${activeAction.verb}.png`
+      );
+      activeAction = null;
+    }
+
     return { continue: true };
   };
 

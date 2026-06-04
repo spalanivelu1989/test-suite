@@ -16,6 +16,8 @@ import { buildReport } from "../reporter/report";
 import { generateNarrative } from "../reporter/narrative";
 import type { Flow, ProgressEvent, RunConfig, RunReport } from "../types";
 import { generateTests, healTests, planTests, type StageDeps } from "./stages";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 export interface OrchestratorDeps {
   /** Powers the Reporter narrative (the agents are driven by the Agent SDK). */
@@ -135,6 +137,22 @@ export async function runPipeline(
   const coverage = coverageFromResults(deps.curatedFlows, results);
   const narrative = await generateNarrative(results, specs, deps.claude, config.url);
 
+  let screenshots: { filename: string; base64: string }[] = [];
+  try {
+    const screenshotsDir = join(ws.root, "screenshots");
+    const files = await readdir(screenshotsDir);
+    const pngs = files.filter(f => f.endsWith(".png")).sort();
+    for (const f of pngs) {
+      const data = await readFile(join(screenshotsDir, f));
+      screenshots.push({
+        filename: f,
+        base64: data.toString("base64")
+      });
+    }
+  } catch (err) {
+    // screenshots folder may not exist or be empty
+  }
+
   const report = buildReport({
     runId,
     url: config.url,
@@ -154,6 +172,7 @@ export async function runPipeline(
     planMarkdown,
     generatedSpecs: specs,
     flows: deps.curatedFlows,
+    screenshots,
   });
   emit("done", "Run complete", {
     successRate: Math.round(report.successRate.rate * 100),

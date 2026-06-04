@@ -79,11 +79,15 @@ test("parsePlaywrightCli extracts verb past the session flag and the URL arg", (
     {
       verb: "goto",
       urlArg: "https://x.com/a",
+      targetRef: "https://x.com/a",
+      session: "session1",
     },
   );
   assert.deepEqual(parsePlaywrightCli("npx playwright-cli snapshot"), {
     verb: "snapshot",
     urlArg: undefined,
+    targetRef: undefined,
+    session: undefined,
   });
   assert.equal(parsePlaywrightCli("echo hello"), null);
 });

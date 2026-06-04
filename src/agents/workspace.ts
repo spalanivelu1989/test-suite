@@ -44,7 +44,12 @@ const CONFIG = `import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   reporter: [['json', { outputFile: '${RESULTS_FILE}' }], ['line']],
-  use: { headless: true, ...devices['Desktop Chrome'] },
+  use: { 
+    headless: true, 
+    ...devices['Desktop Chrome'],
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure'
+  },
 });
 `;
 
@@ -80,8 +85,10 @@ export async function createWorkspace(
   const root = join(getRunsRoot(baseDir), runId);
   const specsDir = join(root, "specs");
   const testsDir = join(root, "tests");
+  const screenshotsDir = join(root, "screenshots");
   await mkdir(specsDir, { recursive: true });
   await mkdir(testsDir, { recursive: true });
+  await mkdir(screenshotsDir, { recursive: true });
   const seedPath = join(root, "seed.spec.ts");
   const configPath = join(root, "playwright.config.ts");
   await writeFile(seedPath, SEED, "utf8");

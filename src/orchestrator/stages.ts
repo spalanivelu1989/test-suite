@@ -116,6 +116,7 @@ export async function planTests(
     mode: crawlMode,
     maxPages,
     entryUrl: url,
+    workspaceRoot: ws.root,
     onDeny: (reason) =>
       onEvent?.({ kind: "text", text: `🛑 Crawl limit enforced: ${reason}` }),
   });
@@ -242,6 +243,13 @@ export async function generateTests(
     `Use the seed at ${ws.seedPath} as the starting template.`,
   ].join(" ");
 
+  const gate = createCrawlGate({
+    mode: "aggressive",
+    maxPages: 999,
+    entryUrl: "",
+    workspaceRoot: ws.root,
+  });
+
   const res = await run({
     agent,
     prompt,
@@ -249,6 +257,7 @@ export async function generateTests(
     onEvent,
     abortController: deps.abortController,
     maxTurns,
+    hooks: gate.hooks,
   });
   const specs = await readGeneratedSpecs(ws);
   return {
@@ -284,12 +293,20 @@ export async function healTests(
     "mark it test.fixme() with a comment explaining what is happening. Do not ask questions.",
   ].join(" ");
 
+  const gate = createCrawlGate({
+    mode: "aggressive",
+    maxPages: 999,
+    entryUrl: "",
+    workspaceRoot: ws.root,
+  });
+
   const res = await run({
     agent,
     prompt,
     cwd: ws.root,
     onEvent,
     abortController: deps.abortController,
+    hooks: gate.hooks,
   });
   return { toolCalls: res.toolCalls, isError: res.isError };
 }

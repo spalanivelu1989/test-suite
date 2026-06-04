@@ -25,6 +25,7 @@ export interface ReportInput {
   planMarkdown: string | null;
   generatedSpecs: { file: string; code: string }[];
   flows?: Flow[];
+  screenshots?: { filename: string; base64: string }[];
 }
 
 /** T15: assemble the canonical rich JSON report (R11, R16, R17). Pure. */
@@ -49,6 +50,7 @@ export function buildReport(input: ReportInput): RunReport {
     testSummary: input.testSummary ?? "",
     planMarkdown: input.planMarkdown,
     generatedSpecs: input.generatedSpecs,
+    screenshots: input.screenshots ?? [],
   };
 }
 

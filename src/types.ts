@@ -161,6 +161,7 @@ export interface RunReport {
   testSummary?: string;
   planMarkdown: string | null;
   generatedSpecs: { file: string; code: string }[];
+  screenshots?: { filename: string; base64: string }[];
 }
 
 /** A run as tracked by the in-memory store (R8). */

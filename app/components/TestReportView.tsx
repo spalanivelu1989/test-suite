@@ -76,6 +76,46 @@ const FlaskIcon = () => (
   </svg>
 );
 
+const CameraIcon = () => (
+  <svg
+    className="icon"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+);
+
+interface ParsedScreenshot {
+  filename: string;
+  stepNumber: string;
+  phase: "pre" | "post";
+  action: string;
+}
+
+function parseScreenshotName(filename: string): ParsedScreenshot {
+  const m = filename.match(/^step-(\d+)-(pre|post)-(\w+)\.png$/);
+  if (m) {
+    return {
+      filename,
+      stepNumber: m[1],
+      phase: m[2] as "pre" | "post",
+      action: m[3],
+    };
+  }
+  return {
+    filename,
+    stepNumber: "??",
+    phase: "pre",
+    action: filename.replace(/\.png$/, ""),
+  };
+}
+
 const BookIcon = () => (
   <svg
     className="icon"
@@ -218,6 +258,7 @@ export function TestReportView({
 }: TestReportViewProps) {
   // Tab selector state inside report
   const [activeSubTab, setActiveSubTab] = useState("dashboard");
+  const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1229,6 +1270,14 @@ export function TestReportView({
             >
               <FlaskIcon /> {!isSidebarCollapsed && "Detailed Results"}
             </button>
+            <button
+              type="button"
+              className={`tab-btn ${activeSubTab === "screenshots" ? "active" : ""}`}
+              onClick={() => setActiveSubTab("screenshots")}
+              title={isSidebarCollapsed ? "Agent Screenshots" : undefined}
+            >
+              <CameraIcon /> {!isSidebarCollapsed && "Agent Screenshots"}
+            </button>
           </nav>
 
           {!isSidebarCollapsed && (
@@ -1918,7 +1967,70 @@ export function TestReportView({
             )}
           </div>
 
+          {/* TAB 4: AGENT SCREENSHOTS */}
+          <div
+            className={`tab-panel ${activeSubTab === "screenshots" ? "active" : ""}`}
+          >
+            <h2 className="section-h">
+              <span className="badge">
+                <CameraIcon />
+              </span>
+              Agent Screenshots
+            </h2>
+            <p className="section-desc">
+              Visual logs captured automatically during the AI agent's exploration and verification phase. 
+              Pre-action screenshots highlight the target element with a orange/red border to show click/input targets.
+            </p>
 
+            {report.screenshots && report.screenshots.length > 0 ? (
+              <div className="screenshots-grid">
+                {report.screenshots.map((s, idx) => {
+                  const parsed = parseScreenshotName(s.filename);
+                  const imgUrl = `data:image/png;base64,${s.base64}`;
+                  
+                  return (
+                    <div 
+                      key={idx} 
+                      className="screenshot-card"
+                      onClick={() => setSelectedLightboxImage(imgUrl)}
+                    >
+                      <div className="screenshot-img-container">
+                        <img 
+                          src={imgUrl} 
+                          alt={`Step ${parsed.stepNumber} ${parsed.action}`} 
+                          loading="lazy"
+                        />
+                        <div className="screenshot-badge-overlay">
+                          <span className={`screenshot-badge ${parsed.phase}`}>
+                            {parsed.phase === "pre" ? "Pre-Action Highlight" : "Post-Action State"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="screenshot-details">
+                        <div className="screenshot-title">
+                          Step {parsed.stepNumber}: <span className="action-verb">{parsed.action}</span>
+                        </div>
+                        <div className="screenshot-desc">
+                          {parsed.phase === "pre" 
+                            ? "Visual highlight overlay applied to click target"
+                            : "Resulting page state after execution"
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-state-container" style={{ textAlign: "center", padding: "40px 20px" }}>
+                <div style={{ fontSize: "40px", marginBottom: "16px" }}>📷</div>
+                <h3 style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "8px" }}>No screenshots found</h3>
+                <p style={{ color: "gray", fontSize: "13px", maxWidth: "400px", margin: "0 auto" }}>
+                  This run does not contain any visual logs. Interactive explorer screenshots are saved when running Planner or Generator agents.
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Report Footer */}
           <footer className="report-footer">
@@ -1927,6 +2039,16 @@ export function TestReportView({
           </footer>
         </main>
       </div>
+
+      {/* Lightbox Modal */}
+      {selectedLightboxImage && (
+        <div className="lightbox-overlay active" onClick={() => setSelectedLightboxImage(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button className="lightbox-close" onClick={() => setSelectedLightboxImage(null)}>×</button>
+            <img src={selectedLightboxImage} alt="Enlarged screenshot" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
