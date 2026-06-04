@@ -70,6 +70,7 @@
     #0d2b6b 55%,
     #1a4db5 100%
   );
+  --sidebar-bg-gradient: linear-gradient(180deg, #ffffff 0%, #e9eff5 100%);
 }
 
 /* Dark theme overrides — official Catppuccin Frappé (https://catppuccin.com/palette/) */
@@ -112,6 +113,7 @@
     #292c3c 55%,
     #303446 100%
   );
+  --sidebar-bg-gradient: linear-gradient(180deg, #3a3f54 0%, #1e202b 100%);
 
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -166,15 +168,15 @@
 /* Layout */
 .test-report-container .page {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 260px 1fr;
   height: 100%;
   min-height: 0;
-  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: grid-template-columns 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Sidebar Styles */
 .test-report-container .sidebar {
-  background: var(--surface);
+  background: var(--sidebar-bg-gradient);
   border-right: 1px solid var(--border);
   padding: var(--sp-5) var(--sp-4);
   display: flex;
@@ -185,7 +187,7 @@
   transition:
     background 0.25s ease,
     border-color 0.25s ease,
-    padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Sidebar Toggle Button */
@@ -215,7 +217,7 @@
 
 /* Collapsed layout */
 .test-report-container .page.sidebar-collapsed {
-  grid-template-columns: 80px 1fr;
+  grid-template-columns: 64px 1fr;
 }
 
 .test-report-container .page.sidebar-collapsed .sidebar {
