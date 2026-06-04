@@ -327,32 +327,37 @@ export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {
     }
 
     if (cfg.workspaceRoot) {
-      const interactiveCmd = parsedList.find(p => INTERACTIVE_VERBS.has(p.verb));
-      if (interactiveCmd) {
+      const actionCmd = parsedList.find(p => INTERACTIVE_VERBS.has(p.verb) || NAV_VERBS.has(p.verb));
+      if (actionCmd) {
         stepCounter++;
         const stepName = String(stepCounter).padStart(2, "0");
         activeAction = {
-          verb: interactiveCmd.verb,
-          session: interactiveCmd.session,
+          verb: actionCmd.verb,
+          session: actionCmd.session,
           stepNum: stepCounter
         };
 
-        const shouldHighlight = interactiveCmd.targetRef && 
-          !interactiveCmd.targetRef.startsWith("http") &&
-          !KEY_NAMES.has(interactiveCmd.targetRef.toLowerCase());
+        const isInteractive = INTERACTIVE_VERBS.has(actionCmd.verb);
+        const shouldHighlight = isInteractive && actionCmd.targetRef && 
+          !actionCmd.targetRef.startsWith("http") &&
+          !KEY_NAMES.has(actionCmd.targetRef.toLowerCase());
 
-        if (shouldHighlight && interactiveCmd.targetRef) {
-          await highlightElement(cfg.workspaceRoot, interactiveCmd.session, interactiveCmd.targetRef);
+        if (shouldHighlight && actionCmd.targetRef) {
+          await highlightElement(cfg.workspaceRoot, actionCmd.session, actionCmd.targetRef);
         }
 
-        await captureScreenshot(
-          cfg.workspaceRoot,
-          interactiveCmd.session,
-          `step-${stepName}-pre-${interactiveCmd.verb}.png`
-        );
+        // Only capture pre-screenshot if we have already completed at least one step,
+        // which means the browser has already navigated to the entry page.
+        if (stepCounter > 1) {
+          await captureScreenshot(
+            cfg.workspaceRoot,
+            actionCmd.session,
+            `step-${stepName}-pre-${actionCmd.verb}.png`
+          );
+        }
 
-        if (shouldHighlight && interactiveCmd.targetRef) {
-          await hideHighlight(cfg.workspaceRoot, interactiveCmd.session);
+        if (shouldHighlight && actionCmd.targetRef) {
+          await hideHighlight(cfg.workspaceRoot, actionCmd.session);
         }
       }
     }
