@@ -5,6 +5,7 @@ import {
   type Workspace,
 } from "../agents/workspace";
 import { createCrawlGate } from "../agents/crawlGate";
+import { createCliGuard, mergeHooks } from "../agents/cliGuard";
 import {
   type CrawlMode,
   CRAWL_MODE_DEPTH,
@@ -122,6 +123,13 @@ export async function planTests(
       onEvent?.({ kind: "text", text: `🛑 Crawl limit enforced: ${reason}` }),
   });
 
+  // CLI-only enforcement: hard-deny any MCP browser tool so the agent must drive
+  // the browser through `npx playwright-cli` (see cliGuard / LEARNINGS 2026-06-01).
+  const guard = createCliGuard({
+    onDeny: (reason) =>
+      onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
+  });
+
   const prompt = [
     `Create a comprehensive Playwright test plan for the web application at ${url}.`,
     "Open the browser with playwright-cli first, then explore the app and identify the primary",
@@ -137,7 +145,7 @@ export async function planTests(
     cwd: ws.root,
     onEvent,
     abortController: deps.abortController,
-    hooks: gate.hooks,
+    hooks: mergeHooks(guard.hooks, gate.hooks),
   });
   const planMarkdown = await readPlan(ws);
   return {
@@ -252,6 +260,11 @@ export async function generateTests(
     stageName: "2-generator",
   });
 
+  const guard = createCliGuard({
+    onDeny: (reason) =>
+      onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
+  });
+
   const res = await run({
     agent,
     prompt,
@@ -259,7 +272,7 @@ export async function generateTests(
     onEvent,
     abortController: deps.abortController,
     maxTurns,
-    hooks: gate.hooks,
+    hooks: mergeHooks(guard.hooks, gate.hooks),
   });
   const specs = await readGeneratedSpecs(ws);
   return {
@@ -303,13 +316,18 @@ export async function healTests(
     stageName: "3-healer",
   });
 
+  const guard = createCliGuard({
+    onDeny: (reason) =>
+      onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
+  });
+
   const res = await run({
     agent,
     prompt,
     cwd: ws.root,
     onEvent,
     abortController: deps.abortController,
-    hooks: gate.hooks,
+    hooks: mergeHooks(guard.hooks, gate.hooks),
   });
   return { toolCalls: res.toolCalls, isError: res.isError };
 }
