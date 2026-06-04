@@ -241,7 +241,7 @@ function parseMarkdownPlan(
     const trimmed = line.trim();
 
     // Check for scenario headers
-    if (line.startsWith("####") || line.startsWith("###")) {
+    if (line.startsWith("####") || line.startsWith("###") || (line.startsWith("##") && line.toLowerCase().includes("scenario"))) {
       if (
         line.startsWith("###") &&
         !line.startsWith("####") &&
@@ -249,7 +249,7 @@ function parseMarkdownPlan(
       ) {
         continue;
       }
-      const title = line.replace(/^(####|###)\s*\d+(\.\d+)*\s*/, "").trim();
+      const title = line.replace(/^(####|###|##)\s*(scenario\s*\d*[\s—:-]*)?/i, "").trim();
       currentScenario = { title, steps: [] };
       scenarios.push(currentScenario);
       inSteps = false;
@@ -2063,7 +2063,7 @@ export function TestRunDetailsPane({
           <Box display={activeDetailsTab === "monitoring" ? "block" : "none"}>
             <Box
               display="grid"
-              gridTemplateColumns={{ base: "1fr", md: "repeat(4, 1fr)" }}
+              gridTemplateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
               gap={4}
               fontSize="13px"
             >
@@ -2088,46 +2088,6 @@ export function TestRunDetailsPane({
                 </Text>
                 <Text fontSize="12px" color={colors.subtext} mt={1}>
                   Passed tests / planned tests
-                </Text>
-              </Box>
-
-              <Box
-                bg={colors.cardBg}
-                border="1px solid"
-                borderColor={colors.border}
-                p={3.5}
-                borderRadius="sm"
-              >
-                <Text color={colors.subtext} fontWeight="semibold" mb={1}>
-                  CLAUDE CALL COUNT
-                </Text>
-                <Text
-                  fontSize="24px"
-                  fontWeight="black"
-                  color={AWS_COLORS.orange.main}
-                >
-                  {report ? report.claudeCallCount : 0} calls
-                </Text>
-                <Text fontSize="12px" color={colors.subtext} mt={1}>
-                  LLM planning & repair requests
-                </Text>
-              </Box>
-
-              <Box
-                bg={colors.cardBg}
-                border="1px solid"
-                borderColor={colors.border}
-                p={3.5}
-                borderRadius="sm"
-              >
-                <Text color={colors.subtext} fontWeight="semibold" mb={1}>
-                  FLAKE RATE
-                </Text>
-                <Text fontSize="24px" fontWeight="black" color="orange.500">
-                  {report ? `${Math.round(report.flakeRate * 100)}%` : "N/A"}
-                </Text>
-                <Text fontSize="12px" color={colors.subtext} mt={1}>
-                  Divergent results across re-runs
                 </Text>
               </Box>
 

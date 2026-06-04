@@ -1891,7 +1891,7 @@ export function TestReportView({
             )}
 
             {/* Recommended Fixes */}
-            {report.fixPrompts && report.fixPrompts.length > 0 && (
+            {currentFilter === "fail" && report.fixPrompts && report.fixPrompts.length > 0 && (
               <div style={{ marginTop: "var(--sp-6)" }}>
                 <h2 className="section-h">
                   <span className="badge">

@@ -831,7 +831,7 @@ export function renderHtml(report: RunReport): string {
           ${
             report.fixPrompts && report.fixPrompts.length > 0
               ? `
-            <div style="margin-top: var(--sp-6);">
+            <div id="recommended-fixes-section" style="display: none; margin-top: var(--sp-6);">
               <h2 class="section-h">
                 <span class="badge">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z" /></svg>
@@ -1019,6 +1019,11 @@ export function renderHtml(report: RunReport): string {
         } else {
           emptyState.style.display = 'none';
         }
+      }
+
+      const fixesSection = document.getElementById('recommended-fixes-section');
+      if (fixesSection) {
+        fixesSection.style.display = currentFilter === 'fail' ? 'block' : 'none';
       }
     }
 
