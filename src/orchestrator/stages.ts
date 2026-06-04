@@ -117,6 +117,7 @@ export async function planTests(
     maxPages,
     entryUrl: url,
     workspaceRoot: ws.root,
+    stageName: "1-planner",
     onDeny: (reason) =>
       onEvent?.({ kind: "text", text: `🛑 Crawl limit enforced: ${reason}` }),
   });
@@ -248,6 +249,7 @@ export async function generateTests(
     maxPages: 999,
     entryUrl: "",
     workspaceRoot: ws.root,
+    stageName: "2-generator",
   });
 
   const res = await run({
@@ -298,6 +300,7 @@ export async function healTests(
     maxPages: 999,
     entryUrl: "",
     workspaceRoot: ws.root,
+    stageName: "3-healer",
   });
 
   const res = await run({

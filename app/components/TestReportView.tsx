@@ -99,13 +99,15 @@ interface ParsedScreenshot {
 }
 
 function parseScreenshotName(filename: string): ParsedScreenshot {
-  const m = filename.match(/^step-(\d+)-(pre|post)-(\w+)\.png$/);
+  const m = filename.match(/^(?:([a-zA-Z0-9\-]+)-)?step-(\d+)-(pre|post)-(\w+)\.png$/);
   if (m) {
+    const stageRaw = m[1] ? m[1].replace(/^\d+-/, "") : "";
+    const stage = stageRaw ? stageRaw.charAt(0).toUpperCase() + stageRaw.slice(1) : "";
     return {
       filename,
-      stepNumber: m[1],
-      phase: m[2] as "pre" | "post",
-      action: m[3],
+      stepNumber: m[2],
+      phase: m[3] as "pre" | "post",
+      action: stage ? `${m[4]} (${stage})` : m[4],
     };
   }
   return {

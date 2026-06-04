@@ -885,10 +885,13 @@ export function renderHtml(report: RunReport): string {
             <div class="screenshots-grid">
               ${report.screenshots
                 .map((s) => {
-                  const m = s.filename.match(/^step-(\d+)-(pre|post)-(\w+)\.png$/);
-                  const stepNum = m ? m[1] : "??";
-                  const phase = m ? m[2] : "pre";
-                  const action = m ? m[3] : s.filename;
+                  const m = s.filename.match(/^(?:([a-zA-Z0-9\-]+)-)?step-(\d+)-(pre|post)-(\w+)\.png$/);
+                  const stageRaw = m && m[1] ? m[1].replace(/^\d+-/, "") : "";
+                  const stage = stageRaw ? stageRaw.charAt(0).toUpperCase() + stageRaw.slice(1) : "";
+                  const stepNum = m ? m[2] : "??";
+                  const phase = m ? m[3] : "pre";
+                  const actionRaw = m ? m[4] : s.filename;
+                  const action = stage ? `${actionRaw} (${stage})` : actionRaw;
                   const phaseLabel = phase === "pre" ? "Pre-Action Highlight" : "Post-Action State";
                   const desc = phase === "pre" 
                     ? "Visual highlight overlay applied to click target"

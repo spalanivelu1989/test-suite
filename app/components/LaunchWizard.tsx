@@ -222,7 +222,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           {/* Separator */}
           <Box borderTop="1px solid" borderColor={colors.border} my={1} />
 
-          {/* Section 2: Crawl Parameters */}
+          {/* Section 2: Crawl & Agent Settings */}
           <VStack align="stretch" gap={4}>
             <Text
               fontSize="13px"
@@ -232,7 +232,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               fontFamily="mono"
               textTransform="uppercase"
             >
-              Crawl Parameters
+              Crawl & Agent Settings
             </Text>
 
             <HStack gap={4} wrap="wrap" align="flex-start">
@@ -592,7 +592,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
 
             <Box borderTop="1px solid" borderColor={colors.border} pt={2}>
               <Text fontWeight="bold" color={colors.text} mb={1}>
-                Crawl Parameters
+                Crawl & Agent Settings
               </Text>
               <Text color={colors.subtext}>
                 Mode:{" "}

@@ -52,6 +52,7 @@ export interface CrawlGateConfig {
   /** Surfaced to the run log each time the gate blocks a command. */
   onDeny?: (reason: string) => void;
   workspaceRoot?: string;
+  stageName?: string;
 }
 
 /** A single playwright-cli invocation parsed out of a Bash command. */
@@ -349,10 +350,11 @@ export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {
         // Only capture pre-screenshot if we have already completed at least one step,
         // which means the browser has already navigated to the entry page.
         if (stepCounter > 1) {
+          const prefix = cfg.stageName ? `${cfg.stageName}-` : "";
           await captureScreenshot(
             cfg.workspaceRoot,
             actionCmd.session,
-            `step-${stepName}-pre-${actionCmd.verb}.png`
+            `${prefix}step-${stepName}-pre-${actionCmd.verb}.png`
           );
         }
 
@@ -383,10 +385,11 @@ export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {
       const stepName = String(activeAction.stepNum).padStart(2, "0");
       // Wait 500ms to let page redirects, Ajax renders, or CSS animations settle
       await new Promise((resolve) => setTimeout(resolve, 500));
+      const prefix = cfg.stageName ? `${cfg.stageName}-` : "";
       await captureScreenshot(
         cfg.workspaceRoot,
         activeAction.session,
-        `step-${stepName}-post-${activeAction.verb}.png`
+        `${prefix}step-${stepName}-post-${activeAction.verb}.png`
       );
       activeAction = null;
     }

@@ -850,7 +850,11 @@ export function TestRunDetailsPane({
                 </Flex>
                 <Flex justify="space-between">
                   <Text color={colors.subtext}>Max Pages visited:</Text>
-                  <Text fontWeight="bold">{run.config.maxPages ?? 10}</Text>
+                  <Text fontWeight="bold">
+                    {run.config.crawlMode === "direct"
+                      ? 1
+                      : (run.config.maxPages ?? 10)}
+                  </Text>
                 </Flex>
                 <Flex justify="space-between">
                   <Text color={colors.subtext}>Launch time:</Text>
