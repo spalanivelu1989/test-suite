@@ -376,6 +376,8 @@ export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {
 
     if (cfg.workspaceRoot && activeAction) {
       const stepName = String(activeAction.stepNum).padStart(2, "0");
+      // Wait 500ms to let page redirects, Ajax renders, or CSS animations settle
+      await new Promise((resolve) => setTimeout(resolve, 500));
       await captureScreenshot(
         cfg.workspaceRoot,
         activeAction.session,
