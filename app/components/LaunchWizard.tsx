@@ -35,8 +35,8 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
   const isDark = theme === "dark";
 
   const [url, setUrl] = useState("");
-  const [crawlMode, setCrawlMode] = useState("standard");
-  const [maxPages, setMaxPages] = useState("10");
+  const [crawlMode, setCrawlMode] = useState("direct");
+  const [maxPages, setMaxPages] = useState("1");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +59,44 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
     }
     const expected = getExpectedTests(value);
     return `${defaultText} (Max ${expected} tests)`;
+  };
+
+  const getDepthHelperText = () => {
+    switch (crawlMode) {
+      case "direct":
+        return "This tests only the starting page you entered. The crawler will not click any links to other pages.";
+      case "standard":
+        return "This tests the starting page and all pages directly linked from it (1 click away). Perfect for verifying your main sections like Login, About, and Contact pages.";
+      case "deep":
+        return "This tests pages up to 3 clicks away from the starting page. Best for checking nested features, product catalogs, or multi-step forms.";
+      case "aggressive":
+        return "This tests pages up to 10 clicks away from the starting page, scanning almost the entire site. Best for comprehensive audits of large portals.";
+      default:
+        return "";
+    }
+  };
+
+  const getPagesHelperText = () => {
+    const expected = getExpectedTests(maxPages);
+    if (crawlMode === "direct") {
+      return maxPages === "2"
+        ? "Runs 12 tests on the starting page. Best for pages with multiple interactive features like signup forms, search bars, or buttons."
+        : "Runs 8 tests on the starting page. Best for simple pages with mostly text, images, and links.";
+    }
+    switch (maxPages) {
+      case "5":
+        return `Visits up to 5 pages, running a total of ${expected} test cases. Best for fast checks during active development.`;
+      case "10":
+        return `Visits up to 10 pages, running a total of ${expected} test cases. This is the recommended choice for standard testing.`;
+      case "20":
+        return `Visits up to 20 pages, running a total of ${expected} test cases. Best for verifying medium-sized websites before a release.`;
+      case "50":
+        return `Visits up to 50 pages, running a total of ${expected} test cases. Best for full pre-release audits.`;
+      case "100":
+        return `Visits up to 100 pages, running a total of ${expected} test cases. Best for running thorough enterprise audits overnight.`;
+      default:
+        return `Visits up to ${maxPages} pages, running a total of ${expected} test cases.`;
+    }
   };
 
   const depthRef = useRef<HTMLDivElement>(null);
@@ -197,7 +235,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               Crawl Parameters
             </Text>
 
-            <HStack gap={4} wrap="wrap">
+            <HStack gap={4} wrap="wrap" align="flex-start">
               <VStack
                 align="stretch"
                 gap={1.5}
@@ -350,6 +388,9 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     </MotionBox>
                   )}
                 </AnimatePresence>
+                <Text fontSize="11px" color={colors.subtext} mt={1.5} lineHeight="short">
+                  {getDepthHelperText()}
+                </Text>
               </VStack>
 
               <VStack
@@ -506,6 +547,9 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     </MotionBox>
                   )}
                 </AnimatePresence>
+                <Text fontSize="11px" color={colors.subtext} mt={1.5} lineHeight="short">
+                  {getPagesHelperText()}
+                </Text>
               </VStack>
             </HStack>
           </VStack>
