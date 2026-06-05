@@ -109,6 +109,9 @@ test("getAppProfile + getCoverageMap (AC6/AC7)", opts, async () => {
   const map = await k.getCoverageMap(k.appIdFor(url));
   assert.ok(map);
   assert.ok(map!.covered.includes("Hero CTA"));
+  // Gap comes from the snapshot's missing_flows, and a flow is never both.
+  assert.ok(map!.uncovered.includes("Footer Links"));
+  assert.ok(!map!.covered.includes("Footer Links"));
   await k.close();
 });
 

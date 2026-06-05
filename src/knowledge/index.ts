@@ -208,3 +208,4 @@ export type {
   ScenarioInput,
   SpecRef,
 } from "./types";
+export { REUSE_MARKER } from "./constants";

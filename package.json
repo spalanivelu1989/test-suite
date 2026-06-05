@@ -9,6 +9,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx --test \"src/**/*.test.ts\"",
+    "test:db": "node --env-file-if-exists=.env.local --import tsx --test \"src/**/*.test.ts\"",
     "ci": "tsx bin/run-ci.ts",
     "render:html": "tsx bin/render-html.ts",
     "knowledge:migrate": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-migrate.ts"

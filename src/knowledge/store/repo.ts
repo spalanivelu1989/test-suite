@@ -46,7 +46,7 @@ export async function persistRun(
         s.title,
         s.flowId,
         s.contentHash,
-        false,
+        s.reused,
         s.tokens,
       ],
     );
@@ -123,6 +123,8 @@ export interface AppKnowledge {
   runCount: number;
   pages: string[];
   flows: FlowRow[];
+  /** Gap names from the most recent run's coverage snapshot (M1-aligned). */
+  missingFlows: string[];
 }
 
 /** One app-scoped read of everything the profile/coverage map needs (T10). */
@@ -138,6 +140,18 @@ export async function readAppKnowledge(
 
   const pages = await pool.query<{ url: string }>(
     `SELECT DISTINCT url FROM runs WHERE app_id = $1 ORDER BY url`,
+    [appId],
+  );
+
+  // The latest run's coverage snapshot is the authoritative gap list (it used
+  // coverageFromResults token-overlap at report time, the same basis as M1).
+  const snap = await pool.query<{ missing_flows: string[] }>(
+    `SELECT cs.missing_flows
+       FROM coverage_snapshots cs
+       JOIN runs r ON r.run_id = cs.run_id
+      WHERE cs.app_id = $1
+      ORDER BY r.created_at DESC
+      LIMIT 1`,
     [appId],
   );
 
@@ -172,6 +186,7 @@ export async function readAppKnowledge(
       lastOutcome: r.last_outcome,
       lastRunId: r.last_run_id,
     })),
+    missingFlows: snap.rows[0]?.missing_flows ?? [],
   };
 }
 

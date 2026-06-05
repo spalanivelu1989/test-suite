@@ -3,6 +3,7 @@ import type { RunReport } from "../../types";
 import { norm, significantTokens } from "../../coverage/coverage";
 import { extractTitle, parsePlanScenarios } from "../../validator/validate";
 import { normalizeOrigin } from "../appId";
+import { REUSE_MARKER } from "../constants";
 
 // Normalize a RunReport into knowledge-base rows (Spec R3). DEFENSIVE: any
 // missing/malformed field is skipped, never thrown (Plan RK5) — a partial report
@@ -17,6 +18,8 @@ export interface ExtractedRun {
     flowId: string | null;
     contentHash: string;
     tokens: string[];
+    /** True when this spec was copied forward from a prior run (carries the marker). */
+    reused: boolean;
   }[];
   flows: { appId: string; flowId: string; name: string }[];
   planScenarios: {
@@ -105,6 +108,7 @@ export function extractRun(report: RunReport): ExtractedRun {
         flowId,
         contentHash: sha1(s.code ?? ""),
         tokens,
+        reused: (s.code ?? "").includes(REUSE_MARKER),
       };
     });
 

@@ -43,3 +43,15 @@ result tested it. **M1 (coverage-detection) is therefore measured from the
 `coverage_snapshots` row** (which used `coverageFromResults` token-overlap at
 report time), NOT from exact flow-row matching. Token-overlap reconciliation of
 the two keysets is a Phase-2 refinement (embeddings).
+
+### [2026-06-05] Profile/coverage collapse flows BY NAME + use snapshot gaps
+
+**Type:** Change · **Task:** T11 (R6/R7)
+
+Surfaced by an end-to-end check: the same flow appeared as **both covered and a
+gap** (curated `hero` row untested + tested `hero cta` row). Fixed in
+`appProfile.ts`: collapse flow rows by `norm(name)` (covered if ANY row tested),
+and derive gaps from the **latest `coverage_snapshots.missing_flows`** (the
+M1-aligned, token-overlap signal) rather than from untested flow rows. A flow is
+now never both covered and a gap. `readAppKnowledge` now also returns
+`missingFlows`.
