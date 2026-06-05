@@ -55,3 +55,17 @@ and derive gaps from the **latest `coverage_snapshots.missing_flows`** (the
 M1-aligned, token-overlap signal) rather than from untested flow rows. A flow is
 now never both covered and a gap. `readAppKnowledge` now also returns
 `missingFlows`.
+
+### [2026-06-05] M1/M2 outcome metrics deferred to /measure (need live runs)
+
+**Type:** Gap · **Task:** Forge close (M1, M2)
+
+All 20 tasks are built and verified offline against a local Postgres (143 unit +
+integration + NFR tests green). The two **outcome metrics** — M1 coverage-detection
+(≥90% recall / ≥80% precision) and M2 duplicate-avoidance (≤20% regenerated) —
+require **two real tarento.com runs** (`ANTHROPIC_API_KEY` + Playwright CLI), which
+aren't available in this build environment. The mechanism is proven end-to-end
+(ingest → planner pack → reuse/extend/new decisions, verified via a live DB
+sanity check), but the numeric targets are measured later via
+`/craft-framework:measure`. Q1 (flow labeling) and Q2 (threshold calibration)
+finalize against those runs.

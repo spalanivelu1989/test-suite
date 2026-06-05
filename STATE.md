@@ -14,9 +14,14 @@ and after every task completed during Forge.
 > backfill tasks for R18–R21.
 >
 > **(B) Knowledge-Driven Testing Platform — Phase 1** (NEW initiative, separate
-> spec at `specs/knowledge-platform/`) — **Assemble complete** (plan.md +
-> tasks.md Approved 2026-06-05; both gates passed; validator 15/15). Next: Stage 4
-> (Forge) → `/craft-framework:forge` to build T1–T20. The 5 open questions are
+> spec at `specs/knowledge-platform/`) — **Forge complete** (all T1–T20 built;
+> 143 unit/integration/NFR tests green on a local Postgres; typecheck clean;
+> validator 15/15). Next: Stage 5 (Test & Tune) → `/craft-framework:test-tune`.
+> Built `src/knowledge/` (KnowledgeService over Postgres) + wired the 3 seams in
+> `src/orchestrator/`; ADR-0001 records the Postgres choice. **Deferred to
+> `/measure`:** the M1/M2 outcome metrics need two live tarento.com runs
+> (ANTHROPIC_API_KEY + Playwright CLI) — see implementation-notes. Local dev DB:
+> homebrew Postgres on :5433 (trust), `knowledge` db. The 5 open questions were
 > resolved as plan decisions: D1 Postgres (→ ADR-0001), D2 plain `pg`+SQL
 > migrations (no ORM), D4 **copy** reused specs into the run, D5 overlap-coefficient
 > thresholds (reuse ≥0.80 / extend 0.45–0.80 / new <0.45, err to new), D7
@@ -88,6 +93,7 @@ Assemble → Forge → Test).
 | 2026-06-05 | KP 1 — Clarify    | Knowledge Platform Phase 1 brief approved (specs/knowledge-platform/)  | ✅     |
 | 2026-06-05 | KP 1 — Record     | Knowledge Platform Phase 1 spec v0.1.0 approved (R1–R12; M1/M2; N1–N5) | ✅     |
 | 2026-06-05 | KP 1 — Assemble   | Knowledge Platform Phase 1 plan + tasks approved (T1–T20; ADR-0001)    | ✅     |
+| 2026-06-05 | KP 1 — Forge      | All T1–T20 built; 143 tests green; M1/M2 deferred to /measure          | ✅     |
 
 ## Key decisions
 
