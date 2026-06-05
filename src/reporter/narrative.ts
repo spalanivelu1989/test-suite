@@ -23,7 +23,7 @@ const SYSTEM =
   "2. 'issues': Bullet list of app or test suite setup problems as short strings.\n" +
   "3. 'better': A single paragraph (3-6 sentences) summarizing frontend/UX/accessibility gaps and testability limitations (e.g. missing filters, hidden DOM elements, CAPTCHAs) and their impact.\n" +
   "4. 'recommendationsText': A single paragraph (3-6 sentences) proposing actionable next steps: prioritize UI defect fixes, improve testability/accessibility, and name exact tests to re-run.\n" +
-  "5. 'summary': An array of detailed, narrative-driven explanations (3-5 sentences) in plain English for EACH test (ordered the same as the results list). Explain the user journey like a tech journalist telling it to a generalist audience, but ground it in technical facts: name the specific routes/paths navigated (e.g., '/dashboard'), exact UI elements/inputs/buttons clicked/typed, and the precise assertions or verifications performed (e.g. checked that badge incremented or redirect occurred) so the reader understands both the user flow and the exact test mechanics.\n" +
+  "5. 'summary': An array of narrative-driven explanations (1-2 sentences) in plain English for EACH test (ordered the same as the results list). Explain the user journey and ground it in technical facts: name the specific routes/paths navigated, exact UI elements/inputs/buttons clicked/typed, and the precise assertions or verifications performed so the reader understands both the user flow and the exact test mechanics.\n" +
   "6. 'testSummary': A single executive summary paragraph (3-6 sentences) in the third person. It MUST start with the target URL name (e.g. 'senthilcaesar.github.io'). Verbatim-use the counts/rate from the 'Authoritative counts' block (do not invent numbers). State the counts of passed, failed, auto-fixed (healed), and flaky tests, and describe where the outcomes are concentrated.";
 
 export function buildNarrativePrompt(
@@ -82,11 +82,118 @@ export function buildNarrativePrompt(
   return lines.join("\n");
 }
 
+/** Repair a truncated or malformed JSON string by closing opened brackets and strings. */
+export function repairJson(jsonStr: string): string {
+  try {
+    JSON.parse(jsonStr);
+    return jsonStr;
+  } catch {
+    // If it fails, try to repair it
+  }
+
+  let insideString = false;
+  let escaped = false;
+  const stack: string[] = [];
+  let lastTopLevelComma = -1;
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      insideString = !insideString;
+      continue;
+    }
+    if (!insideString) {
+      if (char === "{") {
+        stack.push("}");
+      } else if (char === "[") {
+        stack.push("]");
+      } else if (char === "}") {
+        if (stack[stack.length - 1] === "}") {
+          stack.pop();
+        }
+      } else if (char === "]") {
+        if (stack[stack.length - 1] === "]") {
+          stack.pop();
+        }
+      } else if (char === "," && stack.length === 1 && stack[0] === "}") {
+        lastTopLevelComma = i;
+      }
+    }
+  }
+
+  let simpleRepair = jsonStr;
+  if (insideString) {
+    simpleRepair += '"';
+  }
+  for (let i = stack.length - 1; i >= 0; i--) {
+    simpleRepair += stack[i];
+  }
+
+  try {
+    JSON.parse(simpleRepair);
+    return simpleRepair;
+  } catch {
+    // Simple repair failed (e.g. unclosed key/value in active parsing)
+  }
+
+  if (lastTopLevelComma !== -1) {
+    const truncated = jsonStr.slice(0, lastTopLevelComma) + "}";
+    try {
+      JSON.parse(truncated);
+      return truncated;
+    } catch {
+      // Ignore and fail
+    }
+  }
+
+  return "";
+}
+
 /** Extract the JSON object from a model response that may include fences/prose. */
 export function parseNarrative(text: string): Narrative {
   const start = text.indexOf("{");
+  if (start === -1) {
+    return {
+      fixPrompts: [],
+      issues: [],
+      recommendations: [],
+      better: "",
+      recommendationsText: "",
+      summary: [],
+      testSummary: "",
+    };
+  }
+
+  let raw: Record<string, unknown> | null = null;
   const end = text.lastIndexOf("}");
-  if (start === -1 || end === -1 || end < start) {
+  if (end !== -1 && end > start) {
+    try {
+      raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
+    } catch {
+      // Try repair if standard parsing fails
+    }
+  }
+
+  if (!raw) {
+    const repaired = repairJson(text.slice(start));
+    if (repaired) {
+      try {
+        raw = JSON.parse(repaired) as Record<string, unknown>;
+      } catch {
+        // Fallback to empty
+      }
+    }
+  }
+
+  if (!raw) {
     return {
       fixPrompts: [],
       issues: [],
@@ -97,20 +204,7 @@ export function parseNarrative(text: string): Narrative {
       testSummary: "",
     };
   }
-  let raw: Record<string, unknown>;
-  try {
-    raw = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
-  } catch {
-    return {
-      fixPrompts: [],
-      issues: [],
-      recommendations: [],
-      better: "",
-      recommendationsText: "",
-      summary: [],
-      testSummary: "",
-    };
-  }
+
   const strArr = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
   const fixPrompts = Array.isArray(raw.fixPrompts)

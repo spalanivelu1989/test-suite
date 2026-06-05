@@ -9,12 +9,9 @@ import {
   CRAWL_MODE_DEPTH,
   effectivePageBudget,
 } from "../types";
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
+import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
-
-const execAsync = promisify(exec);
 
 // Code-enforced crawl scope (R2). The planner agent drives the browser by
 // shelling out to `npx playwright-cli` over the Bash tool, so the only place we
@@ -195,13 +192,23 @@ export interface CrawlGate {
 }
 
 async function runCliCommand(cwd: string, args: string[]): Promise<string> {
-  const cmdStr = `npx playwright-cli ${args.join(" ")}`;
-  try {
-    const { stdout } = await execAsync(cmdStr, { cwd });
-    return stdout;
-  } catch (err) {
-    return "";
-  }
+  return new Promise((resolve) => {
+    const child = spawn("npx", ["playwright-cli", ...args], {
+      cwd,
+      env: { ...process.env },
+    });
+    let stdout = "";
+    child.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+    child.stderr?.on("data", () => {});
+    child.on("close", () => {
+      resolve(stdout);
+    });
+    child.on("error", () => {
+      resolve("");
+    });
+  });
 }
 
 async function captureScreenshot(cwd: string, session: string | undefined, filename: string): Promise<void> {
@@ -226,7 +233,7 @@ async function highlightElement(cwd: string, session: string | undefined, target
   }
   args.push("highlight");
   args.push(targetRef);
-  args.push(`--style="outline: 4px solid #ff9900; background-color: rgba(255, 153, 0, 0.2); outline-offset: 2px;"`);
+  args.push(`--style=outline: 4px solid #ff9900; background-color: rgba(255, 153, 0, 0.2); outline-offset: 2px;`);
   await runCliCommand(cwd, args);
 }
 

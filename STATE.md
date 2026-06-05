@@ -7,12 +7,25 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** v2 — Forge complete (all 23 tasks built); ready for Stage 5 (Test & Tune).
-- **Last updated:** 2026-05-27
-- **Waiting on:** nothing — ready to run `/craft-framework:test-tune`. NOTE:
-  review-report.md still reflects v0.1.0 (validator flags AC12–AC17) — Test & Tune
-  regenerates it. A full v2 live run needs ANTHROPIC_API_KEY + the Playwright
+- **Stage:** v0.3.0 — **Record complete** (Spec v0.3.0 Approved, adds the
+  deterministic Validation stage R18–R21). Next: Stage 3 (Assemble) to backfill
+  tasks for R18–R21.
+- **Last updated:** 2026-06-05
+- **Waiting on:** run `/craft-framework:assemble` to add R18–R21 tasks to
+  `tasks.md` (the validation code is already built — Assemble backfills the
+  plan/tasks for traceability, then Forge is a confirm-only pass). Then Stage 5
+  (Test & Tune) regenerates `review-report.md`, which is still v0.1.0 and now
+  also lacks AC18–AC24. A full live run needs ANTHROPIC_API_KEY + the Playwright
   CLI (`@playwright/cli`, browser installed via `npx playwright-cli install-browser`).
+
+> **2026-06-05 — Validation stage built ahead of the Spec, now reconciled.** A
+> deterministic Validator (Planner → Generator → **Validator** → run → Healer →
+> Reporter) was implemented directly (src/validator/validate.ts; wired through
+> orchestrate/stages/report/render; 107 unit tests green, tsc clean), outside the
+> CRAFT flow. Reconciled back into the contract via Record → Spec **v0.3.0**
+> (R18–R21, SC11–SC15, C8, A1–A4, M4, AC18–AC24). Decisions: deterministic rules
+> only (no LLM), **advisory + fed to the Healer, not a hard gate**. Assemble will
+> backfill the tasks; Test & Tune will verify AC18–AC24.
 
 ### v2 direction (decided 2026-05-27)
 
@@ -35,21 +48,30 @@ Assemble → Forge → Test).
 
 ## Stage completion log
 
-| Date       | Stage           | Deliverable                                                     | Status |
-| ---------- | --------------- | --------------------------------------------------------------- | ------ |
-| 2026-05-27 | Setup           | Memory files created                                            | ✅     |
-| 2026-05-27 | 1 — Clarify     | Brief approved (specs/ai-ui-testing-tool/brief.md)              | ✅     |
-| 2026-05-27 | 2 — Record      | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md)         | ✅     |
-| 2026-05-27 | 3 — Assemble    | plan.md + tasks.md approved (26 tasks, Next.js stack)           | ✅     |
-| 2026-05-27 | 4 — Forge       | All 26 tasks built; 47 unit tests pass; build clean             | ✅     |
-| 2026-05-27 | 5 — Test&Tune   | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage | ✅     |
-| 2026-05-27 | Ship            | Shipped v0.1.0 at the Human Gate (user decision)                | ✅     |
-| 2026-05-27 | 2 — Record v2   | Spec v0.2.0 approved (4-agent architecture + rich reporter)     | ✅     |
-| 2026-05-27 | 3 — Assemble v2 | plan + tasks v0.2.0 approved (23 tasks; Agent SDK + browser)    | ✅     |
-| 2026-05-27 | 4 — Forge v2    | All 23 v0.2.0 tasks built; 48 unit tests, build clean           | ✅     |
-| 2026-06-01 | Maintenance     | Browser driver migrated MCP → Playwright CLI (headless default) | ✅     |
+| Date       | Stage             | Deliverable                                                          | Status |
+| ---------- | ----------------- | -------------------------------------------------------------------- | ------ |
+| 2026-05-27 | Setup             | Memory files created                                                 | ✅     |
+| 2026-05-27 | 1 — Clarify       | Brief approved (specs/ai-ui-testing-tool/brief.md)                   | ✅     |
+| 2026-05-27 | 2 — Record        | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md)              | ✅     |
+| 2026-05-27 | 3 — Assemble      | plan.md + tasks.md approved (26 tasks, Next.js stack)                | ✅     |
+| 2026-05-27 | 4 — Forge         | All 26 tasks built; 47 unit tests pass; build clean                  | ✅     |
+| 2026-05-27 | 5 — Test&Tune     | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage      | ✅     |
+| 2026-05-27 | Ship              | Shipped v0.1.0 at the Human Gate (user decision)                     | ✅     |
+| 2026-05-27 | 2 — Record v2     | Spec v0.2.0 approved (4-agent architecture + rich reporter)          | ✅     |
+| 2026-05-27 | 3 — Assemble v2   | plan + tasks v0.2.0 approved (23 tasks; Agent SDK + browser)         | ✅     |
+| 2026-05-27 | 4 — Forge v2      | All 23 v0.2.0 tasks built; 48 unit tests, build clean                | ✅     |
+| 2026-06-01 | Maintenance       | Browser driver migrated MCP → Playwright CLI (headless default)      | ✅     |
+| 2026-06-05 | 2 — Record v0.3.0 | Spec v0.3.0 approved — adds deterministic Validation stage (R18–R21) | ✅     |
 
 ## Key decisions
+
+- **2026-06-05 (Record gate, v0.3.0):** Added a **deterministic Validation
+  stage** between Generator and Healer (R18–R21). **Deterministic rules only** —
+  no LLM/semantic judging (C8, A1). Validation is **advisory and fed to the
+  Healer, never a hard gate** (R20); hard-gate + LLM-judge + configurable rules
+  are deferred (Q11, Q12, Future vision). Outcome metric M4 = ≥95% of generated
+  specs free of error-level findings. Reconciles a feature built ahead of the
+  Spec on 2026-06-05.
 
 - **2026-05-27 (Clarify):** v1 = core loop (crawl → generate → run → report).
   Engine = Playwright. Success metric = ≥80% primary-flow coverage.

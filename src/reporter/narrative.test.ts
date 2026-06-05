@@ -69,3 +69,22 @@ test("generateNarrative skips the call for an empty suite", async () => {
   assert.equal(claude.calls.length, 0);
   assert.deepEqual(n.fixPrompts, []);
 });
+
+test("parseNarrative repairs truncated JSON output", () => {
+  const truncatedText = 'Here:\n```json\n{"fixPrompts":[],"issues":["slow page"],"better":"performance lag","recommendationsText":"optimise build","summary":["tested routing"';
+  const n = parseNarrative(truncatedText);
+  assert.deepEqual(n.issues, ["slow page"]);
+  assert.equal(n.better, "performance lag");
+  assert.equal(n.recommendationsText, "optimise build");
+  assert.deepEqual(n.summary, ["tested routing"]);
+});
+
+test("parseNarrative repairs key-truncated JSON output by falling back to last complete key-value pair", () => {
+  const truncatedText = '{"fixPrompts":[],"issues":["slow page"],"better":"performance lag","recommendationsText":"optimise build","summary';
+  const n = parseNarrative(truncatedText);
+  assert.deepEqual(n.issues, ["slow page"]);
+  assert.equal(n.better, "performance lag");
+  assert.equal(n.recommendationsText, "optimise build");
+  assert.deepEqual(n.summary, []);
+});
+
