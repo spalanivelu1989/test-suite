@@ -22,6 +22,7 @@ import {
   validateTests,
   type StageDeps,
 } from "./stages";
+import { createKnowledgeService, type KnowledgeService } from "../knowledge";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -37,6 +38,8 @@ export interface OrchestratorDeps {
   makeWorkspace?: (runId: string) => Promise<Workspace>;
   /** Stops the pipeline (and the agent subprocesses) when the user cancels. */
   abortController?: AbortController;
+  /** Knowledge Layer (R1). Defaults to env-configured; disabled when no DB. */
+  knowledge?: KnowledgeService;
 }
 
 class StageError extends Error {}
@@ -82,9 +85,25 @@ export async function runPipeline(
   };
 
   const ws = await (deps.makeWorkspace ?? createWorkspace)(runId);
+  // Knowledge Layer: env-configured by default, disabled (cold) when no DB.
+  // Its events are bridged onto the run's progress stream (no silent magic).
+  const knowledge =
+    deps.knowledge ??
+    createKnowledgeService({
+      onEvent: (e) => {
+        if (e.kind === "ingested")
+          emit("done", `Knowledge: ingested run (${e.flows} flow(s))`);
+        else if (e.kind === "loaded")
+          emit(
+            "planning",
+            `Knowledge: ${e.knownFlows} known flow(s), ${e.gaps} gap(s)`,
+          );
+      },
+    });
   const stageDeps: StageDeps = {
     ...deps.stageDeps,
     abortController: deps.abortController,
+    knowledge: deps.stageDeps?.knowledge ?? knowledge,
   };
   let agentRuns = 0;
 
@@ -109,7 +128,7 @@ export async function runPipeline(
     ws,
     onAgent("generating", "generator"),
     stageDeps,
-    { crawlMode: config.crawlMode, maxPages: config.maxPages },
+    { crawlMode: config.crawlMode, maxPages: config.maxPages, url: config.url },
   );
   if (gen.trimmedCount > 0) {
     emit(
@@ -209,6 +228,11 @@ export async function runPipeline(
     screenshots,
     validation,
   });
+
+  // T9/R11: new execution data becomes knowledge. Best-effort — ingestRun never
+  // throws, so a KB hiccup cannot fail a completed run.
+  await knowledge.ingestRun(report);
+
   emit("done", "Run complete", {
     successRate: Math.round(report.successRate.rate * 100),
     coverage: coverage.percent,

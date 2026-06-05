@@ -15,8 +15,12 @@ import {
 } from "../types";
 import {
   formatValidationForHealer,
+  parsePlanScenarios,
   validateSuite,
 } from "../validator/validate";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { REUSE_MARKER, type KnowledgeService } from "../knowledge";
 
 // The four pipeline stages (T6–T8 + results). Each stage runs one agent in the
 // run workspace via the runtime; deps are injectable so the orchestration is
@@ -27,6 +31,8 @@ export interface StageDeps {
   loadAgentFn?: typeof loadAgent;
   /** Forwarded to the agent runtime so a stopped run kills the agent subprocess. */
   abortController?: AbortController;
+  /** Knowledge Layer — injects history into the Planner/Generator prompts (R8/R10). */
+  knowledge?: KnowledgeService;
 }
 
 export interface PlanResult {
@@ -135,6 +141,24 @@ export async function planTests(
       onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
   });
 
+  // T14: history-aware planning. Best-effort — empty/absent when cold or KB down.
+  // Guarded so even a misbehaving service can never fail the run (N3).
+  let pack: Awaited<ReturnType<KnowledgeService["assembleContext"]>> = {};
+  try {
+    if (deps.knowledge)
+      pack = await deps.knowledge.assembleContext("planning", url);
+  } catch {
+    pack = {};
+  }
+  const knowledgeLines = pack.planner
+    ? [
+        `\n\n${pack.planner}\n`,
+        "Use the knowledge above to focus exploration on UNTESTED areas; you may lightly re-verify covered flows but spend most effort on the gaps.\n",
+      ]
+    : [];
+  if (pack.planner)
+    onEvent?.({ kind: "text", text: "🧠 Loaded prior history for this app" });
+
   const prompt = [
     `Create a comprehensive Playwright test plan for the web application at ${url}.`,
     "Open the browser with playwright-cli first, then explore the app and identify the primary",
@@ -142,6 +166,7 @@ export async function planTests(
     `with the Write tool to exactly this absolute path: ${ws.specsDir}/plan.md`,
     "— write it there and nowhere else (do NOT write to the repository's own specs/ directory or any other path).",
     ...constraintLines,
+    ...knowledgeLines,
   ].join(" ");
 
   const res = await run({
@@ -177,6 +202,8 @@ export interface GenerateOptions {
   crawlMode?: CrawlMode;
   /** Maximum pages — used to compute the scenario ceiling. Default: 10. */
   maxPages?: number;
+  /** Entry URL — used to scope knowledge retrieval for the Generator (R10). */
+  url?: string;
 }
 
 /**
@@ -203,6 +230,81 @@ export function trimPlan(
     kept.join("") +
     `\n\n> ⚠️  Plan was trimmed: ${total - maxScenarios} scenario(s) removed to stay within the ${maxScenarios}-scenario budget.\n`;
   return { trimmed, total, removed: total - maxScenarios };
+}
+
+/**
+ * T15: shape the Generator with the app's existing coverage. Returns prompt
+ * lines naming reuse/extend/new scenarios, and copies each `reuse` spec into the
+ * workspace (tagged) so the suite stays runnable without regenerating it (D4).
+ * Best-effort: returns [] when there is no knowledge service, url, plan, or KB.
+ */
+async function applyGeneratorKnowledge(
+  ws: Workspace,
+  rawPlan: string | null,
+  deps: StageDeps,
+  options: GenerateOptions,
+  onEvent?: (e: AgentEvent) => void,
+): Promise<string[]> {
+  if (!deps.knowledge || !options.url || !rawPlan) return [];
+  const scenarios = parsePlanScenarios(rawPlan).map((s) => ({
+    id: s.id,
+    name: s.name,
+  }));
+  if (scenarios.length === 0) return [];
+
+  // Guarded so even a misbehaving service can never fail generation (N3).
+  let gen;
+  try {
+    const pack = await deps.knowledge.assembleContext(
+      "generating",
+      options.url,
+      scenarios,
+    );
+    gen = pack.generator;
+  } catch {
+    return [];
+  }
+  if (!gen || gen.decisions.length === 0) return [];
+
+  const codeByKey = new Map(
+    gen.specs
+      .filter((s) => s.code)
+      .map((s) => [`${s.runId}:${s.file}`, s.code!]),
+  );
+  const reuse = gen.decisions.filter((d) => d.action === "reuse");
+  const extend = gen.decisions.filter((d) => d.action === "extend");
+  const newCount = gen.decisions.filter((d) => d.action === "new").length;
+
+  let copied = 0;
+  for (const d of reuse) {
+    const ms = d.matchedSpec;
+    const code = ms && codeByKey.get(`${ms.runId}:${ms.file}`);
+    if (!ms || !code) continue;
+    const header = `// ${REUSE_MARKER} from run ${ms.runId} — already covered "${d.scenario}"\n`;
+    await writeFile(join(ws.testsDir, ms.file), header + code, "utf8");
+    copied++;
+  }
+
+  onEvent?.({
+    kind: "text",
+    text: `🧠 Coverage decisions: ${reuse.length} reuse, ${extend.length} extend, ${newCount} new (${copied} spec(s) carried forward)`,
+  });
+
+  const lines = ["\n\nKNOWLEDGE — existing test coverage for this app:"];
+  if (reuse.length)
+    lines.push(
+      `Already covered and ALREADY ADDED to the suite — do NOT regenerate: ${reuse
+        .map((d) => `"${d.scenario}"`)
+        .join(", ")}.`,
+    );
+  if (extend.length)
+    lines.push(
+      `These resemble existing tests — improve/extend, don't duplicate: ${extend
+        .map((d) => `"${d.scenario}"`)
+        .join(", ")}.`,
+    );
+  lines.push("Generate tests for the remaining (new) scenarios only.");
+  return lines;
 }
 
 /** T7: run the Generator → turn each plan scenario into a Playwright spec file. */
@@ -245,6 +347,17 @@ export async function generateTests(
   // Scale maxTurns proportionally: ~10 turns/scenario, minimum 80.
   const maxTurns = Math.max(80, scenarioCount * 10);
 
+  // T15: coverage-aware generation. Decide reuse|extend|new per scenario; copy
+  // reused specs into the workspace so the suite stays runnable (D4); tell the
+  // generator to skip them. Best-effort — empty when cold or KB down.
+  const knowledgeLines = await applyGeneratorKnowledge(
+    ws,
+    rawPlan,
+    deps,
+    options,
+    onEvent,
+  );
+
   const prompt = [
     `Read the Markdown test plan at ${ws.specsDir}/plan.md.`,
     "Write each test scenario (#### N.M <Scenario Title>) into its own separate spec file.",
@@ -255,6 +368,7 @@ export async function generateTests(
     `(e.g. 'Add Valid Todo' → ${ws.testsDir}/add-valid-todo.spec.ts).`,
     "Write spec files there and nowhere else (do NOT write to the repository's own tests/ directory).",
     `Use the seed at ${ws.seedPath} as the starting template.`,
+    ...knowledgeLines,
   ].join(" ");
 
   const gate = createCrawlGate({
