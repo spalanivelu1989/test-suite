@@ -26,6 +26,7 @@ function fakeKnowledge(partial: Partial<KnowledgeService>): KnowledgeService {
     appIdFor: (u) => u,
     ingestRun: async () => {},
     getAppProfile: async () => null,
+    getLastPlan: async () => null,
     getCoverageMap: async () => null,
     planCoverageDecision: async (s) =>
       s.map((x) => ({ scenario: x.name, action: "new", score: 0 })),
@@ -36,40 +37,62 @@ function fakeKnowledge(partial: Partial<KnowledgeService>): KnowledgeService {
   };
 }
 
-test("T14/T20: the Planner is KB-agnostic — prior-run knowledge never reaches its prompt", async () => {
+const planRunner =
+  (ws: { specsDir: string }, sink: (p: string) => void) =>
+  async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+    sink(opts.prompt);
+    await writeFile(join(ws.specsDir, "plan.md"), "# Plan", "utf8");
+    return { resultText: "", toolCalls: [], isError: false };
+  };
+
+test("T14/T20: with no prior plan, the Planner prompt is KB-independent (no coverage knowledge)", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let withPrompt = "";
     let withoutPrompt = "";
-    const runner =
-      (sink: (p: string) => void) =>
-      async (opts: RunAgentOptions): Promise<RunAgentResult> => {
-        sink(opts.prompt);
-        await writeFile(join(ws.specsDir, "plan.md"), "# Plan", "utf8");
-        return { resultText: "", toolCalls: [], isError: false };
-      };
-    // A KB whose assembleContext would surface knowledge IF the planner asked —
-    // it must not, because the planner never consults the Knowledge Layer.
-    const knowledge = fakeKnowledge({
-      assembleContext: async () =>
-        ({ generator: { decisions: [], specs: [] } }) as never,
-    });
+    // A KB present, but it has no prior plan and the planner pulls no coverage
+    // knowledge — so its prompt must be identical to the no-KB case.
+    const knowledge = fakeKnowledge({});
 
     await planTests(ws, "https://x.com", undefined, {
-      runner: runner((p) => (withPrompt = p)) as never,
+      runner: planRunner(ws, (p) => (withPrompt = p)) as never,
       loadAgentFn: async () => fakeAgent,
       knowledge,
     });
-    // No knowledge block in the planner prompt, even with a KB injected.
     assert.doesNotMatch(withPrompt, /KNOWLEDGE/i);
+    assert.doesNotMatch(withPrompt, /MEMORY/);
 
-    // And the planner prompt is byte-identical with or without a KB — proof the
-    // planner's behavior does not depend on prior-run history at all.
     await planTests(ws, "https://x.com", undefined, {
-      runner: runner((p) => (withoutPrompt = p)) as never,
+      runner: planRunner(ws, (p) => (withoutPrompt = p)) as never,
       loadAgentFn: async () => fakeAgent,
     });
     assert.equal(withPrompt, withoutPrompt);
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("Planner receives the previous plan as reference 'memory', with an independent-crawl instruction", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    let prompt = "";
+    const knowledge = fakeKnowledge({
+      getLastPlan: async () =>
+        "# Plan\n## Scenario 1 — Hero CTA opens the contact form\n",
+    });
+
+    await planTests(ws, "https://x.com", undefined, {
+      runner: planRunner(ws, (p) => (prompt = p)) as never,
+      loadAgentFn: async () => fakeAgent,
+      knowledge,
+    });
+
+    assert.match(prompt, /MEMORY/);
+    assert.match(prompt, /<previous-plan>/);
+    assert.match(prompt, /Hero CTA opens the contact form/);
+    // It must still be told to crawl independently and not blindly copy.
+    assert.match(prompt, /crawl the live site/i);
+    assert.match(prompt, /do NOT blindly copy/i);
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }

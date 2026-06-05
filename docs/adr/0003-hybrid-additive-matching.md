@@ -3,10 +3,23 @@
 > A durable Architecture Decision Record. Lives in `docs/adr/` so future stages
 > and reviews read it and do not re-litigate a settled decision.
 
-- **Status:** Accepted — **amended 2026-06-05 (2-way decision; KB-agnostic planner; see Amendments)**
+- **Status:** Accepted — **amended 2026-06-05 (2-way decision; planner: no coverage knowledge, prior-plan memory only; see Amendments)**
 - **Date:** 2026-06-05
 - **Deciders:** tel@tarento.com (with Claude as Interviewer/Planner)
 - **Relates to:** Spec `specs/knowledge-platform-phase-2/` R5/R8/N3/C3/C4; Plan `D2`
+
+## Amendment 3 (2026-06-05) — Planner gets prior-plan "memory" (not coverage)
+
+Refines Amendment 2. The Planner stays free of **coverage/reuse** knowledge —
+de-duplication is still the Generator's job alone. But to make re-planning a
+known app faster, the Planner is now given the **previous run's `plan.md`** for
+the same URL as reference _memory_ (`KnowledgeService.getLastPlan`, sourced from
+`raw_reports`, best-effort/guarded, clipped to ~16k chars). It is an accelerator,
+not a substitute: the prompt requires the Planner to still crawl the live site,
+revise what changed, and add new flows — never blindly copy or omit current
+flows. This is "an agent with memory", and it does NOT reintroduce a second
+coverage-decision layer (the property Amendment 2 secured): `getLastPlan` returns
+raw plan text, never a reuse/skip decision.
 
 ## Amendment 2 (2026-06-05) — the Planner is KB-agnostic; one decision layer
 

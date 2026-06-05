@@ -7,7 +7,12 @@ import { getAppProfile, getCoverageMap } from "./retrieve/appProfile";
 import { decideForSpecs } from "./retrieve/coverageDecision";
 import { withKb } from "./safety";
 import { closePool, getPool } from "./store/db";
-import { findNearestSpecs, readSpecCode, readSpecsForApp } from "./store/repo";
+import {
+  findNearestSpecs,
+  readLastPlan,
+  readSpecCode,
+  readSpecsForApp,
+} from "./store/repo";
 import type {
   AppProfile,
   ContextPack,
@@ -46,6 +51,9 @@ class DisabledKnowledgeService implements KnowledgeService {
   }
   async ingestRun() {}
   async getAppProfile() {
+    return null;
+  }
+  async getLastPlan() {
     return null;
   }
   async getCoverageMap() {
@@ -119,6 +127,15 @@ class PgKnowledgeService implements KnowledgeService {
     return withKb(
       "getAppProfile",
       () => getAppProfile(this.pool, normalizeOrigin(url), url),
+      null,
+      { onError: this.onError },
+    );
+  }
+
+  async getLastPlan(url: string): Promise<string | null> {
+    return withKb(
+      "getLastPlan",
+      () => readLastPlan(this.pool, normalizeOrigin(url)),
       null,
       { onError: this.onError },
     );

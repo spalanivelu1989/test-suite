@@ -118,3 +118,30 @@ coverage decision. Removed:
   integration disabled-service assertion.
 
 Typecheck clean; 141 unit tests pass (was 143 — removed 2 buildPlannerPack tests).
+
+### [2026-06-05] Planner "memory": prior plan injected as reference context
+
+**Type:** Feature · **Relates to:** R8/R10, ADR-0003 (amendment 3)
+
+User direction: "In order for the planner to run fast on a new run, load the
+previous run's same-URL plan as contextual knowledge … like an agent having
+memory. But it should not ignore the obvious plans" — and stay independent to
+crawl the target URL.
+
+Distinct from coverage/reuse (still the Generator's job): this is raw prior-plan
+TEXT given to the Planner as memory, never a reuse decision — so the single
+coverage-decision layer is preserved.
+
+- `repo.readLastPlan(pool, appId)` — latest `report->>'planMarkdown'` from
+  `raw_reports`, newest first.
+- `KnowledgeService.getLastPlan(url)` — Pg wraps it in `withKb` (null on
+  error/cold); Disabled returns null.
+- `stages.ts` `planTests` — best-effort fetch; injects a `MEMORY` block with the
+  prior `<previous-plan>` (clipped to 16k chars) + an explicit instruction to
+  still crawl, revise, and add new/obvious flows (do NOT blindly copy/omit).
+  Emits "🧠 Loaded previous plan as memory".
+- Tests: wiring split into (a) no prior plan → prompt is KB-independent, and
+  (b) prior plan present → MEMORY block + independent-crawl instruction; disabled
+  + DB integration assertions for getLastPlan.
+
+Typecheck clean; 142 unit tests pass (+1 DB test, skipped without a DB).

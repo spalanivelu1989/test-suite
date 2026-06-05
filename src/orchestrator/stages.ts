@@ -141,11 +141,31 @@ export async function planTests(
       onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
   });
 
-  // The Planner is intentionally KB-AGNOSTIC: it crawls the target URL and writes
-  // a plan purely from what it observes, with no knowledge of prior runs. De-
-  // duplication against previous runs is the Generator's job alone (its cosine/
-  // lexical reuse decision), so there is exactly one coverage-decision layer and
-  // the two stages can never disagree (see ADR-0003).
+  // The Planner crawls the target URL independently and writes the plan from what
+  // it observes. It carries NO coverage/reuse knowledge — de-duplication against
+  // prior runs is the Generator's job alone (one decision layer, see ADR-0003).
+  // It IS given the previous plan for this URL as reference "memory" (best-effort,
+  // guarded): an accelerator only — it must still crawl, revise, and add new flows.
+  const PLAN_MEMORY_BUDGET_CHARS = 16_000; // ~4k tokens
+  let memoryLines: string[] = [];
+  try {
+    const prior = deps.knowledge ? await deps.knowledge.getLastPlan(url) : null;
+    if (prior) {
+      const clipped =
+        prior.length > PLAN_MEMORY_BUDGET_CHARS
+          ? prior.slice(0, PLAN_MEMORY_BUDGET_CHARS - 1) + "…"
+          : prior;
+      memoryLines = [
+        "\n\nMEMORY — you have planned this same app before. Your PREVIOUS plan is included below for reference; it may be out of date.",
+        "Still open the browser and crawl the live site yourself. Reuse the sections that still apply, revise anything that changed, and ADD any new or obvious flows you discover — do NOT blindly copy it, and do NOT omit a current flow just because it is absent here.",
+        `\n<previous-plan>\n${clipped}\n</previous-plan>\n`,
+      ];
+      onEvent?.({ kind: "text", text: "🧠 Loaded previous plan as memory" });
+    }
+  } catch {
+    memoryLines = [];
+  }
+
   const prompt = [
     `Create a comprehensive Playwright test plan for the web application at ${url}.`,
     "Open the browser with playwright-cli first, then explore the app and identify the primary",
@@ -153,6 +173,7 @@ export async function planTests(
     `with the Write tool to exactly this absolute path: ${ws.specsDir}/plan.md`,
     "— write it there and nowhere else (do NOT write to the repository's own specs/ directory or any other path).",
     ...constraintLines,
+    ...memoryLines,
   ].join(" ");
 
   const res = await run({

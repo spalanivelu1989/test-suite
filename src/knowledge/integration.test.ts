@@ -116,6 +116,22 @@ test("getAppProfile + getCoverageMap (AC6/AC7)", opts, async () => {
 });
 
 test(
+  "getLastPlan returns the most recent prior plan markdown",
+  opts,
+  async () => {
+    const k = svc();
+    const url = uniqueUrl();
+    // No prior run yet → null.
+    assert.equal(await k.getLastPlan(url), null);
+    // After a run, the stored planMarkdown is returned verbatim (Planner memory).
+    await k.ingestRun(report("p-" + randomUUID(), url));
+    const plan = await k.getLastPlan(url);
+    assert.match(plan ?? "", /## Scenario 1 — Hero CTA/);
+    await k.close();
+  },
+);
+
+test(
   "raw RunReport is stored and retrievable as JSONB (AC15)",
   opts,
   async () => {
@@ -268,6 +284,7 @@ test("disabled service (no URL) runs cold without errors (R4/SC10)", async () =>
   assert.equal(k.enabled, false);
   await k.ingestRun(report("x", "https://x.com"));
   assert.equal(await k.getAppProfile("https://x.com"), null);
+  assert.equal(await k.getLastPlan("https://x.com"), null);
   assert.deepEqual(await k.assembleContext("https://x.com"), {});
   await k.close();
 });

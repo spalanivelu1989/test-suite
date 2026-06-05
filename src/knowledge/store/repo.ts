@@ -319,6 +319,22 @@ export async function readSpecCode(
   return spec?.code ?? null;
 }
 
+/** The most recent prior run's plan markdown for an app — Planner "memory". */
+export async function readLastPlan(
+  pool: Pool,
+  appId: string,
+): Promise<string | null> {
+  const res = await pool.query<{ plan: string | null }>(
+    `SELECT report->>'planMarkdown' AS plan
+       FROM raw_reports
+      WHERE app_id = $1 AND report->>'planMarkdown' IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [appId],
+  );
+  return res.rowCount ? res.rows[0].plan : null;
+}
+
 /** Count rows of an entity for an app (rebuild/verification helpers, N2). */
 export async function countRuns(pool: Pool, appId: string): Promise<number> {
   const r = await pool.query<{ n: string }>(

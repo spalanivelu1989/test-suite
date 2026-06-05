@@ -107,6 +107,12 @@ export interface KnowledgeService {
   ingestRun(report: RunReport): Promise<void>;
   /** What we know about an app, or null if nothing/disabled. */
   getAppProfile(url: string): Promise<AppProfile | null>;
+  /**
+   * The most recent prior run's plan markdown for this app — passed to the
+   * Planner as reference "memory", or null if none/disabled. NOT a coverage
+   * decision: reuse remains the Generator's job; this only speeds re-planning.
+   */
+  getLastPlan(url: string): Promise<string | null>;
   /** Covered vs uncovered known flows, or null if nothing/disabled. */
   getCoverageMap(appId: string): Promise<CoverageMap | null>;
   /** Per-scenario reuse|new decisions (empty if disabled/cold). */
