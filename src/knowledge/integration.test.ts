@@ -209,7 +209,7 @@ test("retrieval overhead ≤500ms (N4/AC13)", opts, async () => {
 });
 
 test(
-  "reuse decision on a 2nd run; failed prior → extend (R9/R10)",
+  "reuse decision on a 2nd run; failed prior → new (R9/R10)",
   opts,
   async () => {
     const k = svc();

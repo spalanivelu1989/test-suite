@@ -233,9 +233,10 @@ export function trimPlan(
 }
 
 /**
- * T15: shape the Generator with the app's existing coverage. Returns prompt
- * lines naming reuse/extend/new scenarios, and copies each `reuse` spec into the
- * workspace (tagged) so the suite stays runnable without regenerating it (D4).
+ * T15: shape the Generator with the app's existing coverage. Copies each
+ * confidently-matched (`reuse`) spec into the workspace (tagged) so the suite
+ * stays runnable without regenerating it (D4), and returns prompt lines telling
+ * the generator to skip ONLY the specs actually copied and build everything else.
  * Best-effort: returns [] when there is no knowledge service, url, plan, or KB.
  */
 async function applyGeneratorKnowledge(
@@ -272,38 +273,37 @@ async function applyGeneratorKnowledge(
       .map((s) => [`${s.runId}:${s.file}`, s.code!]),
   );
   const reuse = gen.decisions.filter((d) => d.action === "reuse");
-  const extend = gen.decisions.filter((d) => d.action === "extend");
   const newCount = gen.decisions.filter((d) => d.action === "new").length;
 
-  let copied = 0;
+  // Copy each confident match forward. A `reuse` whose source is unavailable
+  // (budget-trimmed or missing) is NOT skipped — it falls back to generation,
+  // so no planned scenario is ever left without a test.
+  const copied: string[] = [];
   for (const d of reuse) {
     const ms = d.matchedSpec;
     const code = ms && codeByKey.get(`${ms.runId}:${ms.file}`);
     if (!ms || !code) continue;
     const header = `// ${REUSE_MARKER} from run ${ms.runId} — already covered "${d.scenario}"\n`;
     await writeFile(join(ws.testsDir, ms.file), header + code, "utf8");
-    copied++;
+    copied.push(d.scenario);
   }
 
+  const toGenerate = gen.decisions.length - copied.length;
   onEvent?.({
     kind: "text",
-    text: `🧠 Coverage decisions: ${reuse.length} reuse, ${extend.length} extend, ${newCount} new (${copied} spec(s) carried forward)`,
+    text: `🧠 Coverage decisions: ${reuse.length} reuse, ${newCount} new — ${copied.length} spec(s) copied forward, ${toGenerate} to generate`,
   });
 
   const lines = ["\n\nKNOWLEDGE — existing test coverage for this app:"];
-  if (reuse.length)
+  if (copied.length)
     lines.push(
-      `Already covered and ALREADY ADDED to the suite — do NOT regenerate: ${reuse
-        .map((d) => `"${d.scenario}"`)
+      `Already covered and ALREADY ADDED to the suite — do NOT regenerate: ${copied
+        .map((s) => `"${s}"`)
         .join(", ")}.`,
     );
-  if (extend.length)
-    lines.push(
-      `These resemble existing tests — improve/extend, don't duplicate: ${extend
-        .map((d) => `"${d.scenario}"`)
-        .join(", ")}.`,
-    );
-  lines.push("Generate tests for the remaining (new) scenarios only.");
+  lines.push(
+    "Generate tests for every other scenario in the plan — do not skip any.",
+  );
   return lines;
 }
 

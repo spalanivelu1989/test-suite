@@ -31,18 +31,18 @@ test("exact match with a passing prior run → reuse (AC9)", () => {
   assert.ok(d.matchedSpec);
 });
 
-test("strong match but last run FAILED → extend, never reuse (errs safe)", () => {
+test("strong match but last run FAILED → new, never reuse (errs safe)", () => {
   const specs = [spec("Hero Get in Touch CTA Button", "failed")];
   const [d] = decideForSpecs([{ name: "Hero Get in Touch CTA Button" }], specs);
-  assert.equal(d.action, "extend");
+  assert.equal(d.action, "new"); // a failed prior test is regenerated, not copied
 });
 
-test("partial overlap (0.45–0.80) → extend (AC9/SC7)", () => {
+test("partial overlap (0.45–0.80) → new, below the reuse bar (AC9/SC7)", () => {
   // scenario {footer,social,links,extra} vs spec {footer,social,links,bottom}
-  // → 3/4 = 0.75 overlap → extend (below the 0.80 reuse bar)
+  // → 3/4 = 0.75 overlap → new (below the 0.80 reuse bar; no middle tier)
   const specs = [spec("Footer Social Links Bottom", "passed")];
   const [d] = decideForSpecs([{ name: "Footer Social Links Extra" }], specs);
-  assert.equal(d.action, "extend");
+  assert.equal(d.action, "new");
   assert.ok(d.score >= 0.45 && d.score < 0.8, `score ${d.score}`);
 });
 
@@ -97,13 +97,13 @@ test("paraphrase: high semantic + zero lexical, prior passed → reuse (R5/SC2)"
   assert.equal(d.action, "reuse"); // sem ≈ 0.99 ≥ SEM_REUSE, lexical = 0
 });
 
-test("mid semantic → extend (SC3)", () => {
+test("mid semantic → new, below the reuse bar (SC3)", () => {
   const specs = [specEmb("passed", SPEC_A_EMB, ["alpha"])];
   const [d] = decideForSpecs(
     [{ name: "x y z", embedding: [0.7, 0.71, 0] }],
     specs,
   );
-  assert.equal(d.action, "extend"); // sem ≈ 0.70: between SEM_EXTEND and SEM_REUSE
+  assert.equal(d.action, "new"); // sem ≈ 0.70 < SEM_REUSE (0.82) → regenerate
 });
 
 test("low semantic + low lexical → new (SC4)", () => {
@@ -118,16 +118,16 @@ test("near-threshold semantic → new, not reuse (SC5 — err safe)", () => {
     [{ name: "p q r", embedding: [0.5, 0.87, 0] }],
     specs,
   );
-  assert.equal(d.action, "new"); // sem ≈ 0.50 < SEM_EXTEND (0.60)
+  assert.equal(d.action, "new"); // sem ≈ 0.50 < SEM_REUSE (0.82)
 });
 
-test("strong semantic but prior FAILED → extend, never reuse", () => {
+test("strong semantic but prior FAILED → new, never reuse", () => {
   const specs = [specEmb("failed", SPEC_A_EMB, ["alpha"])];
   const [d] = decideForSpecs(
     [{ name: "diff", embedding: [0.99, 0.14, 0] }],
     specs,
   );
-  assert.equal(d.action, "extend");
+  assert.equal(d.action, "new"); // strong match but failed prior → regenerate
 });
 
 test("ADDITIVE no-regression: stripping embeddings reverts to lexical (R8/N3/AC7)", () => {

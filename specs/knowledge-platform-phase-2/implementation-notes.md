@@ -65,3 +65,31 @@ human verification** before the numbers are trusted; intents are hand-authored,
 not real tarento specs. Final M1/M2 against two live tarento.com runs are measured
 via `/craft-framework:measure`. This calibration is strong evidence the approach
 works and the thresholds are well-chosen, not the final production number.
+
+### [2026-06-05] Post-merge fix: coverage decision collapsed to 2-way (`reuse | new`)
+
+**Type:** Decision/Fix · **Relates to:** R10/D4, ADR-0003 (amended)
+
+Diagnosed from run `e95e6824-…`: planner produced 25 scenarios, generator emitted
+only **4 spec files**. Cause — the `extend` tier (moderate match) carried no spec
+source and the generator prompt said "generate new scenarios only", so the 21
+`extend` scenarios were **silently dropped** (validation 56/100, "21 flows without
+a test"). The planner had also already deduped against the KB, so the generator
+re-suppressing flows was a second, conflicting dedup.
+
+Per the user's "tighten-then-copy" choice, removed the middle tier:
+- `coverageDecision.ts` — `decideForSpecs` now returns `reuse | new`; removed
+  `EXTEND_THRESHOLD`/`SEM_EXTEND` and the `semExtend` threshold param. Copy bar
+  unchanged (lex ≥ 0.80 OR sem ≥ 0.82, AND last passed). Strong-match-but-failed
+  now → `new` (regenerate) instead of `extend`.
+- `types.ts` — `CoverageAction = "reuse" | "new"`; `decision` event drops `extend`.
+- `index.ts` — `tally` drops `extend`.
+- `stages.ts` (`applyGeneratorKnowledge`) — removed the contradictory `extend`
+  prompt block; prompt now skips ONLY specs actually copied and says "generate
+  every other scenario — do not skip any". A `reuse` whose source can't be copied
+  now falls back to generation (no silent drop).
+- `bin/knowledge-calibrate.ts` — `isCovered` = `reuse` only; sweep over `SEM_REUSE`.
+- Tests updated (coverageDecision/integration); typecheck + 143 unit tests pass.
+
+**Not changed:** the planner-side KB dedup (the double-dedup smell) is left as-is;
+revisit if the planner and generator still disagree on coverage in practice.

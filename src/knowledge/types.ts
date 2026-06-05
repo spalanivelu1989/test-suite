@@ -22,7 +22,7 @@ export interface SpecMatch {
   score: number;
 }
 
-export type CoverageAction = "reuse" | "extend" | "new";
+export type CoverageAction = "reuse" | "new";
 
 /** A reference to a previously generated spec (optionally with its source). */
 export interface SpecRef {
@@ -92,7 +92,7 @@ export interface ContextPack {
 export type KnowledgeEvent =
   | { kind: "ingested"; appId: string; runId: string; flows: number }
   | { kind: "loaded"; appId: string; knownFlows: number; gaps: number }
-  | { kind: "decision"; reuse: number; extend: number; new: number }
+  | { kind: "decision"; reuse: number; new: number }
   | { kind: "disabled"; reason: string }
   | { kind: "error"; op: string; message: string };
 
@@ -114,7 +114,7 @@ export interface KnowledgeService {
   getAppProfile(url: string): Promise<AppProfile | null>;
   /** Covered vs uncovered known flows, or null if nothing/disabled. */
   getCoverageMap(appId: string): Promise<CoverageMap | null>;
-  /** Per-scenario reuse|extend|new decisions (empty if disabled/cold). */
+  /** Per-scenario reuse|new decisions (empty if disabled/cold). */
   planCoverageDecision(
     scenarios: ScenarioInput[],
     appId: string,

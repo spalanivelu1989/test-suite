@@ -4,31 +4,34 @@ import { cosineSim } from "../embeddings/embed";
 import { readSpecsForApp, type SpecRow } from "../store/repo";
 import type { CoverageAction, CoverageDecision, ScenarioInput } from "../types";
 
-// reuse | extend | new via HYBRID matching (Spec R5, ADR-0003). Lexical (Phase 1)
-// OR semantic (Phase 2) clears the bar; err to `new` when uncertain; `reuse`
-// needs the matched spec's last run passed.
+// reuse | new via HYBRID matching (Spec R5, ADR-0003). Lexical (Phase 1) OR
+// semantic (Phase 2) clears the bar; err to `new` when uncertain.
+//
+// TIGHTEN-THEN-COPY (2-way): a planned scenario is either a CONFIDENT match to a
+// previously passing spec — copied forward verbatim (`reuse`, fast, no LLM) — or
+// it is regenerated from scratch (`new`). There is no middle "extend" tier: that
+// tier carried no source for the generator to work from and was skipped, leaving
+// planned flows with no test at all. Now every scenario ends with a test —
+// copied when we are confident it is the same flow, freshly built otherwise.
 //
 //   per scenario, over specs:
 //     lex = overlapCoefficient(scTokens, specTokens)         (Phase 1)
 //     sem = cosineSim(scenarioEmbedding, specEmbedding)      (0 if either missing)
 //   select  = spec maximizing max(lex, sem)
 //   reuse   if (lex ≥ REUSE OR sem ≥ SEM_REUSE)  AND last passed
-//   extend  if (lex ≥ EXTEND OR sem ≥ SEM_EXTEND)
-//   new     otherwise                                        (err to new)
+//   new     otherwise — weak match, OR strong match whose prior run failed
 //
 // ADDITIVE GUARANTEE (R8/N3): when embeddings are absent, sem = 0 everywhere, so
-// selection (max(lex,0)=lex) and thresholding (sem<SEM_* always) reduce EXACTLY
-// to the Phase 1 lexical decider — never a different or worse decision.
+// selection (max(lex,0)=lex) and thresholding (sem<SEM_REUSE always) reduce
+// EXACTLY to the Phase 1 lexical decider — never a different or worse decision.
 
 export const REUSE_THRESHOLD = 0.8;
-export const EXTEND_THRESHOLD = 0.45;
-// Semantic thresholds — CALIBRATED in T15 against the labeled set with the real
-// bge-small model (see implementation-notes 2026-06-05): SEM_EXTEND=0.60 gives
-// 95% paraphrase recall at 0% false-reuse. SEM_REUSE stays conservative (0.82):
-// only very-high similarity → `reuse` (skip); moderate paraphrases → `extend`
-// (still produce/augment a test), protecting against masked coverage gaps.
+// Semantic reuse threshold — CALIBRATED in T15 against the labeled set with the
+// real bge-small model (see implementation-notes 2026-06-05): SEM_REUSE=0.82
+// gives strong paraphrase recall at 0% false-reuse. Conservative by design —
+// only very-high similarity copies a prior test forward; anything weaker
+// regenerates, so a near-miss never masks a coverage gap by skipping the test.
 export const SEM_REUSE = 0.82;
-export const SEM_EXTEND = 0.6;
 
 /** Overlap coefficient — robust to length asymmetry (short scenario vs long spec). */
 export function overlapCoefficient(a: Set<string>, b: Set<string>): number {
@@ -58,10 +61,9 @@ function semScore(
 export function decideForSpecs(
   scenarios: ScenarioInput[],
   specs: SpecRow[],
-  thresholds?: { semReuse?: number; semExtend?: number },
+  thresholds?: { semReuse?: number },
 ): CoverageDecision[] {
   const semReuse = thresholds?.semReuse ?? SEM_REUSE;
-  const semExtend = thresholds?.semExtend ?? SEM_EXTEND;
   return scenarios.map((sc) => {
     const scTokens = significantTokens(sc.name);
     let bestSpec: SpecRow | null = null;
@@ -80,10 +82,16 @@ export function decideForSpecs(
       }
     }
 
-    if (
-      bestSpec === null ||
-      (bestLex < EXTEND_THRESHOLD && bestSem < semExtend)
-    ) {
+    // `reuse` (copy forward) only on a CONFIDENT signal AND a passing prior run.
+    // Everything else — no match, a weak match, or a strong match whose prior
+    // run failed — is `new`: regenerated from scratch, never silently skipped.
+    const confident = bestLex >= REUSE_THRESHOLD || bestSem >= semReuse;
+    const action: CoverageAction =
+      bestSpec !== null && confident && passed(bestSpec.lastOutcome)
+        ? "reuse"
+        : "new";
+
+    if (action === "new" || bestSpec === null) {
       return {
         scenario: sc.name,
         action: "new",
@@ -91,26 +99,16 @@ export function decideForSpecs(
       };
     }
 
-    const matchedSpec = {
-      runId: bestSpec.runId,
-      file: bestSpec.file,
-      title: bestSpec.title,
-      flowId: bestSpec.flowId ?? undefined,
-      lastOutcome: bestSpec.lastOutcome ?? undefined,
-    };
-
-    // reuse (skip) only when a strong signal AND the prior run passed; the
-    // boundary errs to `extend` (still produces a test), never silently skips.
-    const action: CoverageAction =
-      (bestLex >= REUSE_THRESHOLD || bestSem >= semReuse) &&
-      passed(bestSpec.lastOutcome)
-        ? "reuse"
-        : "extend";
-
     return {
       scenario: sc.name,
-      action,
-      matchedSpec,
+      action: "reuse",
+      matchedSpec: {
+        runId: bestSpec.runId,
+        file: bestSpec.file,
+        title: bestSpec.title,
+        flowId: bestSpec.flowId ?? undefined,
+        lastOutcome: bestSpec.lastOutcome ?? undefined,
+      },
       score: Math.max(bestLex, bestSem),
       lastOutcome: bestSpec.lastOutcome ?? undefined,
     };

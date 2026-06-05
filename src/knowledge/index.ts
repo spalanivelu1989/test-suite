@@ -32,7 +32,7 @@ function newDecisions(scenarios: ScenarioInput[]): CoverageDecision[] {
 }
 
 function tally(decisions: CoverageDecision[]) {
-  const t = { reuse: 0, extend: 0, new: 0 };
+  const t = { reuse: 0, new: 0 };
   for (const d of decisions) t[d.action]++;
   return t;
 }

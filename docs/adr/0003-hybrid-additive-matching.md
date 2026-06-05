@@ -3,10 +3,33 @@
 > A durable Architecture Decision Record. Lives in `docs/adr/` so future stages
 > and reviews read it and do not re-litigate a settled decision.
 
-- **Status:** Accepted
+- **Status:** Accepted — **amended 2026-06-05 (decision collapsed to 2-way; see Amendment)**
 - **Date:** 2026-06-05
 - **Deciders:** tel@tarento.com (with Claude as Interviewer/Planner)
 - **Relates to:** Spec `specs/knowledge-platform-phase-2/` R5/R8/N3/C3/C4; Plan `D2`
+
+## Amendment (2026-06-05) — drop the `extend` tier, decide `reuse | new`
+
+The three-tier `reuse | extend | new` decision shipped a latent gap: `extend`
+(moderate match, 0.45–0.82) carried **no spec source** to the generator and the
+generator prompt told it to build "new scenarios only", so `extend` scenarios
+were **silently dropped — generated as no test at all**. A real run planned 25
+scenarios and emitted 4: 21 landed in `extend` and produced nothing
+(validation 56/100, "21 plan flows without a test").
+
+The decision is now **2-way (tighten-then-copy)**: a planned scenario is either a
+**confident** match to a previously _passing_ spec — copied forward verbatim
+(`reuse`) — or it is **regenerated from scratch** (`new`). Every scenario ends
+with a test. The middle tier is gone; `EXTEND_THRESHOLD`/`SEM_EXTEND` are
+removed. The copy bar is unchanged (`REUSE_THRESHOLD` 0.80 lexical OR `SEM_REUSE`
+0.82 cosine, AND last run passed) — a strong match whose prior run _failed_ now
+regenerates rather than copying a broken test. A `reuse` whose source can't be
+copied (budget-trimmed/missing) also falls back to generation.
+
+The hybrid/additive principle below is **unchanged for `reuse`**: lexical OR
+semantic, semantic purely additive, identical to Phase 1 when embeddings are off.
+Everything from here down describes the original three-tier rationale and is
+retained for context.
 
 ## Context
 
