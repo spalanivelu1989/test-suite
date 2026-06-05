@@ -30,6 +30,7 @@ function fakeKnowledge(partial: Partial<KnowledgeService>): KnowledgeService {
     planCoverageDecision: async (s) =>
       s.map((x) => ({ scenario: x.name, action: "new", score: 0 })),
     assembleContext: async () => ({}),
+    findSimilarSpecs: async () => [],
     close: async () => {},
     ...partial,
   };

@@ -17,6 +17,7 @@ import type {
   KnowledgeService,
   KnowledgeStage,
   ScenarioInput,
+  SpecMatch,
   SpecRef,
 } from "./types";
 import type { RunReport } from "../types";
@@ -55,6 +56,9 @@ class DisabledKnowledgeService implements KnowledgeService {
   }
   async assembleContext(): Promise<ContextPack> {
     return {};
+  }
+  async findSimilarSpecs(): Promise<SpecMatch[]> {
+    return [];
   }
   async close() {}
 }
@@ -181,6 +185,12 @@ class PgKnowledgeService implements KnowledgeService {
       refs.push({ ...d.matchedSpec, code });
     }
     return refs;
+  }
+
+  async findSimilarSpecs(): Promise<SpecMatch[]> {
+    // Fleshed out in T10 (embed query → findNearestSpecs). Stub keeps the
+    // interface satisfied; returns no matches until then.
+    return [];
   }
 
   async close(): Promise<void> {

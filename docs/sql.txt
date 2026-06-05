@@ -1,0 +1,33 @@
+export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
+psql -h localhost -p 5433 -U senthilpalanivelu -d knowledge
+
+
+
+
+
+  Query cheat-sheet
+
+  -- What apps do we know about, most recently tested first?
+  SELECT app_id, run_count, last_seen FROM apps ORDER BY last_seen DESC;
+
+  -- Everything for one app (replace the origin):
+  SELECT * FROM runs   WHERE app_id = 'https://tarento.com';
+  SELECT file, title, flow_id, reused FROM specs WHERE app_id = 'https://tarento.com';
+  SELECT flow_id, name FROM flows WHERE app_id = 'https://tarento.com';
+
+  -- Coverage history for an app (does it grow over runs?):
+  SELECT r.created_at, cs.tested_count, cs.curated_total, cs.percent, cs.missing_flows
+  FROM coverage_snapshots cs JOIN runs r USING (run_id)
+  WHERE cs.app_id = 'https://tarento.com' ORDER BY r.created_at;
+
+  -- Reach INTO the JSONB report (no schema needed):
+  SELECT report->>'url'                              AS url,
+         jsonb_array_length(report->'generatedSpecs') AS specs,
+         report->'coverage'->>'percent'              AS coverage_pct
+  FROM raw_reports;
+
+  -- The graph relations for an app:
+  SELECT src_type, src_id, rel, dst_type, dst_id FROM edges WHERE app_id = 'https://tarento.com';
+
+  -- Row counts across everything:
+  SELECT relname AS table, n_live_tup AS rows FROM pg_stat_user_tables ORDER BY relname;

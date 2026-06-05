@@ -9,6 +9,17 @@ export interface ScenarioInput {
   id?: string;
   /** The scenario title/heading text. */
   name: string;
+  /** Phase 2: semantic embedding of `name` (set by the service at query time). */
+  embedding?: number[];
+}
+
+/** A spec returned by a semantic nearest-neighbor search (Phase 2, R6). */
+export interface SpecMatch {
+  runId: string;
+  file: string;
+  title: string | null;
+  /** Cosine similarity to the query, 0..1. */
+  score: number;
 }
 
 export type CoverageAction = "reuse" | "extend" | "new";
@@ -114,6 +125,12 @@ export interface KnowledgeService {
     url: string,
     scenarios?: ScenarioInput[],
   ): Promise<ContextPack>;
+  /** Phase 2: k nearest specs to `query` by semantic similarity (R6). */
+  findSimilarSpecs(
+    query: string,
+    appId: string,
+    k: number,
+  ): Promise<SpecMatch[]>;
   /** Release resources (pool). */
   close(): Promise<void>;
 }

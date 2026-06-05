@@ -13,10 +13,29 @@ and after every task completed during Forge.
 > adds the deterministic Validation stage R18–R21). Next: Stage 3 (Assemble) to
 > backfill tasks for R18–R21.
 >
-> **(B) Knowledge-Driven Testing Platform — Phase 1** (NEW initiative, separate
-> spec at `specs/knowledge-platform/`) — **Forge complete** (all T1–T20 built;
-> 143 unit/integration/NFR tests green on a local Postgres; typecheck clean;
-> validator 15/15). Next: Stage 5 (Test & Tune) → `/craft-framework:test-tune`.
+> **(C) Knowledge-Driven Testing Platform — Phase 2** (semantic reuse via
+> pgvector; spec at `specs/knowledge-platform-phase-2/`) — **Assemble complete**
+> (plan.md + tasks.md Approved 2026-06-05; both gates passed; validator 15/15).
+> Next: Stage 4 (Forge) → `/craft-framework:forge` to build T1–T15. Durable
+> decisions promoted to ADR-0002 (local embedder) + ADR-0003 (hybrid/additive
+> matching). Key design: hybrid `decideForSpecs` stays a PURE function with
+> embedding optional → "never worse than Phase 1" (R8/N3) is a literal diff test.
+> M1/M2 (recall ≥70% / false-reuse ≤5%) need a labeled paraphrase set (DEP4,
+> built in T15) + two live tarento.com runs (`/measure`).
+> Adds embedding-based semantic matching so the Generator catches paraphrased
+> duplicates lexical misses. Decided: LOCAL embedder (`@huggingface/transformers`,
+> `Xenova/bge-small-en-v1.5`, 384d) → `vector(384)` on `specs` + HNSW; hybrid
+> lexical-OR-semantic, err to new; graceful-degrade to Phase-1 lexical. Metrics:
+> **paraphrase recall ≥70%** (primary) paired with **false-reuse ≤5%** (precision
+> guardrail), measured against a Claude-generated/human-verified paraphrase set.
+> Named contingency: recall <70% after calibration → switch to hosted Voyage.
+> RFC: `docs/pgvector-integration-plan.md`.
+>
+> **(B) Knowledge-Driven Testing Platform — Phase 1** (separate spec at
+> `specs/knowledge-platform/`) — **SHIPPED & MERGED to `main`** (Stage 5 review
+> F=PASS Q=PASS A=CONCERNS → Ship; 144 tests green; pushed to origin). M1/M2
+> outcome metrics still pending `/craft-framework:measure` (need two live
+> tarento.com runs).
 > Built `src/knowledge/` (KnowledgeService over Postgres) + wired the 3 seams in
 > `src/orchestrator/`; ADR-0001 records the Postgres choice. **Deferred to
 > `/measure`:** the M1/M2 outcome metrics need two live tarento.com runs
@@ -94,6 +113,10 @@ Assemble → Forge → Test).
 | 2026-06-05 | KP 1 — Record     | Knowledge Platform Phase 1 spec v0.1.0 approved (R1–R12; M1/M2; N1–N5) | ✅     |
 | 2026-06-05 | KP 1 — Assemble   | Knowledge Platform Phase 1 plan + tasks approved (T1–T20; ADR-0001)    | ✅     |
 | 2026-06-05 | KP 1 — Forge      | All T1–T20 built; 143 tests green; M1/M2 deferred to /measure          | ✅     |
+| 2026-06-05 | KP 1 — Test&Tune  | Review F=PASS Q=PASS A=CONCERNS → Ship; merged + pushed to main        | ✅     |
+| 2026-06-05 | KP 2 — Clarify    | Phase 2 (pgvector semantic reuse) brief approved; recall ≥70% / FP ≤5% | ✅     |
+| 2026-06-05 | KP 2 — Record     | Phase 2 spec v0.1.0 approved (R1–R10; M1/M2; N1–N5; hybrid + additive) | ✅     |
+| 2026-06-05 | KP 2 — Assemble   | Phase 2 plan + tasks approved (T1–T15; ADR-0002/0003); validator 15/15 | ✅     |
 
 ## Key decisions
 
