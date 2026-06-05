@@ -7,9 +7,32 @@ and after every task completed during Forge.
 
 ## Current stage
 
-- **Stage:** v0.3.0 — **Record complete** (Spec v0.3.0 Approved, adds the
-  deterministic Validation stage R18–R21). Next: Stage 3 (Assemble) to backfill
-  tasks for R18–R21.
+> **Two initiatives are now in flight:**
+>
+> **(A) AI UI Testing Tool — v0.3.0** — **Record complete** (Spec v0.3.0 Approved,
+> adds the deterministic Validation stage R18–R21). Next: Stage 3 (Assemble) to
+> backfill tasks for R18–R21.
+>
+> **(B) Knowledge-Driven Testing Platform — Phase 1** (NEW initiative, separate
+> spec at `specs/knowledge-platform/`) — **Assemble complete** (plan.md +
+> tasks.md Approved 2026-06-05; both gates passed; validator 15/15). Next: Stage 4
+> (Forge) → `/craft-framework:forge` to build T1–T20. The 5 open questions are
+> resolved as plan decisions: D1 Postgres (→ ADR-0001), D2 plain `pg`+SQL
+> migrations (no ORM), D4 **copy** reused specs into the run, D5 overlap-coefficient
+> thresholds (reuse ≥0.80 / extend 0.45–0.80 / new <0.45, err to new), D7
+> token-bounded packs, D8 metric ground-truth = curated flows + coverage credit.
+> Q1/Q2 calibration + M1/M2 measurement need two live tarento.com runs (deferred
+> to Forge/measure). Scope: a
+> `src/knowledge/` KnowledgeService on **PostgreSQL** (Neon; structured tables +
+> edges + JSONB, **no pgvector yet**) that ingests every completed `RunReport` and
+> makes the **Planner** (explore gaps) and **Generator** (reuse/extend/new,
+> lexical dedupe) history-aware. Metrics: coverage-detection ≥90% recall/≥80%
+> precision; Generator regenerates ≤20% of already-covered flows. Decisions:
+> App = normalized origin; new-runs-only (no backfill); graceful degradation
+> (KB never blocks a run); pipeline-internal (no UI); Healer deferred to a later
+> phase. Full architecture: `docs/knowledge-platform-architecture.md`.
+
+- **Stage:** see the two initiatives above.
 - **Last updated:** 2026-06-05
 - **Waiting on:** run `/craft-framework:assemble` to add R18–R21 tasks to
   `tasks.md` (the validation code is already built — Assemble backfills the
@@ -48,20 +71,23 @@ Assemble → Forge → Test).
 
 ## Stage completion log
 
-| Date       | Stage             | Deliverable                                                          | Status |
-| ---------- | ----------------- | -------------------------------------------------------------------- | ------ |
-| 2026-05-27 | Setup             | Memory files created                                                 | ✅     |
-| 2026-05-27 | 1 — Clarify       | Brief approved (specs/ai-ui-testing-tool/brief.md)                   | ✅     |
-| 2026-05-27 | 2 — Record        | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md)              | ✅     |
-| 2026-05-27 | 3 — Assemble      | plan.md + tasks.md approved (26 tasks, Next.js stack)                | ✅     |
-| 2026-05-27 | 4 — Forge         | All 26 tasks built; 47 unit tests pass; build clean                  | ✅     |
-| 2026-05-27 | 5 — Test&Tune     | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage      | ✅     |
-| 2026-05-27 | Ship              | Shipped v0.1.0 at the Human Gate (user decision)                     | ✅     |
-| 2026-05-27 | 2 — Record v2     | Spec v0.2.0 approved (4-agent architecture + rich reporter)          | ✅     |
-| 2026-05-27 | 3 — Assemble v2   | plan + tasks v0.2.0 approved (23 tasks; Agent SDK + browser)         | ✅     |
-| 2026-05-27 | 4 — Forge v2      | All 23 v0.2.0 tasks built; 48 unit tests, build clean                | ✅     |
-| 2026-06-01 | Maintenance       | Browser driver migrated MCP → Playwright CLI (headless default)      | ✅     |
-| 2026-06-05 | 2 — Record v0.3.0 | Spec v0.3.0 approved — adds deterministic Validation stage (R18–R21) | ✅     |
+| Date       | Stage             | Deliverable                                                            | Status |
+| ---------- | ----------------- | ---------------------------------------------------------------------- | ------ |
+| 2026-05-27 | Setup             | Memory files created                                                   | ✅     |
+| 2026-05-27 | 1 — Clarify       | Brief approved (specs/ai-ui-testing-tool/brief.md)                     | ✅     |
+| 2026-05-27 | 2 — Record        | Spec v0.1.0 approved (specs/ai-ui-testing-tool/spec.md)                | ✅     |
+| 2026-05-27 | 3 — Assemble      | plan.md + tasks.md approved (26 tasks, Next.js stack)                  | ✅     |
+| 2026-05-27 | 4 — Forge         | All 26 tasks built; 47 unit tests pass; build clean                    | ✅     |
+| 2026-05-27 | 5 — Test&Tune     | Review Report: F=PASS Q=CONCERNS A=PASS; keyed run 80% coverage        | ✅     |
+| 2026-05-27 | Ship              | Shipped v0.1.0 at the Human Gate (user decision)                       | ✅     |
+| 2026-05-27 | 2 — Record v2     | Spec v0.2.0 approved (4-agent architecture + rich reporter)            | ✅     |
+| 2026-05-27 | 3 — Assemble v2   | plan + tasks v0.2.0 approved (23 tasks; Agent SDK + browser)           | ✅     |
+| 2026-05-27 | 4 — Forge v2      | All 23 v0.2.0 tasks built; 48 unit tests, build clean                  | ✅     |
+| 2026-06-01 | Maintenance       | Browser driver migrated MCP → Playwright CLI (headless default)        | ✅     |
+| 2026-06-05 | 2 — Record v0.3.0 | Spec v0.3.0 approved — adds deterministic Validation stage (R18–R21)   | ✅     |
+| 2026-06-05 | KP 1 — Clarify    | Knowledge Platform Phase 1 brief approved (specs/knowledge-platform/)  | ✅     |
+| 2026-06-05 | KP 1 — Record     | Knowledge Platform Phase 1 spec v0.1.0 approved (R1–R12; M1/M2; N1–N5) | ✅     |
+| 2026-06-05 | KP 1 — Assemble   | Knowledge Platform Phase 1 plan + tasks approved (T1–T20; ADR-0001)    | ✅     |
 
 ## Key decisions
 
