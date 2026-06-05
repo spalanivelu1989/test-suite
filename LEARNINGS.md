@@ -94,3 +94,37 @@ intend. Verified: typecheck + 69 unit tests pass; `playwright-cli open` runs hea
 removed and a run's logs confirm the _new_ path is the only one used. Under
 `bypassPermissions`, removing a tool from an agent's `tools:` list is not enough to
 disable it — disable the MCP server itself.
+
+### [2026-06-05] An e2e round-trip caught a data-shape bug unit tests missed (KP Phase 1)
+
+**Trigger:** Stage 5 review — a live ingest→retrieve check showed one flow as
+BOTH "covered" and "a gap" in the Planner pack; no unit test caught it.
+**Root cause:** Curated flow ids (`hero`) and tested result flowIds (`hero cta`)
+normalize to different keys, so the same flow appeared twice with one tested and
+one not. Unit tests used clean single-key fixtures and never exercised the dual-key
+reality.
+**Fix:** `appProfile.ts` collapses flows by `norm(name)` (covered if ANY row
+tested) and derives gaps from `coverage_snapshots.missing_flows`; added assertions.
+**Future prevention:** For any data-shape/aggregation module, run ONE live
+end-to-end round-trip with realistic data before declaring done — unit fixtures
+hide cross-record contradictions.
+
+### [2026-06-05] Acceptance criteria about a STORED representation need a store-reading test
+
+**Trigger:** Stage 5 — AC15 ("raw RunReport retrievable as JSONB") had no direct
+evidence; the rebuild test re-ingested in-memory objects, never reading raw_reports.
+**Root cause:** A rebuild/round-trip test that holds the source in memory proves
+the transform, not the persistence.
+**Fix:** Added a test that queries `raw_reports` and asserts the JSONB round-trips.
+**Future prevention:** When an AC asserts "stored as X / retrievable as X", the
+test must read X back out of the store, not from a JS variable.
+
+### [2026-06-05] Best-effort/never-throw made a DB-backed feature ship offline-safe
+
+**Trigger:** KP Phase 1 built and fully tested with no managed DB — a local
+Postgres sufficed, and the pipeline runs unchanged when the KB is absent.
+**Root cause:** `withKb` (one wrapper, log-never-throw) + a disabled service
+default meant "KB absent = cold run" was the easy path, not an afterthought.
+**Future prevention:** For any new external dependency, design the absent/unreachable
+path first (graceful degradation) — it de-risks the whole build and keeps CI green
+without the dependency.

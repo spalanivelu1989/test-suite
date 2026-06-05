@@ -115,6 +115,29 @@ test("getAppProfile + getCoverageMap (AC6/AC7)", opts, async () => {
   await k.close();
 });
 
+test(
+  "raw RunReport is stored and retrievable as JSONB (AC15)",
+  opts,
+  async () => {
+    const k = svc();
+    const url = uniqueUrl();
+    const runId = "raw-" + randomUUID();
+    await k.ingestRun(report(runId, url));
+
+    const pool = getPool(DB!);
+    const row = await pool.query<{ report: RunReport }>(
+      "SELECT report FROM raw_reports WHERE run_id = $1",
+      [runId],
+    );
+    assert.equal(row.rowCount, 1);
+    // It round-trips as structured JSON, not a string.
+    assert.equal(row.rows[0].report.runId, runId);
+    assert.equal(row.rows[0].report.url, url);
+    assert.ok(Array.isArray(row.rows[0].report.generatedSpecs));
+    await k.close();
+  },
+);
+
 test("ingestion completeness — K runs ingested (N1)", opts, async () => {
   const k = svc();
   const url = uniqueUrl();
