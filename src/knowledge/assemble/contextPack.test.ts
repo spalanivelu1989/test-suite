@@ -24,7 +24,11 @@ test("buildPlannerPack names covered flows and gaps", () => {
   const text = buildPlannerPack(profile());
   assert.match(text, /Hero CTA/);
   assert.match(text, /Footer Links/);
-  assert.match(text, /focus exploration here/i);
+  // gaps are flagged as untested exploration targets...
+  assert.match(text, /UNTESTED/);
+  // ...and covered flows are flagged for verbatim inclusion (reuse), not skipped.
+  assert.match(text, /Reused — already covered/);
+  assert.match(text, /verbatim/i);
 });
 
 test("buildPlannerPack respects the char budget", () => {

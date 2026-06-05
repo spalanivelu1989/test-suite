@@ -153,7 +153,7 @@ export async function planTests(
   const knowledgeLines = pack.planner
     ? [
         `\n\n${pack.planner}\n`,
-        "Use the knowledge above to focus exploration on UNTESTED areas; you may lightly re-verify covered flows but spend most effort on the gaps.\n",
+        "Per the knowledge above: list the already-covered flows in the plan verbatim (their own 'Reused — already covered' section, exact titles, same scenario heading format as the rest) so their existing tests get copied forward — do not re-explore them — then spend your exploration effort discovering and planning the UNTESTED gaps.\n",
       ]
     : [];
   if (pack.planner)
@@ -347,9 +347,9 @@ export async function generateTests(
   // Scale maxTurns proportionally: ~10 turns/scenario, minimum 80.
   const maxTurns = Math.max(80, scenarioCount * 10);
 
-  // T15: coverage-aware generation. Decide reuse|extend|new per scenario; copy
-  // reused specs into the workspace so the suite stays runnable (D4); tell the
-  // generator to skip them. Best-effort — empty when cold or KB down.
+  // T15: coverage-aware generation. Decide reuse|new per scenario; copy each
+  // reused spec into the workspace so the suite stays runnable (D4); tell the
+  // generator to skip the copied ones. Best-effort — empty when cold or KB down.
   const knowledgeLines = await applyGeneratorKnowledge(
     ws,
     rawPlan,

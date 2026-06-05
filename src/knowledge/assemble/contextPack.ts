@@ -33,11 +33,17 @@ export function buildPlannerPack(
   ];
   if (covered.length)
     lines.push(
-      `Already covered (do not re-plan unless re-verifying): ${covered.join(", ")}.`,
+      `Already covered by existing tests. INCLUDE each of these in the plan as ` +
+        `its own scenario — same heading format as the others — using its EXACT ` +
+        `title verbatim (do NOT reword), grouped under a "## Reused — already ` +
+        `covered" section. You need NOT re-explore them in the browser; listing ` +
+        `them lets the generator copy the existing test forward instead of ` +
+        `rewriting it. Exact titles: ${covered.map((c) => `"${c}"`).join(", ")}.`,
     );
   if (gaps.length)
     lines.push(
-      `Known but UNTESTED — focus exploration here: ${gaps.join(", ")}.`,
+      `Known but UNTESTED — spend your exploration effort here and plan NEW ` +
+        `scenarios for these: ${gaps.join(", ")}.`,
     );
   if (!covered.length && !gaps.length)
     lines.push("No flows recorded yet — explore broadly.");
