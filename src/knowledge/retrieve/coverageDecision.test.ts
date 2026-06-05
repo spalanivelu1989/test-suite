@@ -89,14 +89,20 @@ const SPEC_A_EMB = [1, 0, 0]; // a passed spec, tokens ["alpha"] (lexically dist
 
 test("paraphrase: high semantic + zero lexical, prior passed → reuse (R5/SC2)", () => {
   const specs = [specEmb("passed", SPEC_A_EMB, ["alpha"])];
-  const sc: ScenarioInput = { name: "totally different words", embedding: [0.99, 0.14, 0] };
+  const sc: ScenarioInput = {
+    name: "totally different words",
+    embedding: [0.99, 0.14, 0],
+  };
   const [d] = decideForSpecs([sc], specs);
   assert.equal(d.action, "reuse"); // sem ≈ 0.99 ≥ SEM_REUSE, lexical = 0
 });
 
 test("mid semantic → extend (SC3)", () => {
   const specs = [specEmb("passed", SPEC_A_EMB, ["alpha"])];
-  const [d] = decideForSpecs([{ name: "x y z", embedding: [0.7, 0.71, 0] }], specs);
+  const [d] = decideForSpecs(
+    [{ name: "x y z", embedding: [0.7, 0.71, 0] }],
+    specs,
+  );
   assert.equal(d.action, "extend"); // sem ≈ 0.70: between SEM_EXTEND and SEM_REUSE
 });
 
@@ -108,20 +114,29 @@ test("low semantic + low lexical → new (SC4)", () => {
 
 test("near-threshold semantic → new, not reuse (SC5 — err safe)", () => {
   const specs = [specEmb("passed", SPEC_A_EMB, ["alpha"])];
-  const [d] = decideForSpecs([{ name: "p q r", embedding: [0.6, 0.8, 0] }], specs);
-  assert.equal(d.action, "new"); // sem = 0.60 < SEM_EXTEND (0.62)
+  const [d] = decideForSpecs(
+    [{ name: "p q r", embedding: [0.5, 0.87, 0] }],
+    specs,
+  );
+  assert.equal(d.action, "new"); // sem ≈ 0.50 < SEM_EXTEND (0.60)
 });
 
 test("strong semantic but prior FAILED → extend, never reuse", () => {
   const specs = [specEmb("failed", SPEC_A_EMB, ["alpha"])];
-  const [d] = decideForSpecs([{ name: "diff", embedding: [0.99, 0.14, 0] }], specs);
+  const [d] = decideForSpecs(
+    [{ name: "diff", embedding: [0.99, 0.14, 0] }],
+    specs,
+  );
   assert.equal(d.action, "extend");
 });
 
 test("ADDITIVE no-regression: stripping embeddings reverts to lexical (R8/N3/AC7)", () => {
   // Reuse-via-semantic with embeddings present...
   const specsWith = [specEmb("passed", SPEC_A_EMB, ["alpha"])];
-  const scWith: ScenarioInput = { name: "totally different words", embedding: [0.99, 0.14, 0] };
+  const scWith: ScenarioInput = {
+    name: "totally different words",
+    embedding: [0.99, 0.14, 0],
+  };
   assert.equal(decideForSpecs([scWith], specsWith)[0].action, "reuse");
 
   // ...with embeddings removed, the SAME inputs decide purely lexically → new

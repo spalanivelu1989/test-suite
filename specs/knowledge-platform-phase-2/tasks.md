@@ -14,105 +14,105 @@ tasks at the same dependency level.
 
 ## Task list
 
-### T1 — Embedder interface + cosine/normalize + fake [P]
+### T1 — ✅ Embedder interface + cosine/normalize + fake [P]
 
 - **Covers:** R1, N3
 - **Depends on:** —
 - **Parallel:** yes
 - **Done-when:** `embeddings/embed.ts` defines the `Embedder` interface (`id`, `dims`, `embed(texts)→number[][]`), an L2-normalize helper, and `cosineSim(a,b)`; a `FakeEmbedder` (deterministic vectors) is exported for tests; `tsc --noEmit` clean.
 
-### T2 — LocalEmbedder (bge-small via transformers.js)
+### T2 — ✅ LocalEmbedder (bge-small via transformers.js)
 
 - **Covers:** R1, N2
 - **Depends on:** T1
 - **Parallel:** no
 - **Done-when:** `@huggingface/transformers` added; `LocalEmbedder` runs `Xenova/bge-small-en-v1.5`, mean-pools + L2-normalizes, returns 384-dim vectors, batches input, and lazy-loads + caches the model (first call loads, later calls reuse); a manual smoke embed returns a 384-length unit vector.
 
-### T3 — Migration `0002_pgvector.sql` [P]
+### T3 — ✅ Migration `0002_pgvector.sql` [P]
 
 - **Covers:** R2
 - **Depends on:** —
 - **Parallel:** yes
 - **Done-when:** `store/migrations/0002_pgvector.sql` runs `CREATE EXTENSION IF NOT EXISTS vector`, adds `specs.embedding vector(384)` + `specs.embedding_model text`, and an HNSW cosine index; `npm run knowledge:migrate` applies it; re-running is a no-op (AC1).
 
-### T4 — Types: +embedding fields, +findSimilarSpecs [P]
+### T4 — ✅ Types: +embedding fields, +findSimilarSpecs [P]
 
 - **Covers:** R6 (I3, I4)
 - **Depends on:** —
 - **Parallel:** yes
 - **Done-when:** `types.ts` adds `embedding: number[]|null` to `SpecRow`, optional `embedding?` to `ScenarioInput`, a `SpecMatch` type, and `findSimilarSpecs(query, appId, k)` to `KnowledgeService`; the disabled service implements it (returns `[]`); `tsc` clean.
 
-### T5 — repo: persist + read embeddings + hash cache lookup
+### T5 — ✅ repo: persist + read embeddings + hash cache lookup
 
 - **Covers:** R3, R9, N5
 - **Depends on:** T3, T4
 - **Parallel:** no
 - **Done-when:** `persistRun` writes `embedding`/`embedding_model`; `readSpecsForApp` returns `embedding`; `embeddingForHash(content_hash, model)` returns an existing embedding for reuse (cache) or null; all app-scoped.
 
-### T6 — repo: findNearestSpecs (HNSW NN query) [P]
+### T6 — ✅ repo: findNearestSpecs (HNSW NN query) [P]
 
 - **Covers:** R6
 - **Depends on:** T3, T4
 - **Parallel:** yes
 - **Done-when:** `findNearestSpecs(pool, appId, queryEmbedding, k)` returns the k nearest specs by cosine (`ORDER BY embedding <=> $q LIMIT k`, `WHERE app_id`, non-null embeddings only) with scores.
 
-### T7 — extract: per-spec intentText [P]
+### T7 — ✅ extract: per-spec intentText [P]
 
 - **Covers:** R3 (D5)
 - **Depends on:** T4
 - **Parallel:** yes
 - **Done-when:** `extract.ts` produces `intentText` per spec = title + step comments (fallback: title); unit-proven it excludes volatile selector lines.
 
-### T8 — ingestRun: embed-at-ingest (cached, best-effort)
+### T8 — ✅ ingestRun: embed-at-ingest (cached, best-effort)
 
 - **Covers:** R3, R8, R9, N5
 - **Depends on:** T2, T5, T7
 - **Parallel:** no
 - **Done-when:** `ingestRun` reuses a cached embedding by `content_hash`+model, else `withKb(embedder.embed(intentText))`; persists `embedding`+`embedding_model`; an embed failure stores a null embedding and ingestion still commits (AC3/AC4); carries the inline embed-at-ingest diagram.
 
-### T9 — Hybrid decideForSpecs (lexical OR semantic)
+### T9 — ✅ Hybrid decideForSpecs (lexical OR semantic)
 
 - **Covers:** R5, R8, R10
 - **Depends on:** T1, T4
 - **Parallel:** no
 - **Done-when:** `decideForSpecs` (pure) computes `lex` (Phase 1) and `sem = cosineSim` (0 when either embedding null); `reuse` if `lex≥0.80 OR sem≥SEM_REUSE` AND last-passed; `extend` if `lex≥0.45 OR sem≥SEM_EXTEND`; else `new`; errs to `new` near thresholds; `SEM_REUSE`/`SEM_EXTEND` are named constants; carries the inline decision diagram.
 
-### T10 — Service: embed scenarios at query time + findSimilarSpecs + wire
+### T10 — ✅ Service: embed scenarios at query time + findSimilarSpecs + wire
 
 - **Covers:** R5, R6, R7, R8, N1
 - **Depends on:** T2, T6, T9
 - **Parallel:** no
 - **Done-when:** `assembleContext("generating")` batch-embeds the scenarios (`withKb`, null on failure), loads specs with embeddings, calls the hybrid `decideForSpecs`, and feeds the Generator path (unchanged wiring); `findSimilarSpecs` embeds the query and calls `findNearestSpecs`; carries the inline query-time/degrade diagram.
 
-### T11 — Backfill job
+### T11 — ✅ Backfill job
 
 - **Covers:** R4, R9
 - **Depends on:** T2, T5
 - **Parallel:** no
 - **Done-when:** `bin/knowledge-embed-backfill.ts` embeds specs with a null/mismatched-model embedding for the current model, in batches, idempotent (a second run embeds nothing); a `knowledge:embed-backfill` npm script runs it.
 
-### T12 — Unit tests: cosine, hybrid decision, no-regression [P]
+### T12 — ✅ Unit tests: cosine, hybrid decision, no-regression [P]
 
 - **Covers:** R1, R5, R8, N3, N4
 - **Depends on:** T1, T9
 - **Parallel:** yes
 - **Done-when:** `tsx --test` (no DB, no model): `cosineSim`/normalize; hybrid decisions (low-lex/high-sem→reuse, mid→extend, low/low→new, near-threshold→new, high-lex/low-sem→reuse — AC5/AC6); **additive-no-regression** — embeddings off ⇒ output identical to the lexical decider (AC7/N3); determinism repeat (N4).
 
-### T13 — Integration tests vs pgvector DB [P]
+### T13 — ✅ Integration tests vs pgvector DB [P]
 
 - **Covers:** R2, R3, R4, R6, R9, N5
 - **Depends on:** T8, T10, T11
 - **Parallel:** yes
 - **Done-when:** against a pgvector test DB: embed→store→`findNearestSpecs` round-trip; ingest cache-by-hash (no re-embed, AC3); `findSimilarSpecs` ranks the paraphrased spec first (AC8); backfill idempotency (AC10); model-mismatch re-embed (AC11); `count(embedding IS NULL AND model=current)=0` (N5). Uses a deterministic embedder.
 
-### T14 — Degradation + latency + generator-skip tests [P]
+### T14 — ✅ Degradation + latency + generator-skip tests [P]
 
 - **Covers:** R7, R8, N1, N2
 - **Depends on:** T10
 - **Parallel:** yes
 - **Done-when:** embedder-throws and pgvector-absent → lexical decisions, no error (SC7–SC9); warm retrieval+scenario-embed ≤500 ms (N1); cold-load vs warm timing (N2); on a 2nd run the Generator does not re-emit a paraphrased `reuse` spec (AC9).
 
-### T15 — M1/M2 calibration + measurement harness
+### T15 — ✅ M1/M2 calibration + measurement harness
 
 - **Covers:** R10, M1, M2
 - **Depends on:** T9, T12

@@ -46,3 +46,22 @@ model is called once. Correct and efficient (identical code ⇒ identical vector
 Surfaced by a test-isolation bug: a sibling test pre-populated the cache for a
 shared spec template, so the cache test's "first" ingest hit cache. Fixed by
 giving that test a unique spec title (novel hash). Not a product issue.
+
+### [2026-06-05] T15 calibration result: thresholds SEM_REUSE=0.82, SEM_EXTEND=0.60
+
+**Type:** Decision · **Task:** T15 (R10/M1/M2/Q2)
+
+Ran `bin/knowledge-calibrate.ts` with the REAL bge-small model over the labeled
+set (20 paraphrases — 19 lexically-missed — + 8 negatives). Sweep result:
+- SEM_EXTEND 0.55 → recall 100% but **false-reuse 13%** (over-merges).
+- SEM_EXTEND **0.60 → recall 95%, false-reuse 0%** ✅ (chosen).
+- SEM_EXTEND 0.62 → 84%/0%; 0.65 → 79%/0%.
+SEM_REUSE (0.75–0.85) doesn't move the combined reuse+extend metric; kept at
+**0.82** so only very-high similarity skips a test, moderate ones `extend`.
+**M1 95% / M2 0% clears the Spec targets (≥70% / ≤5%).**
+
+**CAVEATS (honest):** the labeled set is small and **Claude-generated — needs
+human verification** before the numbers are trusted; intents are hand-authored,
+not real tarento specs. Final M1/M2 against two live tarento.com runs are measured
+via `/craft-framework:measure`. This calibration is strong evidence the approach
+works and the thresholds are well-chosen, not the final production number.

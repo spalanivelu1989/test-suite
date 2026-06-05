@@ -22,10 +22,13 @@ import type { CoverageAction, CoverageDecision, ScenarioInput } from "../types";
 
 export const REUSE_THRESHOLD = 0.8;
 export const EXTEND_THRESHOLD = 0.45;
-// Semantic thresholds — calibrated in T15 against the tarento set (D6). Starting
-// values from real bge-small geometry (paraphrase ≈ 0.79, unrelated ≈ 0.46).
+// Semantic thresholds — CALIBRATED in T15 against the labeled set with the real
+// bge-small model (see implementation-notes 2026-06-05): SEM_EXTEND=0.60 gives
+// 95% paraphrase recall at 0% false-reuse. SEM_REUSE stays conservative (0.82):
+// only very-high similarity → `reuse` (skip); moderate paraphrases → `extend`
+// (still produce/augment a test), protecting against masked coverage gaps.
 export const SEM_REUSE = 0.82;
-export const SEM_EXTEND = 0.62;
+export const SEM_EXTEND = 0.6;
 
 /** Overlap coefficient — robust to length asymmetry (short scenario vs long spec). */
 export function overlapCoefficient(a: Set<string>, b: Set<string>): number {
@@ -55,7 +58,10 @@ function semScore(
 export function decideForSpecs(
   scenarios: ScenarioInput[],
   specs: SpecRow[],
+  thresholds?: { semReuse?: number; semExtend?: number },
 ): CoverageDecision[] {
+  const semReuse = thresholds?.semReuse ?? SEM_REUSE;
+  const semExtend = thresholds?.semExtend ?? SEM_EXTEND;
   return scenarios.map((sc) => {
     const scTokens = significantTokens(sc.name);
     let bestSpec: SpecRow | null = null;
@@ -76,7 +82,7 @@ export function decideForSpecs(
 
     if (
       bestSpec === null ||
-      (bestLex < EXTEND_THRESHOLD && bestSem < SEM_EXTEND)
+      (bestLex < EXTEND_THRESHOLD && bestSem < semExtend)
     ) {
       return {
         scenario: sc.name,
@@ -96,7 +102,7 @@ export function decideForSpecs(
     // reuse (skip) only when a strong signal AND the prior run passed; the
     // boundary errs to `extend` (still produces a test), never silently skips.
     const action: CoverageAction =
-      (bestLex >= REUSE_THRESHOLD || bestSem >= SEM_REUSE) &&
+      (bestLex >= REUSE_THRESHOLD || bestSem >= semReuse) &&
       passed(bestSpec.lastOutcome)
         ? "reuse"
         : "extend";

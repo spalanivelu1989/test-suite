@@ -1,0 +1,95 @@
+{
+  "note": "Labeled paraphrase set for Phase 2 M1/M2 (DEP4). Claude-generated — HUMAN-VERIFY before trusting the numbers. Each `positives[].paraphrases` is a reworded scenario that means the SAME as `intent` (should be reuse/extend); `negatives` are genuinely new scenarios outside the curated flows (should be new). Paraphrases deliberately share few words with the intent so they test SEMANTIC over lexical.",
+  "positives": [
+    {
+      "flowId": "home",
+      "intent": "Load home page. Verify the hero landing content and primary navigation render.",
+      "paraphrases": [
+        "Confirm the front page opens with its banner and top menu visible",
+        "Check the site's main entry screen displays its masthead"
+      ]
+    },
+    {
+      "flowId": "primary-nav",
+      "intent": "Use primary navigation menu. Verify top-level menu items are present and clickable.",
+      "paraphrases": [
+        "Click through the header links and confirm each is reachable",
+        "Exercise the main menu bar at the top of the site"
+      ]
+    },
+    {
+      "flowId": "services",
+      "intent": "View services / what-we-do section. Verify the services listing renders.",
+      "paraphrases": [
+        "Open the offerings area and confirm the capabilities list shows",
+        "Look at what the company provides under its solutions page"
+      ]
+    },
+    {
+      "flowId": "industries",
+      "intent": "View industries section. Verify industry content renders.",
+      "paraphrases": [
+        "Check the sectors the firm serves are listed",
+        "Open the verticals page and confirm its content loads"
+      ]
+    },
+    {
+      "flowId": "case-studies",
+      "intent": "Browse case studies / work. Verify the case study entries render.",
+      "paraphrases": [
+        "Look through the portfolio of client success stories",
+        "Open the showcase of completed projects"
+      ]
+    },
+    {
+      "flowId": "insights",
+      "intent": "Browse insights / blog. Verify the article listing renders.",
+      "paraphrases": [
+        "Read the latest posts in the news and thought-leadership area",
+        "Open the articles feed and confirm entries appear"
+      ]
+    },
+    {
+      "flowId": "about",
+      "intent": "View About / Company page. Verify the company information renders.",
+      "paraphrases": [
+        "Open the who-we-are page and confirm the firm's story shows",
+        "Check the organisation background section loads"
+      ]
+    },
+    {
+      "flowId": "careers",
+      "intent": "View careers page. Verify job opportunities render.",
+      "paraphrases": [
+        "Open the jobs and vacancies listing",
+        "Check the work-with-us hiring page displays roles"
+      ]
+    },
+    {
+      "flowId": "contact",
+      "intent": "Open contact page and form. Verify the enquiry form renders and submits.",
+      "paraphrases": [
+        "Send a message through the get-in-touch enquiry widget",
+        "Fill in the reach-us form and submit it"
+      ]
+    },
+    {
+      "flowId": "footer-nav",
+      "intent": "Use footer navigation links. Verify the bottom-of-page links work.",
+      "paraphrases": [
+        "Click the links in the page's bottom bar",
+        "Exercise the navigation at the very foot of the site"
+      ]
+    }
+  ],
+  "negatives": [
+    "Add a product to the shopping cart and check out",
+    "Reset a forgotten account password via email",
+    "Filter the catalogue results by price range",
+    "Play the embedded demo video and pause it",
+    "Switch the interface language to French",
+    "Log in with two-factor authentication",
+    "Apply a discount coupon at checkout",
+    "Upload a profile photo to the account settings"
+  ]
+}
