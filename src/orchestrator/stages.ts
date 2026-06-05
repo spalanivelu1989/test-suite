@@ -11,7 +11,12 @@ import {
   CRAWL_MODE_DEPTH,
   CRAWL_MODE_SCENARIOS_PER_PAGE,
   effectivePageBudget,
+  type ValidationReport,
 } from "../types";
+import {
+  formatValidationForHealer,
+  validateSuite,
+} from "../validator/validate";
 
 // The four pipeline stages (T6–T8 + results). Each stage runs one agent in the
 // run workspace via the runtime; deps are injectable so the orchestration is
@@ -286,6 +291,20 @@ export async function generateTests(
   };
 }
 
+/**
+ * Validation stage: statically inspect the generated specs (no browser, no LLM)
+ * for structure/assertion/robustness/relevance issues, scored against the plan.
+ * Pure read of workspace files — its findings are surfaced in the report and fed
+ * to the Healer so flagged anti-patterns get fixed alongside runtime failures.
+ */
+export async function validateTests(ws: Workspace): Promise<ValidationReport> {
+  const [specs, plan] = await Promise.all([
+    readGeneratedSpecs(ws),
+    readPlan(ws),
+  ]);
+  return validateSuite(specs, plan);
+}
+
 export interface HealResult {
   toolCalls: string[];
   isError: boolean;
@@ -296,16 +315,21 @@ export async function healTests(
   ws: Workspace,
   onEvent?: (e: AgentEvent) => void,
   deps: StageDeps = {},
+  validation?: ValidationReport,
 ): Promise<HealResult> {
   const load = deps.loadAgentFn ?? loadAgent;
   const run = deps.runner ?? runAgent;
   const agent = await load("playwright-test-healer");
 
+  const validationBlock = validation
+    ? formatValidationForHealer(validation)
+    : "";
   const prompt = [
     "Run the generated test suite by executing npx playwright test via Bash. For each failing test, debug it by",
     "running it specifically or inspecting the page using playwright-cli, fix the spec (resilient locators, corrected assertions)",
     "using Edit/Write tools, and re-run until it passes. If a test cannot be fixed and you are confident it is a genuine failure,",
     "mark it test.fixme() with a comment explaining what is happening. Do not ask questions.",
+    ...(validationBlock ? ["\n\n" + validationBlock] : []),
   ].join(" ");
 
   const gate = createCrawlGate({

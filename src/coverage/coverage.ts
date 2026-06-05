@@ -5,14 +5,14 @@ export interface NamedFlow {
   name: string;
 }
 
-function norm(s: string): string {
+export function norm(s: string): string {
   return s
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
-function significantTokens(s: string): Set<string> {
+export function significantTokens(s: string): Set<string> {
   return new Set(
     norm(s)
       .split(" ")

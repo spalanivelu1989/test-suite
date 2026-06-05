@@ -152,7 +152,7 @@ function getStageStatus(
   if (runStatus === "completed") return "completed";
 
   let mappedStageId = "planning";
-  if (currentRunStage === "generating") {
+  if (currentRunStage === "generating" || currentRunStage === "validating") {
     mappedStageId = "generating";
   } else if (currentRunStage === "running" || currentRunStage === "healing") {
     mappedStageId = "healing";
@@ -241,7 +241,11 @@ function parseMarkdownPlan(
     const trimmed = line.trim();
 
     // Check for scenario headers
-    if (line.startsWith("####") || line.startsWith("###") || (line.startsWith("##") && line.toLowerCase().includes("scenario"))) {
+    if (
+      line.startsWith("####") ||
+      line.startsWith("###") ||
+      (line.startsWith("##") && line.toLowerCase().includes("scenario"))
+    ) {
       if (
         line.startsWith("###") &&
         !line.startsWith("####") &&
@@ -249,7 +253,9 @@ function parseMarkdownPlan(
       ) {
         continue;
       }
-      const title = line.replace(/^(####|###|##)\s*(scenario\s*\d*[\s—:-]*)?/i, "").trim();
+      const title = line
+        .replace(/^(####|###|##)\s*(scenario\s*\d*[\s—:-]*)?/i, "")
+        .trim();
       currentScenario = { title, steps: [] };
       scenarios.push(currentScenario);
       inSteps = false;
@@ -687,7 +693,10 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _selected={{
+              bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)",
+              color: AWS_COLORS.orange.main,
+            }}
             _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Details
@@ -701,7 +710,10 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _selected={{
+              bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)",
+              color: AWS_COLORS.orange.main,
+            }}
             _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Status Checks & Report
@@ -715,7 +727,10 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _selected={{
+              bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)",
+              color: AWS_COLORS.orange.main,
+            }}
             _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             User Flows & Spec Files
@@ -729,7 +744,10 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _selected={{
+              bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)",
+              color: AWS_COLORS.orange.main,
+            }}
             _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Monitoring
@@ -743,7 +761,10 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _selected={{
+              bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)",
+              color: AWS_COLORS.orange.main,
+            }}
             _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Console Logs
@@ -757,7 +778,10 @@ export function TestRunDetailsPane({
             borderRadius="sm"
             cursor="pointer"
             color={colors.subtext}
-            _selected={{ bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)", color: AWS_COLORS.orange.main }}
+            _selected={{
+              bg: isDark ? colors.cardBg : "rgba(59, 130, 246, 0.08)",
+              color: AWS_COLORS.orange.main,
+            }}
             _hover={{ bg: isDark ? "white/5" : "rgba(59, 130, 246, 0.04)" }}
           >
             Test Plan & Specs Code

@@ -102,9 +102,19 @@ test("runPipeline runs the four stages in order and builds a rich report", async
     assert.match(report.planMarkdown ?? "", /# Plan/);
     assert.equal(report.generatedSpecs.length, 1);
 
+    // The validation stage ran and its report was threaded onto the RunReport.
+    // The stub spec (`import {test} ...`) has no test()/expect, so it is flagged.
+    assert.ok(report.validation, "validation present on report");
+    assert.equal(report.validation?.specs.length, 1);
+    assert.ok(
+      report.validation!.errorCount >= 2,
+      "no-test-block + no-assertions flagged",
+    );
+
     const order = [
       "planning",
       "generating",
+      "validating",
       "healing",
       "flake-check",
       "reporting",

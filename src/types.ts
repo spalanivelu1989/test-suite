@@ -70,6 +70,7 @@ export type RunStage =
   | "queued"
   | "planning"
   | "generating"
+  | "validating"
   | "running"
   | "flake-check"
   | "healing"
@@ -124,6 +125,57 @@ export interface CoverageSummary {
   missingFlows: string[];
 }
 
+/**
+ * Static-validation domain model. The Validation stage inspects each generated
+ * spec's *source* (no browser, no LLM) for the four acceptance bars: structure/
+ * correctness, meaningful assertions, robustness (not flaky), and relevance to
+ * the plan. Produced by `src/validator/validate.ts`.
+ */
+export type ValidationCategory =
+  | "correctness"
+  | "assertion"
+  | "robustness"
+  | "relevance";
+
+export type ValidationSeverity = "error" | "warning";
+
+/** One issue found in a generated spec by a static rule. */
+export interface ValidationFinding {
+  /** Stable rule id, e.g. "no-assertions", "hard-wait", "brittle-selector". */
+  rule: string;
+  category: ValidationCategory;
+  severity: ValidationSeverity;
+  message: string;
+  /** 1-based line in the spec source, when the rule can localize it. */
+  line?: number;
+}
+
+/** Per-spec validation result. */
+export interface SpecValidation {
+  /** Spec path relative to the tests dir (as `readGeneratedSpecs` returns). */
+  file: string;
+  /** The `test('<title>')` title, or null if none was found. */
+  title: string | null;
+  /** Plan scenario this spec maps to (relevance), or null if it's an orphan. */
+  matchedScenario: string | null;
+  findings: ValidationFinding[];
+  /** 0–100; starts at 100, penalized per finding. */
+  score: number;
+}
+
+/** Suite-level validation report threaded onto the RunReport. */
+export interface ValidationReport {
+  specs: SpecValidation[];
+  /** Plan scenarios with no corresponding spec (coverage gaps). */
+  missingFlows: string[];
+  /** Spec files that match no plan scenario (off-target tests). */
+  orphanSpecs: string[];
+  errorCount: number;
+  warningCount: number;
+  /** Overall 0–100. */
+  score: number;
+}
+
 /** Success rate = passed ÷ all planned tests (Q7/D7). */
 export interface SuccessRate {
   rate: number;
@@ -162,6 +214,8 @@ export interface RunReport {
   planMarkdown: string | null;
   generatedSpecs: { file: string; code: string }[];
   screenshots?: { filename: string; base64: string }[];
+  /** Static-validation results for the generated specs (Validation stage). */
+  validation?: ValidationReport;
 }
 
 /** A run as tracked by the in-memory store (R8). */

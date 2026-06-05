@@ -15,7 +15,13 @@ import {
 import { buildReport } from "../reporter/report";
 import { generateNarrative } from "../reporter/narrative";
 import type { Flow, ProgressEvent, RunConfig, RunReport } from "../types";
-import { generateTests, healTests, planTests, type StageDeps } from "./stages";
+import {
+  generateTests,
+  healTests,
+  planTests,
+  validateTests,
+  type StageDeps,
+} from "./stages";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -115,13 +121,36 @@ export async function runPipeline(
   checkCancelled();
   if (gen.isError) throw new StageError("Generator produced no tests");
 
+  // 2b. Validation: statically inspect the generated specs (correctness,
+  // meaningful assertions, robustness, relevance) before we run/heal them.
+  emit(
+    "validating",
+    "Validator: checking generated specs for correctness and relevance",
+  );
+  const validation = await validateTests(ws);
+  emit(
+    "validating",
+    `Validation score ${validation.score}/100 — ${validation.errorCount} error(s), ${validation.warningCount} warning(s)` +
+      (validation.missingFlows.length
+        ? `, ${validation.missingFlows.length} plan flow(s) without a test`
+        : ""),
+    {
+      score: validation.score,
+      errors: validation.errorCount,
+      warnings: validation.warningCount,
+      missingFlows: validation.missingFlows.length,
+    },
+  );
+  checkCancelled();
+
   // 3. Initial run (pre-heal), then Healer, then re-run for flake + heal reconciliation
   emit("running", "Running generated tests");
   const initial = await captureResults(ws);
   checkCancelled();
 
+  // Feed validation findings to the Healer so it fixes flagged anti-patterns too.
   emit("healing", "Healer: repairing failures and quarantining the unfixable");
-  await healTests(ws, onAgent("healing", "healer"), stageDeps);
+  await healTests(ws, onAgent("healing", "healer"), stageDeps, validation);
   agentRuns++;
   checkCancelled();
 
@@ -135,18 +164,23 @@ export async function runPipeline(
   const specs = await readGeneratedSpecs(ws);
   const planMarkdown = await readPlan(ws);
   const coverage = coverageFromResults(deps.curatedFlows, results);
-  const narrative = await generateNarrative(results, specs, deps.claude, config.url);
+  const narrative = await generateNarrative(
+    results,
+    specs,
+    deps.claude,
+    config.url,
+  );
 
   let screenshots: { filename: string; base64: string }[] = [];
   try {
     const screenshotsDir = join(ws.root, "screenshots");
     const files = await readdir(screenshotsDir);
-    const pngs = files.filter(f => f.endsWith(".png")).sort();
+    const pngs = files.filter((f) => f.endsWith(".png")).sort();
     for (const f of pngs) {
       const data = await readFile(join(screenshotsDir, f));
       screenshots.push({
         filename: f,
-        base64: data.toString("base64")
+        base64: data.toString("base64"),
       });
     }
   } catch (err) {
@@ -173,6 +207,7 @@ export async function runPipeline(
     generatedSpecs: specs,
     flows: deps.curatedFlows,
     screenshots,
+    validation,
   });
   emit("done", "Run complete", {
     successRate: Math.round(report.successRate.rate * 100),

@@ -9,7 +9,13 @@ import type {
   RunAgentResult,
 } from "../agents/runtime";
 import { createWorkspace } from "../agents/workspace";
-import { generateTests, healTests, planTests, trimPlan } from "./stages";
+import {
+  generateTests,
+  healTests,
+  planTests,
+  trimPlan,
+  validateTests,
+} from "./stages";
 
 const fakeAgent: AgentDef = {
   name: "playwright-test-planner",
@@ -172,6 +178,92 @@ test("healTests runs the healer agent and reports tool usage", async () => {
   }
 });
 
+// ── validateTests + healer prompt augmentation ───────────────────────────────
+
+test("validateTests scores the generated specs against the plan", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    await writeFile(
+      join(ws.specsDir, "plan.md"),
+      "# Plan\n## Scenario 1 — Home Page Load\n### Steps\n",
+      "utf8",
+    );
+    // A clean, relevant spec → no findings.
+    await writeFile(
+      join(ws.testsDir, "home-page-load.spec.ts"),
+      `import { test, expect } from '@playwright/test';
+test('Home Page Load', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle(/Home/);
+});`,
+      "utf8",
+    );
+    // A spec with no assertions → no-assertions error.
+    await writeFile(
+      join(ws.testsDir, "empty.spec.ts"),
+      `import { test } from '@playwright/test';
+test('Unplanned thing', async ({ page }) => { await page.goto('/'); });`,
+      "utf8",
+    );
+    const report = await validateTests(ws);
+    assert.equal(report.specs.length, 2);
+    assert.ok(report.errorCount >= 1, "no-assertions flagged");
+    assert.ok(
+      report.orphanSpecs.includes("empty.spec.ts"),
+      "unplanned spec flagged as orphan",
+    );
+    assert.ok(report.score < 100);
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("healTests appends validation findings to the healer prompt", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    let capturedPrompt = "";
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      capturedPrompt = opts.prompt;
+      return { resultText: "ok", toolCalls: [], isError: false };
+    };
+    const validation = {
+      specs: [
+        {
+          file: "a.spec.ts",
+          title: "A",
+          matchedScenario: "A",
+          score: 70,
+          findings: [
+            {
+              rule: "hard-wait",
+              category: "robustness" as const,
+              severity: "warning" as const,
+              message: "Hard-coded wait.",
+              line: 5,
+            },
+          ],
+        },
+      ],
+      missingFlows: [],
+      orphanSpecs: [],
+      errorCount: 0,
+      warningCount: 1,
+      score: 70,
+    };
+    await healTests(
+      ws,
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      validation,
+    );
+    assert.ok(capturedPrompt.includes("Static validation flagged"));
+    assert.ok(capturedPrompt.includes("hard-wait"));
+    assert.ok(capturedPrompt.includes("a.spec.ts"));
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
 // ── planTests crawl-mode constraint injection ─────────────────────────────────
 
 test("planTests injects direct-mode constraint (no other pages)", async () => {
@@ -183,12 +275,25 @@ test("planTests injects direct-mode constraint (no other pages)", async () => {
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
       return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
-    await planTests(ws, "https://example.com", undefined, {
-      runner, loadAgentFn: async () => fakeAgent,
-    }, { crawlMode: "direct", maxPages: 5 });
+    await planTests(
+      ws,
+      "https://example.com",
+      undefined,
+      {
+        runner,
+        loadAgentFn: async () => fakeAgent,
+      },
+      { crawlMode: "direct", maxPages: 5 },
+    );
 
-    assert.ok(capturedPrompt.includes("Direct page only"), `got: ${capturedPrompt}`);
-    assert.ok(capturedPrompt.includes("MUST contain at most"), `got: ${capturedPrompt}`);
+    assert.ok(
+      capturedPrompt.includes("Direct page only"),
+      `got: ${capturedPrompt}`,
+    );
+    assert.ok(
+      capturedPrompt.includes("MUST contain at most"),
+      `got: ${capturedPrompt}`,
+    );
     assert.ok(capturedPrompt.includes("IMPORTANT"), `got: ${capturedPrompt}`);
   } finally {
     await rm(ws.root, { recursive: true, force: true });
@@ -204,13 +309,23 @@ test("planTests injects standard-mode depth-1 constraint", async () => {
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
       return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
-    await planTests(ws, "https://example.com", undefined, {
-      runner, loadAgentFn: async () => fakeAgent,
-    }, { crawlMode: "standard", maxPages: 5 });
+    await planTests(
+      ws,
+      "https://example.com",
+      undefined,
+      {
+        runner,
+        loadAgentFn: async () => fakeAgent,
+      },
+      { crawlMode: "standard", maxPages: 5 },
+    );
 
     assert.ok(capturedPrompt.includes("depth = 1"), `got: ${capturedPrompt}`);
     // maxScenarios = 5 pages × 5 scenarios/page = 25
-    assert.ok(capturedPrompt.includes("25"), `prompt should mention 25 max scenarios, got: ${capturedPrompt}`);
+    assert.ok(
+      capturedPrompt.includes("25"),
+      `prompt should mention 25 max scenarios, got: ${capturedPrompt}`,
+    );
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
@@ -225,13 +340,23 @@ test("planTests injects deep-mode constraint with correct depth and page cap", a
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
       return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
-    await planTests(ws, "https://example.com", undefined, {
-      runner, loadAgentFn: async () => fakeAgent,
-    }, { crawlMode: "deep", maxPages: 10 });
+    await planTests(
+      ws,
+      "https://example.com",
+      undefined,
+      {
+        runner,
+        loadAgentFn: async () => fakeAgent,
+      },
+      { crawlMode: "deep", maxPages: 10 },
+    );
 
     assert.ok(capturedPrompt.includes("depth ≤ 3"), `got: ${capturedPrompt}`);
     // maxScenarios = 10 pages × 4 scenarios/page = 40
-    assert.ok(capturedPrompt.includes("40"), `prompt should mention 40 max scenarios, got: ${capturedPrompt}`);
+    assert.ok(
+      capturedPrompt.includes("40"),
+      `prompt should mention 40 max scenarios, got: ${capturedPrompt}`,
+    );
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
@@ -240,7 +365,8 @@ test("planTests injects deep-mode constraint with correct depth and page cap", a
 // ── trimPlan unit tests ───────────────────────────────────────────────────────
 
 test("trimPlan leaves plan unchanged when within budget", () => {
-  const plan = "# Plan\n\n#### 1.1 Scenario A\nsteps\n#### 1.2 Scenario B\nsteps\n";
+  const plan =
+    "# Plan\n\n#### 1.1 Scenario A\nsteps\n#### 1.2 Scenario B\nsteps\n";
   const { trimmed, total, removed } = trimPlan(plan, 5);
   assert.equal(total, 2);
   assert.equal(removed, 0);
@@ -248,14 +374,23 @@ test("trimPlan leaves plan unchanged when within budget", () => {
 });
 
 test("trimPlan trims scenarios exceeding the ceiling", () => {
-  const scenarios = Array.from({ length: 8 }, (_, i) => `#### 1.${i + 1} Scenario ${i + 1}\nsteps\n`);
+  const scenarios = Array.from(
+    { length: 8 },
+    (_, i) => `#### 1.${i + 1} Scenario ${i + 1}\nsteps\n`,
+  );
   const plan = "# Plan\n\n" + scenarios.join("");
   const { trimmed, total, removed } = trimPlan(plan, 5);
   assert.equal(total, 8);
   assert.equal(removed, 3);
   // Only first 5 scenarios remain
-  assert.ok(trimmed.includes("Scenario 5"), `should keep scenario 5, got:\n${trimmed}`);
-  assert.ok(!trimmed.includes("Scenario 6"), `should trim scenario 6, got:\n${trimmed}`);
+  assert.ok(
+    trimmed.includes("Scenario 5"),
+    `should keep scenario 5, got:\n${trimmed}`,
+  );
+  assert.ok(
+    !trimmed.includes("Scenario 6"),
+    `should trim scenario 6, got:\n${trimmed}`,
+  );
   assert.ok(trimmed.includes("trimmed"), "should include trim notice");
 });
 
@@ -265,17 +400,32 @@ test("generateTests scales maxTurns from scenario count in plan", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     // Build a plan with 4 scenarios so maxTurns = max(80, 4*10) = 80
-    const scenarios = Array.from({ length: 4 }, (_, i) => `#### 1.${i + 1} S${i + 1}\nsteps\n`);
-    await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n\n" + scenarios.join(""), "utf8");
+    const scenarios = Array.from(
+      { length: 4 },
+      (_, i) => `#### 1.${i + 1} S${i + 1}\nsteps\n`,
+    );
+    await writeFile(
+      join(ws.specsDir, "plan.md"),
+      "# Plan\n\n" + scenarios.join(""),
+      "utf8",
+    );
 
     let capturedMaxTurns: number | undefined;
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
       capturedMaxTurns = opts.maxTurns;
-      await writeFile(join(ws.testsDir, "a.spec.ts"), "import {test} from '@playwright/test';", "utf8");
+      await writeFile(
+        join(ws.testsDir, "a.spec.ts"),
+        "import {test} from '@playwright/test';",
+        "utf8",
+      );
       return { resultText: "done", toolCalls: [], isError: false };
     };
-    await generateTests(ws, undefined, { runner, loadAgentFn: async () => fakeAgent },
-      { crawlMode: "standard", maxPages: 10 });
+    await generateTests(
+      ws,
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      { crawlMode: "standard", maxPages: 10 },
+    );
 
     // 4 scenarios × 10 turns = 40 → clamped to minimum 80
     assert.equal(capturedMaxTurns, 80, `expected 80, got ${capturedMaxTurns}`);
@@ -288,20 +438,39 @@ test("generateTests scales maxTurns above minimum for large plans", async () => 
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     // Build a plan with 20 scenarios → maxTurns = 20*10 = 200
-    const scenarios = Array.from({ length: 20 }, (_, i) => `#### 1.${i + 1} S${i + 1}\nsteps\n`);
-    await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n\n" + scenarios.join(""), "utf8");
+    const scenarios = Array.from(
+      { length: 20 },
+      (_, i) => `#### 1.${i + 1} S${i + 1}\nsteps\n`,
+    );
+    await writeFile(
+      join(ws.specsDir, "plan.md"),
+      "# Plan\n\n" + scenarios.join(""),
+      "utf8",
+    );
 
     let capturedMaxTurns: number | undefined;
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
       capturedMaxTurns = opts.maxTurns;
-      await writeFile(join(ws.testsDir, "a.spec.ts"), "import {test} from '@playwright/test';", "utf8");
+      await writeFile(
+        join(ws.testsDir, "a.spec.ts"),
+        "import {test} from '@playwright/test';",
+        "utf8",
+      );
       return { resultText: "done", toolCalls: [], isError: false };
     };
     // ceiling = 20 pages × 5 = 100 → plan has 20 within budget, so no trim
-    await generateTests(ws, undefined, { runner, loadAgentFn: async () => fakeAgent },
-      { crawlMode: "standard", maxPages: 20 });
+    await generateTests(
+      ws,
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      { crawlMode: "standard", maxPages: 20 },
+    );
 
-    assert.equal(capturedMaxTurns, 200, `expected 200, got ${capturedMaxTurns}`);
+    assert.equal(
+      capturedMaxTurns,
+      200,
+      `expected 200, got ${capturedMaxTurns}`,
+    );
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }

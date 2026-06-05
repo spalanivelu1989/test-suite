@@ -88,6 +88,37 @@ export function renderMarkdown(report: RunReport): string {
       ...report.recommendations.map((r) => `- ${r}`),
     );
   }
+  const v = report.validation;
+  if (v) {
+    L.push(
+      "",
+      `## Validation`,
+      "",
+      `**Validation score: ${v.score}/100** — ${v.errorCount} error(s), ${v.warningCount} warning(s) across ${v.specs.length} generated spec(s).`,
+      "",
+    );
+    if (v.missingFlows.length) {
+      L.push(
+        `Plan flows with no generated test (${v.missingFlows.length}):`,
+        ...v.missingFlows.map((f) => `- ${f}`),
+        "",
+      );
+    }
+    const flagged = v.specs.filter((s) => s.findings.length);
+    if (flagged.length) {
+      L.push(`### Findings by spec`, "");
+      for (const s of flagged) {
+        L.push(`- **${s.file}** (score ${s.score}/100)`);
+        for (const f of s.findings) {
+          const loc = f.line ? ` (line ${f.line})` : "";
+          L.push(`  - \`${f.rule}\` [${f.severity}]${loc} — ${f.message}`);
+        }
+      }
+      L.push("");
+    } else {
+      L.push("No static issues found in the generated specs.", "");
+    }
+  }
   return `${L.join("\n")}\n`;
 }
 
@@ -103,7 +134,9 @@ function esc(s: string): string {
 export function renderHtml(report: RunReport): string {
   const successPct = ratePct(report);
   const passingCount = report.successRate.passed;
-  const passedCount = report.results.filter((r) => r.outcome === "passed" || r.outcome === "healed").length;
+  const passedCount = report.results.filter(
+    (r) => r.outcome === "passed" || r.outcome === "healed",
+  ).length;
   const totalCount = report.successRate.total;
 
   const passedTestNames = report.results
@@ -142,7 +175,9 @@ export function renderHtml(report: RunReport): string {
               desc: "Many checks failed. Immediate action is recommended.",
             };
 
-  const passedBuckets = report.results.filter((r) => r.outcome === "passed" || r.outcome === "healed");
+  const passedBuckets = report.results.filter(
+    (r) => r.outcome === "passed" || r.outcome === "healed",
+  );
   const needsAttentionBuckets = report.results.filter(
     (r) => r.outcome === "failed" || r.outcome === "fixme",
   );
@@ -270,8 +305,6 @@ export function renderHtml(report: RunReport): string {
     `
       : "";
 
-
-
   // Results Breakdown Buckets
   const passedBucketsHtml =
     passedBuckets.length > 0
@@ -357,13 +390,13 @@ export function renderHtml(report: RunReport): string {
   const resultsTableRows = report.results
     .map(
       (r) => `
-    <tr class="r-${r.outcome === "fixme" ? "skip" : (r.outcome === "healed" ? "pass" : r.outcome)}" data-outcome="${r.outcome}" data-search-text="${esc(r.flowId)} ${esc(r.fileName)}">
+    <tr class="r-${r.outcome === "fixme" ? "skip" : r.outcome === "healed" ? "pass" : r.outcome}" data-outcome="${r.outcome}" data-search-text="${esc(r.flowId)} ${esc(r.fileName)}">
       <td data-label="Check">
         <span class="flow-name">${esc(r.flowId)}</span>
         <span class="flow-file">${esc(r.fileName)}</span>
       </td>
       <td data-label="Result">
-        <span class="pill pill-${r.outcome === "fixme" ? "skip" : (r.outcome === "healed" ? "pass" : r.outcome)}">
+        <span class="pill pill-${r.outcome === "fixme" ? "skip" : r.outcome === "healed" ? "pass" : r.outcome}">
           ${OUTCOME_ICON[r.outcome]} ${OUTCOME_WORD[r.outcome]}
         </span>
       </td>
@@ -441,7 +474,7 @@ export function renderHtml(report: RunReport): string {
       : "";
 
   const sideBySideHtml =
-    (report.better || report.recommendationsText)
+    report.better || report.recommendationsText
       ? `
       <div class="side-by-side-grid">
         <div class="better-section">
@@ -885,17 +918,25 @@ export function renderHtml(report: RunReport): string {
             <div class="screenshots-grid">
               ${report.screenshots
                 .map((s) => {
-                  const m = s.filename.match(/^(?:([a-zA-Z0-9\-]+)-)?step-(\d+)-(pre|post)-(\w+)\.png$/);
+                  const m = s.filename.match(
+                    /^(?:([a-zA-Z0-9\-]+)-)?step-(\d+)-(pre|post)-(\w+)\.png$/,
+                  );
                   const stageRaw = m && m[1] ? m[1].replace(/^\d+-/, "") : "";
-                  const stage = stageRaw ? stageRaw.charAt(0).toUpperCase() + stageRaw.slice(1) : "";
+                  const stage = stageRaw
+                    ? stageRaw.charAt(0).toUpperCase() + stageRaw.slice(1)
+                    : "";
                   const stepNum = m ? m[2] : "??";
                   const phase = m ? m[3] : "pre";
                   const actionRaw = m ? m[4] : s.filename;
                   const action = stage ? `${actionRaw} (${stage})` : actionRaw;
-                  const phaseLabel = phase === "pre" ? "Pre-Action Highlight" : "Post-Action State";
-                  const desc = phase === "pre" 
-                    ? "Visual highlight overlay applied to click target"
-                    : "Resulting page state after execution";
+                  const phaseLabel =
+                    phase === "pre"
+                      ? "Pre-Action Highlight"
+                      : "Post-Action State";
+                  const desc =
+                    phase === "pre"
+                      ? "Visual highlight overlay applied to click target"
+                      : "Resulting page state after execution";
                   return `
                     <div class="screenshot-card" onclick="openLightbox('data:image/png;base64,${s.base64}')">
                       <div class="screenshot-img-container">

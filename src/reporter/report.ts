@@ -4,6 +4,7 @@ import type {
   Flow,
   RunReport,
   TestResult,
+  ValidationReport,
 } from "../types";
 import { computeSuccessRate } from "./successRate";
 
@@ -26,6 +27,7 @@ export interface ReportInput {
   generatedSpecs: { file: string; code: string }[];
   flows?: Flow[];
   screenshots?: { filename: string; base64: string }[];
+  validation?: ValidationReport;
 }
 
 /** T15: assemble the canonical rich JSON report (R11, R16, R17). Pure. */
@@ -51,6 +53,7 @@ export function buildReport(input: ReportInput): RunReport {
     planMarkdown: input.planMarkdown,
     generatedSpecs: input.generatedSpecs,
     screenshots: input.screenshots ?? [],
+    validation: input.validation,
   };
 }
 
