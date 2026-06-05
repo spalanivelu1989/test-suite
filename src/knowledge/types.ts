@@ -141,6 +141,12 @@ export interface KnowledgeConfig {
   databaseUrl?: string;
   /** Sink for progress/telemetry events. */
   onEvent?: (e: KnowledgeEvent) => void;
+  /**
+   * Phase 2 embedder. Omit to use the local default; pass `null` to force
+   * lexical-only; pass a fake in tests. (Typed loosely to avoid a type import
+   * cycle — the runtime shape is `Embedder`.)
+   */
+  embedder?: import("./embeddings/embed").Embedder | null;
 }
 
 export type { RunReport };

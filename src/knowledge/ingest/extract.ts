@@ -18,8 +18,13 @@ export interface ExtractedRun {
     flowId: string | null;
     contentHash: string;
     tokens: string[];
+    /** Text embedded for semantic match (title + step comments) — Phase 2 (D5). */
+    intentText: string;
     /** True when this spec was copied forward from a prior run (carries the marker). */
     reused: boolean;
+    /** Embedding + model, populated by ingestRun (best-effort); null if absent. */
+    embedding?: number[] | null;
+    embeddingModel?: string | null;
   }[];
   flows: { appId: string; flowId: string; name: string }[];
   planScenarios: {
@@ -63,6 +68,13 @@ function toArr(s: Set<string>): string[] {
   return [...s];
 }
 
+/** Numbered step-comment text from a generated spec (`// 1. Click …` → `Click …`). */
+function stepComments(code: string): string[] {
+  return (code.match(/^\s*\/\/\s*\d+[.)]\s*(.+)$/gm) ?? []).map((l) =>
+    l.replace(/^\s*\/\/\s*\d+[.)]\s*/, "").trim(),
+  );
+}
+
 /** RunReport → ExtractedRun. Tolerant of partial reports. */
 export function extractRun(report: RunReport): ExtractedRun {
   const appId = normalizeOrigin(report.url ?? "");
@@ -102,12 +114,17 @@ export function extractRun(report: RunReport): ExtractedRun {
       // Lexical-match tokens come from the spec's INTENT (title + file), not
       // its volatile selectors (Plan §3.4).
       const tokens = toArr(significantTokens(`${title ?? ""} ${s.file}`));
+      // Semantic-match intent text = title + numbered step comments (D5) —
+      // captures what the test does, without volatile selectors.
+      const steps = stepComments(s.code ?? "");
+      const intentText = [title, ...steps].filter(Boolean).join(". ");
       return {
         file: s.file,
         title,
         flowId,
         contentHash: sha1(s.code ?? ""),
         tokens,
+        intentText,
         reused: (s.code ?? "").includes(REUSE_MARKER),
       };
     });

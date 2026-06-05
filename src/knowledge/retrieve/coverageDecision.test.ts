@@ -12,6 +12,7 @@ function spec(title: string, outcome: string | null): SpecRow {
     flowId: null,
     tokens: [...significantTokens(title)],
     lastOutcome: outcome,
+    embedding: null,
   };
 }
 

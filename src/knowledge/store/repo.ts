@@ -5,6 +5,21 @@ import type { ExtractedRun } from "../ingest/extract";
 // All SQL lives here (Plan D2). Writes are idempotent by run; every read is
 // app-scoped (N5). Callers get behavioral operations, never raw SQL.
 
+// ── pgvector serialization (Phase 2) ─────────────────────────────────────────
+
+/** number[] → pgvector text literal `[1,2,3]` (bound with a `::vector` cast). */
+export function toSqlVector(v: number[] | null | undefined): string | null {
+  return v && v.length ? `[${v.join(",")}]` : null;
+}
+
+/** pgvector text `[1,2,3]` → number[] (null/empty → null). */
+export function parseSqlVector(s: string | null): number[] | null {
+  if (!s) return null;
+  const inner = s.replace(/^\[/, "").replace(/\]$/, "").trim();
+  if (!inner) return null;
+  return inner.split(",").map(Number);
+}
+
 // ── Writes (run inside one transaction, owned by ingestRun) ──────────────────
 
 /** Persist an extracted run + its raw report. Idempotent by `runId`. */
@@ -37,8 +52,8 @@ export async function persistRun(
 
   for (const s of ex.specs) {
     await client.query(
-      `INSERT INTO specs(run_id, app_id, file, title, flow_id, content_hash, reused, tokens)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      `INSERT INTO specs(run_id, app_id, file, title, flow_id, content_hash, reused, tokens, embedding, embedding_model)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::vector,$10)`,
       [
         run.runId,
         appId,
@@ -48,6 +63,8 @@ export async function persistRun(
         s.contentHash,
         s.reused,
         s.tokens,
+        toSqlVector(s.embedding),
+        s.embeddingModel ?? null,
       ],
     );
   }
@@ -197,9 +214,11 @@ export interface SpecRow {
   flowId: string | null;
   tokens: string[];
   lastOutcome: string | null;
+  /** Phase 2: semantic embedding, or null when not yet embedded. */
+  embedding: number[] | null;
 }
 
-/** Non-reused specs for an app with their last outcome — for coverage decisions. */
+/** Non-reused specs for an app with their last outcome + embedding — for decisions. */
 export async function readSpecsForApp(
   pool: Pool,
   appId: string,
@@ -211,8 +230,9 @@ export async function readSpecsForApp(
     flow_id: string | null;
     tokens: string[];
     last_outcome: string | null;
+    embedding: string | null;
   }>(
-    `SELECT s.run_id, s.file, s.title, s.flow_id, s.tokens,
+    `SELECT s.run_id, s.file, s.title, s.flow_id, s.tokens, s.embedding::text AS embedding,
             (SELECT tr.outcome FROM test_results tr
               WHERE tr.run_id = s.run_id AND tr.file = s.file LIMIT 1) AS last_outcome
        FROM specs s
@@ -227,6 +247,58 @@ export async function readSpecsForApp(
     flowId: r.flow_id,
     tokens: r.tokens ?? [],
     lastOutcome: r.last_outcome,
+    embedding: parseSqlVector(r.embedding),
+  }));
+}
+
+/**
+ * An existing embedding for a content hash + model, if any spec already has one
+ * (the ingest cache — Phase 2 R3/D4). Avoids re-embedding unchanged specs.
+ */
+export async function embeddingForHash(
+  pool: Pool,
+  contentHash: string,
+  model: string,
+): Promise<number[] | null> {
+  const res = await pool.query<{ embedding: string | null }>(
+    `SELECT embedding::text AS embedding FROM specs
+      WHERE content_hash = $1 AND embedding_model = $2 AND embedding IS NOT NULL
+      LIMIT 1`,
+    [contentHash, model],
+  );
+  return res.rowCount ? parseSqlVector(res.rows[0].embedding) : null;
+}
+
+/** k nearest specs to a query embedding by cosine (HNSW), app-scoped (R6). */
+export async function findNearestSpecs(
+  pool: Pool,
+  appId: string,
+  queryEmbedding: number[],
+  k: number,
+): Promise<
+  { runId: string; file: string; title: string | null; score: number }[]
+> {
+  const q = toSqlVector(queryEmbedding);
+  if (!q) return [];
+  const res = await pool.query<{
+    run_id: string;
+    file: string;
+    title: string | null;
+    dist: string;
+  }>(
+    `SELECT s.run_id, s.file, s.title, (s.embedding <=> $2::vector) AS dist
+       FROM specs s
+      WHERE s.app_id = $1 AND s.reused = false AND s.embedding IS NOT NULL
+      ORDER BY s.embedding <=> $2::vector
+      LIMIT $3`,
+    [appId, q, k],
+  );
+  // cosine distance → similarity (normalized vectors): sim = 1 − distance.
+  return res.rows.map((r) => ({
+    runId: r.run_id,
+    file: r.file,
+    title: r.title,
+    score: 1 - Number(r.dist),
   }));
 }
 

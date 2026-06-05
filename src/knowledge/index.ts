@@ -1,12 +1,13 @@
 import type { Pool } from "pg";
 import { normalizeOrigin } from "./appId";
 import { buildGeneratorPack, buildPlannerPack } from "./assemble/contextPack";
+import { type Embedder, LocalEmbedder } from "./embeddings/embed";
 import { ingestRun as doIngest } from "./ingest/ingestRun";
 import { getAppProfile, getCoverageMap } from "./retrieve/appProfile";
-import { planCoverageDecision as doDecide } from "./retrieve/coverageDecision";
+import { decideForSpecs } from "./retrieve/coverageDecision";
 import { withKb } from "./safety";
 import { closePool, getPool } from "./store/db";
-import { readSpecCode } from "./store/repo";
+import { findNearestSpecs, readSpecCode, readSpecsForApp } from "./store/repo";
 import type {
   AppProfile,
   ContextPack,
@@ -69,6 +70,8 @@ class PgKnowledgeService implements KnowledgeService {
     private url: string,
     private pool: Pool,
     private onEvent?: (e: KnowledgeEvent) => void,
+    /** Phase 2: null disables semantic matching (lexical-only). */
+    private embedder: Embedder | null = null,
   ) {}
 
   private onError = (op: string, message: string) =>
@@ -78,11 +81,34 @@ class PgKnowledgeService implements KnowledgeService {
     return normalizeOrigin(url);
   }
 
+  /** Batch-embed texts best-effort; null per text when disabled or on failure. */
+  private async embedTexts(texts: string[]): Promise<(number[] | null)[]> {
+    if (!this.embedder || texts.length === 0) return texts.map(() => null);
+    return withKb<(number[] | null)[]>(
+      "embed",
+      () => this.embedder!.embed(texts),
+      texts.map(() => null),
+      { onError: this.onError },
+    );
+  }
+
+  /** Attach a semantic embedding to each scenario (best-effort). */
+  private async withEmbeddings(
+    scenarios: ScenarioInput[],
+  ): Promise<ScenarioInput[]> {
+    const embs = await this.embedTexts(scenarios.map((s) => s.name));
+    return scenarios.map((s, i) => ({ ...s, embedding: embs[i] ?? undefined }));
+  }
+
   async ingestRun(report: RunReport): Promise<void> {
     await withKb(
       "ingestRun",
       async () => {
-        const { appId, flows } = await doIngest(this.pool, report);
+        const { appId, flows } = await doIngest(
+          this.pool,
+          report,
+          this.embedder ?? undefined,
+        );
         this.onEvent?.({ kind: "ingested", appId, runId: report.runId, flows });
       },
       undefined,
@@ -116,7 +142,11 @@ class PgKnowledgeService implements KnowledgeService {
   ): Promise<CoverageDecision[]> {
     return withKb(
       "planCoverageDecision",
-      () => doDecide(this.pool, appId, scenarios),
+      async () => {
+        const withEmb = await this.withEmbeddings(scenarios);
+        const specs = await readSpecsForApp(this.pool, appId);
+        return decideForSpecs(withEmb, specs);
+      },
       newDecisions(scenarios),
       { onError: this.onError },
     );
@@ -153,7 +183,9 @@ class PgKnowledgeService implements KnowledgeService {
       "assembleContext.generating",
       async () => {
         const appId = normalizeOrigin(url);
-        const decisions = await doDecide(this.pool, appId, scenarios ?? []);
+        const withEmb = await this.withEmbeddings(scenarios ?? []);
+        const specRows = await readSpecsForApp(this.pool, appId);
+        const decisions = decideForSpecs(withEmb, specRows);
         const specs = await this.collectSpecRefs(decisions);
         this.onEvent?.({ kind: "decision", ...tally(decisions) });
         return { generator: buildGeneratorPack(decisions, specs) };
@@ -187,10 +219,21 @@ class PgKnowledgeService implements KnowledgeService {
     return refs;
   }
 
-  async findSimilarSpecs(): Promise<SpecMatch[]> {
-    // Fleshed out in T10 (embed query → findNearestSpecs). Stub keeps the
-    // interface satisfied; returns no matches until then.
-    return [];
+  async findSimilarSpecs(
+    query: string,
+    appId: string,
+    k: number,
+  ): Promise<SpecMatch[]> {
+    return withKb<SpecMatch[]>(
+      "findSimilarSpecs",
+      async () => {
+        const [emb] = await this.embedTexts([query]);
+        if (!emb) return [];
+        return findNearestSpecs(this.pool, appId, emb, k);
+      },
+      [],
+      { onError: this.onError },
+    );
   }
 
   async close(): Promise<void> {
@@ -199,12 +242,24 @@ class PgKnowledgeService implements KnowledgeService {
 }
 
 /** Build a KnowledgeService; Disabled (cold) when no database URL is configured. */
+/** Resolve the embedder: explicit config wins; else local unless disabled by env. */
+function resolveEmbedder(config: KnowledgeConfig): Embedder | null {
+  if (config.embedder !== undefined) return config.embedder; // incl. null = off
+  if (process.env.EMBEDDINGS_ENABLED === "false") return null;
+  return new LocalEmbedder(process.env.EMBEDDING_MODEL || undefined);
+}
+
 export function createKnowledgeService(
   config: KnowledgeConfig = {},
 ): KnowledgeService {
   const url = config.databaseUrl ?? process.env.KNOWLEDGE_DATABASE_URL;
   if (!url) return new DisabledKnowledgeService(config.onEvent);
-  return new PgKnowledgeService(url, getPool(url), config.onEvent);
+  return new PgKnowledgeService(
+    url,
+    getPool(url),
+    config.onEvent,
+    resolveEmbedder(config),
+  );
 }
 
 export type {
