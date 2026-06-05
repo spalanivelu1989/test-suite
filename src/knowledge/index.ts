@@ -179,6 +179,15 @@ class PgKnowledgeService implements KnowledgeService {
         { onError: this.onError },
       );
     }
+    // Generating: embed scenarios at query time, then hybrid-decide. Degrades
+    // to lexical when the embedder is off/failing (withEmbeddings → null embs):
+    //
+    //   scenarios ─► withEmbeddings (best-effort)  ── embedder off/throws ─► embeddings = null
+    //                       │                                                       │
+    //                       ▼                                                       ▼
+    //   readSpecsForApp(appId)  ─►  decideForSpecs(scenarios+emb, specs)  ─► (sem=0 ⇒ Phase-1 lexical)
+    //                       ▼
+    //   buildGeneratorPack(decisions, reused-spec code)  ─►  Generator prompt
     return withKb<ContextPack>(
       "assembleContext.generating",
       async () => {

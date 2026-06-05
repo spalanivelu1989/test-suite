@@ -128,3 +128,35 @@ default meant "KB absent = cold run" was the easy path, not an afterthought.
 **Future prevention:** For any new external dependency, design the absent/unreachable
 path first (graceful degradation) — it de-risks the whole build and keeps CI green
 without the dependency.
+
+### [2026-06-05] Build the metric-measurement harness as part of the feature (KP Phase 2)
+
+**Trigger:** Stage 5 — Phase 2's success metric ("≥70% paraphrase recall, ≤5%
+false-reuse") was abstract until a calibration harness measured it.
+**Root cause:** thresholds (SEM_REUSE/SEM_EXTEND) can't be guessed; they must be
+chosen from data.
+**Fix:** `bin/knowledge-calibrate.ts` swept thresholds over a labeled set with the
+real model and picked SEM_EXTEND=0.60 (95% recall / 0% false-reuse).
+**Future prevention:** when a Spec sets an outcome metric with a tunable, build the
+measurement harness IN the same phase — it turns "hope" into a tuned, evidenced
+result and resolves the calibration open-question.
+
+### [2026-06-05] "Additive, pure-function-with-optional-input" makes no-regression a diff test
+
+**Trigger:** Phase 2 had to guarantee "never worse than Phase 1" while adding a
+semantic signal.
+**Root cause:** layering a new signal risks changing existing behavior.
+**Fix:** `decideForSpecs` takes optional embeddings; with sem=0 it provably reduces
+to the lexical decider, so AC7/N3 is a literal `embeddings-off == lexical` test,
+and Phase 1's tests pass unchanged under the new code.
+**Future prevention:** when adding a signal to an existing decision, make it
+additive and prove the baseline-equivalence with a diff test, not a manual argument.
+
+### [2026-06-05] AI-generated ground truth must carry a "needs human verification" flag
+
+**Trigger:** Phase 2's M1/M2 numbers (95%/0%) rest on a Claude-generated paraphrase set.
+**Root cause:** an AI-authored label set reads as more authoritative than it is.
+**Fix:** flagged "needs human verify" in the fixture, implementation-notes, and the
+review report; live numbers deferred to /measure.
+**Future prevention:** any metric whose ground truth is AI-generated is provisional
+until a human verifies the set — say so loudly next to the number.
