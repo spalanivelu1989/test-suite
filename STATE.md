@@ -14,14 +14,17 @@ and after every task completed during Forge.
 > backfill tasks for R18–R21.
 >
 > **(C) Knowledge-Driven Testing Platform — Phase 2** (semantic reuse via
-> pgvector; spec at `specs/knowledge-platform-phase-2/`) — **Assemble complete**
-> (plan.md + tasks.md Approved 2026-06-05; both gates passed; validator 15/15).
-> Next: Stage 4 (Forge) → `/craft-framework:forge` to build T1–T15. Durable
-> decisions promoted to ADR-0002 (local embedder) + ADR-0003 (hybrid/additive
-> matching). Key design: hybrid `decideForSpecs` stays a PURE function with
-> embedding optional → "never worse than Phase 1" (R8/N3) is a literal diff test.
-> M1/M2 (recall ≥70% / false-reuse ≤5%) need a labeled paraphrase set (DEP4,
-> built in T15) + two live tarento.com runs (`/measure`).
+> pgvector; spec at `specs/knowledge-platform-phase-2/`) — **Forge complete**
+> (all T1–T15 built; 162 tests green with DB, typecheck clean, validator 15/15).
+> Next: Stage 5 (Test & Tune) → `/craft-framework:test-tune`. Built embeddings
+> (`src/knowledge/embeddings/`, local bge-small), migration 0002 (`vector(384)` +
+> HNSW), hybrid `decideForSpecs`, embed-at-ingest + cache, backfill,
+> `findSimilarSpecs`. ADR-0002 (local embedder) + ADR-0003 (hybrid/additive).
+> **Calibration result (T15, real model):** SEM_REUSE=0.82 / SEM_EXTEND=0.60 →
+> **95% paraphrase recall at 0% false-reuse**, clearing M1≥70% / M2≤5%. CAVEAT:
+> labeled set is Claude-generated (needs human verify); final live M1/M2 via
+> `/measure` after two tarento.com runs. New deps: `@huggingface/transformers`;
+> scripts `knowledge:embed-backfill`, `knowledge:calibrate`.
 > Adds embedding-based semantic matching so the Generator catches paraphrased
 > duplicates lexical misses. Decided: LOCAL embedder (`@huggingface/transformers`,
 > `Xenova/bge-small-en-v1.5`, 384d) → `vector(384)` on `specs` + HNSW; hybrid
@@ -117,6 +120,7 @@ Assemble → Forge → Test).
 | 2026-06-05 | KP 2 — Clarify    | Phase 2 (pgvector semantic reuse) brief approved; recall ≥70% / FP ≤5% | ✅     |
 | 2026-06-05 | KP 2 — Record     | Phase 2 spec v0.1.0 approved (R1–R10; M1/M2; N1–N5; hybrid + additive) | ✅     |
 | 2026-06-05 | KP 2 — Assemble   | Phase 2 plan + tasks approved (T1–T15; ADR-0002/0003); validator 15/15 | ✅     |
+| 2026-06-05 | KP 2 — Forge      | All T1–T15 built; 162 tests green; calibrated 95% recall / 0% FP       | ✅     |
 
 ## Key decisions
 
