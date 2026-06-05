@@ -268,7 +268,7 @@ test("disabled service (no URL) runs cold without errors (R4/SC10)", async () =>
   assert.equal(k.enabled, false);
   await k.ingestRun(report("x", "https://x.com"));
   assert.equal(await k.getAppProfile("https://x.com"), null);
-  assert.deepEqual(await k.assembleContext("planning", "https://x.com"), {});
+  assert.deepEqual(await k.assembleContext("https://x.com"), {});
   await k.close();
 });
 

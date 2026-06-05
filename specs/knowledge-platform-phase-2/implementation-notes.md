@@ -93,3 +93,28 @@ Per the user's "tighten-then-copy" choice, removed the middle tier:
 
 **Not changed:** the planner-side KB dedup (the double-dedup smell) is left as-is;
 revisit if the planner and generator still disagree on coverage in practice.
+
+### [2026-06-05] Architecture: Planner is KB-agnostic — one decision layer
+
+**Type:** Decision/Refactor · **Relates to:** R8/R10, ADR-0003 (amendment 2)
+
+User direction: "The planner should not have knowledge of the existing runs. The
+planner's job is to crawl the target URL [and write plan.md]. It is the job of the
+generator to decide whether to write a new test or copy a test from the last run
+based on cosine similarity."
+
+This reverses the planner-side knowledge injection (both the original "skip
+covered flows" and the short-lived "re-list covered flows for reuse"). Prior-run
+de-duplication is now the Generator's responsibility alone, via its `reuse | new`
+coverage decision. Removed:
+- `stages.ts` `planTests`: all KB wiring — the planner prompt is crawl-only.
+- `index.ts`: the `planning` branch of `assembleContext`; signature is now
+  `assembleContext(url, scenarios?)` (generator context only).
+- `contextPack.ts`: `buildPlannerPack` + `PLANNER_BUDGET_CHARS`.
+- `types.ts`: `KnowledgeStage`, `ContextPack.planner`, the `loaded` event.
+- `orchestrate.ts`: the `loaded` → "Knowledge: N known/M gap" planning message.
+- Tests updated: contextPack (dropped planner-pack tests), knowledgeWiring T14/T20
+  (now asserts the planner prompt carries NO knowledge with or without a KB),
+  integration disabled-service assertion.
+
+Typecheck clean; 141 unit tests pass (was 143 — removed 2 buildPlannerPack tests).

@@ -93,11 +93,6 @@ export async function runPipeline(
       onEvent: (e) => {
         if (e.kind === "ingested")
           emit("done", `Knowledge: ingested run (${e.flows} flow(s))`);
-        else if (e.kind === "loaded")
-          emit(
-            "planning",
-            `Knowledge: ${e.knownFlows} known flow(s), ${e.gaps} gap(s)`,
-          );
       },
     });
   const stageDeps: StageDeps = {

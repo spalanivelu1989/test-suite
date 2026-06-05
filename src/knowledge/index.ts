@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { normalizeOrigin } from "./appId";
-import { buildGeneratorPack, buildPlannerPack } from "./assemble/contextPack";
+import { buildGeneratorPack } from "./assemble/contextPack";
 import { type Embedder, LocalEmbedder } from "./embeddings/embed";
 import { ingestRun as doIngest } from "./ingest/ingestRun";
 import { getAppProfile, getCoverageMap } from "./retrieve/appProfile";
@@ -16,7 +16,6 @@ import type {
   KnowledgeConfig,
   KnowledgeEvent,
   KnowledgeService,
-  KnowledgeStage,
   ScenarioInput,
   SpecMatch,
   SpecRef,
@@ -153,33 +152,12 @@ class PgKnowledgeService implements KnowledgeService {
   }
 
   async assembleContext(
-    stage: KnowledgeStage,
     url: string,
     scenarios?: ScenarioInput[],
   ): Promise<ContextPack> {
-    if (stage === "planning") {
-      return withKb(
-        "assembleContext.planning",
-        async () => {
-          const profile = await getAppProfile(
-            this.pool,
-            normalizeOrigin(url),
-            url,
-          );
-          if (!profile || profile.flows.length === 0) return {};
-          this.onEvent?.({
-            kind: "loaded",
-            appId: profile.appId,
-            knownFlows: profile.coveredFlows.length,
-            gaps: profile.gaps.length,
-          });
-          return { planner: buildPlannerPack(profile) };
-        },
-        {},
-        { onError: this.onError },
-      );
-    }
-    // Generating: embed scenarios at query time, then hybrid-decide. Degrades
+    // Generator-only: the Planner is KB-agnostic, so the sole context pack the
+    // Knowledge Layer assembles is the Generator's coverage decision.
+    // Embed scenarios at query time, then hybrid-decide. Degrades
     // to lexical when the embedder is off/failing (withEmbeddings → null embs):
     //
     //   scenarios ─► withEmbeddings (best-effort)  ── embedder off/throws ─► embeddings = null

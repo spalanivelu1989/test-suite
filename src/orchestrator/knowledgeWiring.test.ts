@@ -36,7 +36,7 @@ function fakeKnowledge(partial: Partial<KnowledgeService>): KnowledgeService {
   };
 }
 
-test("T14/T20: a substituted KnowledgeService injects the Planner pack", async () => {
+test("T14/T20: the Planner is KB-agnostic — prior-run knowledge never reaches its prompt", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let withPrompt = "";
@@ -48,28 +48,28 @@ test("T14/T20: a substituted KnowledgeService injects the Planner pack", async (
         await writeFile(join(ws.specsDir, "plan.md"), "# Plan", "utf8");
         return { resultText: "", toolCalls: [], isError: false };
       };
+    // A KB whose assembleContext would surface knowledge IF the planner asked —
+    // it must not, because the planner never consults the Knowledge Layer.
     const knowledge = fakeKnowledge({
-      assembleContext: async (stage) =>
-        stage === "planning"
-          ? { planner: "KNOWLEDGE — known flows: Hero CTA; gaps: Footer." }
-          : {},
+      assembleContext: async () =>
+        ({ generator: { decisions: [], specs: [] } }) as never,
     });
 
-    // With the fake KB → prompt carries the knowledge block.
     await planTests(ws, "https://x.com", undefined, {
       runner: runner((p) => (withPrompt = p)) as never,
       loadAgentFn: async () => fakeAgent,
       knowledge,
     });
-    assert.match(withPrompt, /KNOWLEDGE — known flows/);
+    // No knowledge block in the planner prompt, even with a KB injected.
+    assert.doesNotMatch(withPrompt, /KNOWLEDGE/i);
 
-    // Swap it out (no knowledge) → identical call path, no block. Only the
-    // injected service changed; the pipeline consumes the KB only via I1 (AC14).
+    // And the planner prompt is byte-identical with or without a KB — proof the
+    // planner's behavior does not depend on prior-run history at all.
     await planTests(ws, "https://x.com", undefined, {
       runner: runner((p) => (withoutPrompt = p)) as never,
       loadAgentFn: async () => fakeAgent,
     });
-    assert.doesNotMatch(withoutPrompt, /KNOWLEDGE/);
+    assert.equal(withPrompt, withoutPrompt);
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
@@ -94,33 +94,30 @@ test("T15: a reuse decision skips regeneration and copies the prior spec (D4)", 
       return { resultText: "", toolCalls: [], isError: false };
     };
     const knowledge = fakeKnowledge({
-      assembleContext: async (stage) =>
-        stage === "generating"
-          ? {
-              generator: {
-                decisions: [
-                  {
-                    scenario: "Hero CTA",
-                    action: "reuse",
-                    matchedSpec: {
-                      runId: "r1",
-                      file: "hero.spec.ts",
-                      title: "Hero CTA",
-                    },
-                    score: 0.95,
-                  },
-                ],
-                specs: [
-                  {
-                    runId: "r1",
-                    file: "hero.spec.ts",
-                    title: "Hero CTA",
-                    code: "import {test} from '@playwright/test';\ntest('Hero CTA', async () => {});",
-                  },
-                ],
+      assembleContext: async () => ({
+        generator: {
+          decisions: [
+            {
+              scenario: "Hero CTA",
+              action: "reuse",
+              matchedSpec: {
+                runId: "r1",
+                file: "hero.spec.ts",
+                title: "Hero CTA",
               },
-            }
-          : {},
+              score: 0.95,
+            },
+          ],
+          specs: [
+            {
+              runId: "r1",
+              file: "hero.spec.ts",
+              title: "Hero CTA",
+              code: "import {test} from '@playwright/test';\ntest('Hero CTA', async () => {});",
+            },
+          ],
+        },
+      }),
     });
 
     const res = await generateTests(

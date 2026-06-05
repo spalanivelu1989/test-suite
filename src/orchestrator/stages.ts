@@ -141,24 +141,11 @@ export async function planTests(
       onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
   });
 
-  // T14: history-aware planning. Best-effort — empty/absent when cold or KB down.
-  // Guarded so even a misbehaving service can never fail the run (N3).
-  let pack: Awaited<ReturnType<KnowledgeService["assembleContext"]>> = {};
-  try {
-    if (deps.knowledge)
-      pack = await deps.knowledge.assembleContext("planning", url);
-  } catch {
-    pack = {};
-  }
-  const knowledgeLines = pack.planner
-    ? [
-        `\n\n${pack.planner}\n`,
-        "Per the knowledge above: list the already-covered flows in the plan verbatim (their own 'Reused — already covered' section, exact titles, same scenario heading format as the rest) so their existing tests get copied forward — do not re-explore them — then spend your exploration effort discovering and planning the UNTESTED gaps.\n",
-      ]
-    : [];
-  if (pack.planner)
-    onEvent?.({ kind: "text", text: "🧠 Loaded prior history for this app" });
-
+  // The Planner is intentionally KB-AGNOSTIC: it crawls the target URL and writes
+  // a plan purely from what it observes, with no knowledge of prior runs. De-
+  // duplication against previous runs is the Generator's job alone (its cosine/
+  // lexical reuse decision), so there is exactly one coverage-decision layer and
+  // the two stages can never disagree (see ADR-0003).
   const prompt = [
     `Create a comprehensive Playwright test plan for the web application at ${url}.`,
     "Open the browser with playwright-cli first, then explore the app and identify the primary",
@@ -166,7 +153,6 @@ export async function planTests(
     `with the Write tool to exactly this absolute path: ${ws.specsDir}/plan.md`,
     "— write it there and nowhere else (do NOT write to the repository's own specs/ directory or any other path).",
     ...constraintLines,
-    ...knowledgeLines,
   ].join(" ");
 
   const res = await run({
@@ -256,11 +242,7 @@ async function applyGeneratorKnowledge(
   // Guarded so even a misbehaving service can never fail generation (N3).
   let gen;
   try {
-    const pack = await deps.knowledge.assembleContext(
-      "generating",
-      options.url,
-      scenarios,
-    );
+    const pack = await deps.knowledge.assembleContext(options.url, scenarios);
     gen = pack.generator;
   } catch {
     return [];

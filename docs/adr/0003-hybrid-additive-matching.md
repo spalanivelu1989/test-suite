@@ -3,12 +3,28 @@
 > A durable Architecture Decision Record. Lives in `docs/adr/` so future stages
 > and reviews read it and do not re-litigate a settled decision.
 
-- **Status:** Accepted — **amended 2026-06-05 (decision collapsed to 2-way; see Amendment)**
+- **Status:** Accepted — **amended 2026-06-05 (2-way decision; KB-agnostic planner; see Amendments)**
 - **Date:** 2026-06-05
 - **Deciders:** tel@tarento.com (with Claude as Interviewer/Planner)
 - **Relates to:** Spec `specs/knowledge-platform-phase-2/` R5/R8/N3/C3/C4; Plan `D2`
 
-## Amendment (2026-06-05) — drop the `extend` tier, decide `reuse | new`
+## Amendment 2 (2026-06-05) — the Planner is KB-agnostic; one decision layer
+
+Originally **both** the Planner and the Generator consulted the Knowledge Layer:
+the Planner was fed prior-run "covered flows / gaps" and told to skip covered
+flows. That created **two de-duplication layers** that disagreed — the Planner
+silently dropped covered flows from the plan, so the Generator never received a
+reuse candidate and the copy-forward path never fired (a live run showed
+`0 reuse`, everything regenerated).
+
+The Planner is now **KB-agnostic**: it crawls the target URL and writes `plan.md`
+purely from what it observes, with **no knowledge of prior runs**. De-duplication
+against history is the **Generator's job alone** — its cosine/lexical `reuse |
+new` decision (below). One decision layer, so the two stages can never disagree.
+Removed: `buildPlannerPack`, the planner context pack, the `planning` knowledge
+stage, and the `loaded` knowledge event. `getAppProfile` remains for reporting.
+
+## Amendment 1 (2026-06-05) — drop the `extend` tier, decide `reuse | new`
 
 The three-tier `reuse | extend | new` decision shipped a latent gap: `extend`
 (moderate match, 0.45–0.82) carried **no spec source** to the generator and the

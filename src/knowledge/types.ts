@@ -82,8 +82,6 @@ export interface GeneratorPack {
 
 /** Token-bounded knowledge injected into an agent prompt (I4). */
 export interface ContextPack {
-  /** Bounded prose block for the Planner prompt. */
-  planner?: string;
   /** Decisions + existing specs for the Generator. */
   generator?: GeneratorPack;
 }
@@ -91,12 +89,9 @@ export interface ContextPack {
 /** Progress signals surfaced to the run's event stream (no silent magic). */
 export type KnowledgeEvent =
   | { kind: "ingested"; appId: string; runId: string; flows: number }
-  | { kind: "loaded"; appId: string; knownFlows: number; gaps: number }
   | { kind: "decision"; reuse: number; new: number }
   | { kind: "disabled"; reason: string }
   | { kind: "error"; op: string; message: string };
-
-export type KnowledgeStage = "planning" | "generating";
 
 /**
  * The Knowledge Layer behind one small interface (R1). Every method is
@@ -119,9 +114,8 @@ export interface KnowledgeService {
     scenarios: ScenarioInput[],
     appId: string,
   ): Promise<CoverageDecision[]>;
-  /** Build the token-bounded context pack for a stage (empty if disabled). */
+  /** Build the Generator's coverage-decision context pack (empty if disabled). */
   assembleContext(
-    stage: KnowledgeStage,
     url: string,
     scenarios?: ScenarioInput[],
   ): Promise<ContextPack>;

@@ -1,53 +1,17 @@
-import type {
-  AppProfile,
-  CoverageDecision,
-  GeneratorPack,
-  SpecRef,
-} from "../types";
+import type { CoverageDecision, GeneratorPack, SpecRef } from "../types";
 
-// Token-bounded context packs (Spec R8/R10/N4, Plan D7). Pure assembly — the
-// service decides cold/warm/KB-down BEFORE calling these:
+// Token-bounded context pack (Spec R10/N4, Plan D7). Pure assembly — the service
+// decides cold/warm/KB-down BEFORE calling this. Only the Generator receives a
+// pack; the Planner is KB-agnostic (see ADR-0003), so there is no planner pack.
 //
-//   stage=planning  → warm: buildPlannerPack(profile)   | cold/down: {} (no pack)
-//   stage=generating→ warm: buildGeneratorPack(decisions, specs)
+//   generating → warm: buildGeneratorPack(decisions, specs) | cold/down: {}
 //
-// Budgets are char-approximated (~4 chars/token) to keep prompts small.
+// Budget is char-approximated (~4 chars/token) to keep prompts small.
 
-const PLANNER_BUDGET_CHARS = 4_800; // ~1200 tokens
 const GENERATOR_CODE_BUDGET_CHARS = 8_000; // ~2000 tokens of reused spec source
 
 function clip(text: string, max: number): string {
   return text.length > max ? text.slice(0, max - 1) + "…" : text;
-}
-
-/** R8: the "what we already know about this app" block for the Planner. */
-export function buildPlannerPack(
-  profile: AppProfile,
-  budgetChars = PLANNER_BUDGET_CHARS,
-): string {
-  const covered = profile.coveredFlows.map((f) => f.name);
-  const gaps = profile.gaps.map((f) => f.name);
-  const lines = [
-    `KNOWLEDGE — what we already know about ${profile.url} ` +
-      `(${profile.runCount} prior run(s), ${profile.flows.length} known flow(s)):`,
-  ];
-  if (covered.length)
-    lines.push(
-      `Already covered by existing tests. INCLUDE each of these in the plan as ` +
-        `its own scenario — same heading format as the others — using its EXACT ` +
-        `title verbatim (do NOT reword), grouped under a "## Reused — already ` +
-        `covered" section. You need NOT re-explore them in the browser; listing ` +
-        `them lets the generator copy the existing test forward instead of ` +
-        `rewriting it. Exact titles: ${covered.map((c) => `"${c}"`).join(", ")}.`,
-    );
-  if (gaps.length)
-    lines.push(
-      `Known but UNTESTED — spend your exploration effort here and plan NEW ` +
-        `scenarios for these: ${gaps.join(", ")}.`,
-    );
-  if (!covered.length && !gaps.length)
-    lines.push("No flows recorded yet — explore broadly.");
-  return clip(lines.join("\n"), budgetChars);
 }
 
 /** R10: decisions + (bounded) existing spec source for the Generator. */
