@@ -1,0 +1,72 @@
+  
+⏺ The query "get in touch with the company" shares almost no words with those spec titles — yet pgvector ranked all five contact-form specs at the top. That's the whole thing working. Here's how, answering each of your questions.
+
+  1. Does pgvector use an embedding model? — No.
+
+  This is the key thing to internalize. There's a clean division of labor:
+
+     YOUR APP (Node)                          POSTGRES + pgvector
+     ──────────────                           ───────────────────
+     text  ──►  embedding model  ──► [384 floats]  ──►  stored in a vector(384) column
+              (bge-small, ours)                          │
+                                                         ▼
+     query text ──► same model ──► [384 floats] ──► "find the nearest stored vectors"
+
+  pgvector never sees your text and has no model. It only knows about arrays of numbers. The embedding model — in our case bge-small-en-v1.5 running via transformers.js in src/knowledge/embeddings/embed.ts — runs entirely in our Node app. You saw it above: the model
+  turned "get in touch with the company" into 384 numbers. pgvector's only job is to store those numbers and compare them to other stored numbers.
+
+  So the pipeline is always: (your model) text → vector, then (pgvector) vector → nearest vectors.
+
+  2. How does pgvector work?
+
+  It's a PostgreSQL extension (CREATE EXTENSION vector) that adds two things:
+
+  - A new column type, vector(N) — stores a fixed-length array of floats. Our schema (0002_pgvector.sql):
+  ALTER TABLE specs ADD COLUMN embedding vector(384);
+  - Distance operators to measure how "close" two vectors are:
+  | Operator | Meaning                       |
+  |----------|-------------------------------|
+  | <=>      | cosine distance (what we use) |
+  | <->      | Euclidean (L2) distance       |
+  | <#>      | negative inner product        |
+
+
+  A vector is just a point in 384-dimensional space. Two pieces of text that mean similar things land near each other in that space (because the embedding model was trained to do that). "Distance between vectors" = "difference in meaning." pgvector computes that
+  distance.
+
+  3. How does it query the database?
+
+  Storing a vector: it's a normal column. We serialize number[] → the text form [0.1,0.2,…] and cast it (src/knowledge/store/repo.ts):
+  INSERT INTO specs (..., embedding) VALUES (..., $9::vector)
+
+  Searching is the interesting part — you ORDER BY the distance operator. The exact query from the demo (this is literally findNearestSpecs in repo.ts):
+  SELECT title, embedding <=> $1::vector AS distance
+  FROM specs
+  WHERE app_id = $2 AND embedding IS NOT NULL
+  ORDER BY embedding <=> $1::vector   -- closest first
+  LIMIT 5;
+  You hand it the query vector ($1), and ORDER BY embedding <=> $1 sorts every candidate by how close it is, LIMIT 5 takes the nearest. That's "find me the 5 specs most similar in meaning to this query."
+
+  Because we L2-normalize all vectors (in the embedder), cosine distance and similarity are simple complements: similarity = 1 − distance. That's why the demo printed sim 0.629 etc.
+
+  4. How does it retrieve — what makes it fast?
+
+  Two modes:
+
+  - Without an index (exact): Postgres scans every row, computes the distance, sorts. Correct but O(n) — fine for a handful of specs, slow for millions.
+  - With our HNSW index (approximate):
+  CREATE INDEX specs_embedding_hnsw ON specs USING hnsw (embedding vector_cosine_ops);
+  - HNSW = Hierarchical Navigable Small World. It pre-builds a graph connecting each vector to its near neighbors, with a few "express lane" layers on top. To search, it enters at the top layer and greedily hops toward the query vector, descending layers — so it finds
+  the nearest neighbors by visiting a tiny fraction of the rows instead of all of them. The trade is that it's approximate (very occasionally misses a true nearest), which is exactly right for "find similar tests" — you don't need mathematical perfection, you need fast
+  and close. vector_cosine_ops tells the index to build itself around the cosine operator (<=>) we query with.
+
+  The full loop, tying it to what we built
+
+  1. Ingest: spec text → LocalEmbedder.embed() → 384 floats → stored in specs.embedding (cached by content_hash so unchanged specs aren't re-embedded).
+  2. Query (new run): scenario text → same model → query vector.
+  3. pgvector: ORDER BY embedding <=> queryvec LIMIT k → uses the HNSW index to return the nearest specs, ranked by similarity.
+  4. Our code turns that into the reuse | extend | new decision — and as the demo showed, "get in touch with the company" correctly finds the contact-form specs even with zero shared words. That's the paraphrase-catching ability Phase 2 was built for.
+
+  So: your model makes meaning into geometry; pgvector stores that geometry and finds nearest points; the HNSW index makes "nearest" fast. The database never embeds — it just does very fast geometry.
+
+  If it'd help, I can show the HNSW index actually being used (an EXPLAIN ANALYZE on that query reveals an Index Scan using specs_embedding_hnsw instead of a sequential scan) — a nice way to see the approximate-search index kick in.
