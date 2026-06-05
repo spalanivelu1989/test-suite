@@ -24,24 +24,38 @@ Adopt a **Hybrid, layered architecture** with three ideas doing the heavy liftin
    log — never mutate a run — and _derive_ every index from it. This makes the
    knowledge base rebuildable from scratch and trustworthy.
 
-3. **A hybrid retrieval index** over those artifacts: **structured (SQLite)** for
-   precise filtering and graph-style relations, **semantic (vector embeddings)**
-   for "have we tested something like this before", combined with light
-   **graph relations** for multi-hop reasoning ("which fix heals which failure
-   class"). Start embedded and zero-ops; promote tiers only when the workload
-   demands it.
+3. **A hybrid retrieval index** over those artifacts, on a **single PostgreSQL
+   database**: **structured tables + `JSONB`** for precise filtering and the raw
+   `RunReport`, **`pgvector`** for semantic "have we tested something like this
+   before", and **graph relations** (an `edges` table traversed with recursive
+   CTEs, or Apache AGE) for multi-hop reasoning ("which fix heals which failure
+   class"). Postgres collapses what would otherwise be three stores into one
+   engine. Use **managed/serverless Postgres (Neon/Supabase)** to keep operational
+   overhead low.
 
-**Not recommended as a starting point:** standing up Neo4j, a managed vector DB,
-or a separate microservice on day one. They solve problems you don't have yet and
-violate the project's "simplicity / no external services" constitution. The
+**Not recommended as a starting point:** standing up Neo4j or a separate
+knowledge microservice on day one, or reaching for an agent-memory framework
+(LangChain/LlamaIndex/Mem0/Letta). They solve problems you don't have yet or
+impose abstractions that fight the Claude Agent SDK + Playwright-CLI pipeline. The
 design keeps them as _promotion targets_, reachable without rewriting agents.
+**SQLite + `sqlite-vec`** remains documented in §3.3 as a zero-dependency fallback
+if this ever needs to run strictly single-user/local with no database at all.
 
 The single most valuable early capability is **coverage-aware generation**: before
 the Generator writes anything, the Knowledge Layer tells it which planned
 scenarios are already covered (reuse), which are near-duplicates (skip), and which
 are genuinely new (generate). That one loop delivers most of the "avoid duplicate
 generation / merge intelligently / reuse modules" goals — and it needs only the
-structured tier, no embeddings.
+structured tables (no embeddings), so Phase 1 ships value before pgvector is even
+turned on.
+
+> **Storage decision (2026-06-05):** PostgreSQL + `pgvector` is the chosen
+> storage engine, preferably managed/serverless (Neon). Rationale: it consolidates
+> the structured, semantic, and graph tiers into one engine; supports concurrent
+> runs and multiple apps/tenants; and avoids a "SQLite-now, migrate-later" hop
+> given the platform's multi-agent ambition. The trade-off accepted: the project
+> takes on running a database (mitigated by serverless Postgres). Everything below
+> assumes Postgres; the SQLite variant is retained only as a fallback note.
 
 ---
 
@@ -107,16 +121,15 @@ hundreds–thousands of runs, no DB today). Scores: ◐ partial, ● strong, ○
 │                                                                                    │
 │  Ingestion ─► normalize RunReport → entities + edges + embeddings + blobs          │
 │                                                                                    │
-│  ┌── Tier 0: Artifact store (truth) ──┐  ┌── Tier 1: Structured index ──┐          │
-│  │ content-addressed blobs (.runs +   │  │ SQLite: apps, runs, specs,   │          │
-│  │ knowledge/blobs/), append-only     │  │ flows, results, healings,    │          │
-│  └────────────────────────────────────┘  │ validations, coverage,       │          │
-│  ┌── Tier 2: Semantic index ──────────┐  │ approvals, edges (graph)     │          │
-│  │ embeddings of spec-intent, flows,  │  └──────────────────────────────┘          │
-│  │ failures, healings (sqlite-vec/    │  ┌── Tier 3 (deferred): Graph DB ┐          │
-│  │ LanceDB)                           │  │ Neo4j / pg — promote if multi-│          │
-│  └────────────────────────────────────┘  │ hop graph queries dominate    │          │
-│                                           └───────────────────────────────┘          │
+│  ┌── Artifact store (truth) ──────────┐  ┌── PostgreSQL (one engine) ───┐          │
+│  │ content-addressed blobs (.runs +   │  │ tables+JSONB: apps, runs,    │          │
+│  │ knowledge/blobs/), append-only     │  │ specs, flows, results,       │          │
+│  │ event log — rebuild source         │  │ healings, validations,       │          │
+│  └────────────────────────────────────┘  │ coverage, approvals          │          │
+│                                           │ pgvector: embeddings (HNSW)  │          │
+│  (promote later, only under pressure:     │ edges + recursive CTEs/AGE:  │          │
+│   S3 blobs · Neo4j graph · own service)   │ graph relations              │          │
+│                                           └──────────────────────────────┘          │
 │  Retrieval (hybrid: filter → semantic → graph-expand → re-rank)                    │
 │  Distillation (episodic → semantic playbooks)   Knowledge API (TS iface + opt HTTP)│
 └────────────────────────────────────────────────────────────────────────────────────┘
@@ -142,7 +155,7 @@ Derived directly from `src/types.ts` — no new vocabulary.
 | **Artifact** (blob)       | content hash                              | screenshots, traces, logs                        | content-addressed; never re-embedded                  |
 | **Playbook** (distilled)  | (scope, key)                              | distillation job                                 | semantic memory: strategies & anti-patterns           |
 
-### 3.2 Relationships (graph edges — modeled in a SQLite `edges` table first)
+### 3.2 Relationships (graph edges — a Postgres `edges` table, traversed with recursive CTEs)
 
 ```
 App        1──*  Run            App        1──*  Flow         App        1──*  Page
@@ -157,34 +170,64 @@ These are the multi-hop questions the graph answers: _"for app X, what is the
 current-best spec for flow Y, what healed it last time it broke, and was it
 approved?"_ — one traversal, not five queries.
 
-### 3.3 Storage architecture (tiered, embedded-first)
+### 3.3 Storage architecture (PostgreSQL as the single engine)
 
-| Tier               | Tech (start)                                                  | Holds                                   | Promote to                     | When                              |
-| ------------------ | ------------------------------------------------------------- | --------------------------------------- | ------------------------------ | --------------------------------- |
-| **0 — Truth**      | filesystem (`.runs/` + `knowledge/blobs/`), content-addressed | raw artifacts, append-only event log    | object store (S3)              | multi-node / large blobs          |
-| **1 — Structured** | **SQLite** (`better-sqlite3`, zero-ops, in-process)           | entities + `edges` + materialized views | **Postgres**                   | multi-tenant / concurrent writers |
-| **2 — Semantic**   | **sqlite-vec** or **LanceDB** (embedded)                      | embeddings + metadata                   | **pgvector** / managed VDB     | recall at scale / cross-node      |
-| **3 — Graph**      | (none — edges in SQLite)                                      | —                                       | **Neo4j** or pg recursive CTEs | graph queries dominate cost       |
+| Concern                | Tech                                                          | Holds                                                  | Notes                                                                     |
+| ---------------------- | ------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| **Truth**              | filesystem (`.runs/` + `knowledge/blobs/`), content-addressed | raw artifacts, append-only event log                   | Large blobs stay on disk/object store; Postgres holds references + hashes |
+| **Structured + raw**   | **PostgreSQL** tables + **`JSONB`**                           | entities, `edges`, materialized views, raw `RunReport` | ACID; concurrent runs; multi-tenant via `app_id`/schema                   |
+| **Semantic**           | **`pgvector`** (extension, same DB)                           | `embedding vector(N)` columns + metadata               | HNSW index, cosine ops — vectors live beside the rows they describe       |
+| **Graph**              | **`edges` table + recursive CTEs** (or **Apache AGE**)        | typed relations (TESTS, HEALED_BY, SUPERSEDES, …)      | Multi-hop in SQL; AGE only if Cypher-style queries become routine         |
+| **Lexical (optional)** | **`tsvector`** full-text                                      | keyword search over specs/plans/failures               | Combine with pgvector for hybrid lexical+semantic in one query            |
 
-SQLite is the keystone: it gives ACID structured queries, a relations/`edges`
-table, and (via `sqlite-vec`) vectors in **one file, zero servers** — perfectly
-matching the current "no DB, best-effort disk" posture while being a real index.
-Every tier is rebuildable from Tier 0, so none of them is precious.
+**Postgres is the keystone** — it consolidates the structured, semantic, graph,
+and lexical concerns into **one database**, so there is no multi-store
+synchronization to manage. Run it **managed/serverless (Neon or Supabase)** to
+keep ops light: no server to babysit, point-in-time backups included, and a
+serverless driver that fits Next.js. For local dev, a `docker compose` Postgres
+with the `pgvector` image. Everything is still **rebuildable from the Truth tier**
+(replay `ingestRun` over the artifact log), so the database is an index, never the
+irreplaceable record.
 
-### 3.4 Indexing strategy
+**Connection management (Next.js):** create a single `pg.Pool` and stash it on
+`globalThis` — the same pattern `getRunStore()` already uses (`src/runStore/store.ts`)
+to survive Next.js module duplication and HMR. On serverless/edge, use the
+provider's pooled/HTTP driver (e.g. Neon serverless) to avoid connection
+exhaustion.
 
-- **Structured:** B-tree indexes on `app_id`, `run_id`, `flow_id`, `outcome`,
-  `rule`, `created_at`. A materialized view `current_best_suite(app_id)` =
-  latest approved + validated + passing spec per flow.
-- **Semantic:** embed _normalized intent text_, not raw code. For a Spec:
-  `title + plan steps + assertion summary` (strip volatile selectors). Also embed
-  Flow `name+steps`, failure `reason`, and healing `rationale`. Store
-  `(embedding, entity_id, app_id, kind)` so semantic search is always
-  **app-filterable**.
-- **Coverage fingerprints:** per App, maintain the set of covered-flow
-  token-sets (`significantTokens` from `coverage.ts`) + spec embeddings → enables
-  O(1) "is this scenario already covered?" before any LLM call.
-- **Dedup keys:** Spec content hash (exact) + embedding cosine ≥ τ (near-dup).
+**Promotion targets (only under real pressure):** dedicated **Neo4j** if graph
+traversal dominates cost and AGE isn't enough; a managed **vector DB** only if
+embedding volume outgrows pgvector's HNSW at your scale; object storage (S3) for
+blobs at multi-node scale. None of these change the agents or the
+`KnowledgeService` interface.
+
+> **SQLite fallback (not the chosen path):** if the project ever must run strictly
+> single-user/local with zero database dependency, the identical schema runs on
+> **SQLite (`better-sqlite3`) + `sqlite-vec`** in one file. The layering, ingestion,
+> retrieval, and agent seams are unchanged — only `store/db.ts` and `store/vectors.ts`
+> differ. Documented so the door stays open; Postgres is the recommendation.
+
+### 3.4 Indexing strategy (Postgres index types)
+
+- **Structured:** **B-tree** indexes on `app_id`, `run_id`, `flow_id`, `outcome`,
+  `rule`, `created_at`. A **materialized view** `current_best_suite(app_id)` =
+  latest approved + validated + passing spec per flow (`REFRESH` after ingest).
+- **Semantic (`pgvector`):** embed _normalized intent text_, not raw code. For a
+  Spec: `title + plan steps + assertion summary` (strip volatile selectors). Also
+  embed Flow `name+steps`, failure `reason`, and healing `rationale`. Store an
+  `embedding vector(N)` column with `(entity_id, app_id, kind)`; index with
+  **HNSW** (`USING hnsw (embedding vector_cosine_ops)`) so semantic search is
+  fast and always **app-filterable** (`WHERE app_id = ? ORDER BY embedding <=> ?`).
+- **JSONB / arrays:** **GIN** index on the raw-`RunReport` `JSONB` column and on
+  the coverage token-set arrays, so containment queries (`@>`) are fast.
+- **Coverage fingerprints:** per App, store covered-flow token-sets
+  (`significantTokens` from `coverage.ts`) as a `text[]`/`JSONB` with a GIN index →
+  "is this scenario already covered?" is an indexed containment check before any
+  LLM call.
+- **Lexical (optional):** a `tsvector` column + **GIN** index for keyword search;
+  fuse with the pgvector rank for hybrid lexical+semantic retrieval.
+- **Dedup keys:** Spec content hash (exact, B-tree/unique) + embedding cosine ≥ τ
+  (near-dup, via the HNSW index).
 
 ### 3.5 Retrieval strategy (hybrid, staged — precision then recall then relations)
 
@@ -235,10 +278,11 @@ await knowledge.ingestRun(report); // fire-and-forget-safe; logs, never throws
 1. Upsert **App** from `report.url`.
 2. Insert **Run**, **Specs**, **TestResults**, **ValidationFindings**,
    **CoverageSnapshot**, **HealingEvents** (from healed=true results + pre/post
-   reconciliation) into SQLite + `edges`.
+   reconciliation) into the Postgres tables + `edges` (one transaction).
 3. Content-address blobs (screenshots/traces/logs) into `knowledge/blobs/`;
    write/refresh `.runs/<id>/manifest.json`.
-4. Compute embeddings for spec-intent, flows, failures, healings → Tier 2.
+4. Compute embeddings for spec-intent, flows, failures, healings → `pgvector`
+   columns.
 5. Update App coverage fingerprints and the `current_best_suite` view.
 6. Emit a `knowledge:ingested` event for observability.
 
@@ -305,10 +349,10 @@ src/knowledge/
   index.ts                 # KnowledgeService factory + public interface
   types.ts                 # ContextPack, SpecMatch, AppProfile, CoverageDecision, Playbook
   store/
-    db.ts                  # SQLite connection (better-sqlite3), migrations runner
-    migrations/            # 0001_init.sql, 0002_edges.sql, ...
+    db.ts                  # pg.Pool (stashed on globalThis), migrations runner
+    migrations/            # 0001_init.sql, 0002_edges.sql, 0003_pgvector.sql, ...
     blobs.ts               # content-addressed blob store (.runs + knowledge/blobs)
-    vectors.ts             # sqlite-vec / LanceDB adapter (behind an interface)
+    vectors.ts             # pgvector adapter (embedding columns + HNSW), behind an interface
   ingest/
     ingestRun.ts           # RunReport → entities/edges/embeddings/blobs (idempotent)
     extract.ts             # plan scenarios, healing events, failure classes
@@ -325,8 +369,9 @@ src/knowledge/
     http.ts                # optional: thin HTTP facade for future multi-agent
   embeddings/
     embed.ts               # embedding provider (local model or Anthropic-adjacent), cached
-knowledge/                 # runtime data (gitignored): knowledge.db, blobs/, vectors/
+knowledge/                 # runtime data (gitignored): blobs/ (Postgres holds rows+vectors)
 docs/knowledge-platform-architecture.md   # this file
+# DB connection via env: KNOWLEDGE_DATABASE_URL (e.g. postgres://… or Neon URL)
 ```
 
 This mirrors the existing module idioms (`Workspace`, `RunPersistence`,
@@ -334,14 +379,19 @@ This mirrors the existing module idioms (`Workspace`, `RunPersistence`,
 
 ### 5.2 Service architecture
 
-- **Phase 1–3: in-process.** `KnowledgeService` is a module the orchestrator
-  constructs (like `createWorkspace` / `getRunStore`) and threads through
-  `StageDeps`. Embedded SQLite + local embeddings → **zero new services**, honors
-  the constitution.
+- **Phase 1–3: in-process client to a managed DB.** `KnowledgeService` is a module
+  the orchestrator constructs (like `createWorkspace` / `getRunStore`) and threads
+  through `StageDeps`. It talks to **managed/serverless Postgres** over a pooled
+  connection — there is **no new service of your own to run**; the database is the
+  only external dependency, and serverless Postgres keeps that near zero-ops. This
+  is the one deliberate departure from the original "no DB" posture, accepted for
+  the platform's concurrency and multi-agent needs.
 - **Phase 4+: extractable.** Because everything goes through the
   `KnowledgeService` interface and an optional `api/http.ts` facade, the layer can
-  later run as its own service (Postgres + pgvector + Neo4j) **without changing a
-  single agent prompt or stage** — only the service wiring.
+  later run as its **own service** (same Postgres + pgvector, optionally Neo4j/AGE)
+  shared by many agents **without changing a single agent prompt or stage** — only
+  the service wiring. Postgres being a networked DB from day one means this
+  extraction is a deployment change, not a re-architecture.
 
 ### 5.3 Knowledge API (the contract)
 
@@ -420,7 +470,8 @@ interface KnowledgeService {
     "trusted" / part of `current_best_suite`; unapproved stays episodic.
   - **Retention/TTL policy** per App; right-to-delete = drop App namespace +
     blobs (truth tier is the only place data must be erased).
-  - **Determinism & rebuildability:** indexes are reproducible from Tier 0, so a
+  - **Determinism & rebuildability:** Postgres indexes are reproducible from the
+    artifact Truth tier (replay `ingestRun`), so a
     bad migration or embedding model swap is recoverable by replay.
   - **Access scoping** per App/tenant from day one (namespaces), even if a single
     user today.
@@ -431,31 +482,35 @@ interface KnowledgeService {
 
 Each phase is independently shippable and delivers value alone. Effort is relative.
 
-| Phase                                  | Goal                                        | Build                                                                                                                              | Agents gain                                           | Tier used | Effort |
-| -------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------- | ------ |
-| **0 — Formalize substrate**            | Trustworthy event log                       | per-run `manifest.json`; content-address blobs; declare `.runs/` append-only                                                       | (none yet)                                            | 0         | S      |
-| **1 — Structured KB + ingestion**      | History-aware planning & coverage detection | `src/knowledge/` skeleton; SQLite schema; `ingestRun()` at completion seam; `getAppProfile`/`getCoverageMap`; Planner context pack | **Planner** loads prior pages/flows/coverage          | 1         | M      |
-| **2 — Semantic retrieval + dedupe**    | Reuse & avoid duplicate generation          | embeddings; hybrid retrieval; `planCoverageDecision`; `findSimilarSpecs`; Generator context pack + merge decisions                 | **Generator** reuses/extends/skips; intelligent merge | 1+2       | M–L    |
-| **3 — Healing memory + playbooks**     | Learn from fixes & strategies               | `HealingEvent` extraction; `getHealingPrecedents`; distillation → Playbooks; validation anti-patterns                              | **Healer** uses precedents; all agents get playbooks  | 1+2       | M      |
-| **4 — Graph, governance, multi-agent** | Multi-hop reasoning, scale, provenance      | promote edges→graph **if** needed; provenance on event stream; feedback re-weighting; HTTP API facade                              | parallel/multi-agent workflows; explainability        | 1+2(+3)   | L      |
+| Phase                                  | Goal                                        | Build                                                                                                                                                                 | Agents gain                                           | Tier used              | Effort |
+| -------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------- | ------ |
+| **0 — Formalize substrate**            | Trustworthy event log                       | per-run `manifest.json`; content-address blobs; declare `.runs/` append-only; provision **managed Postgres (Neon)** + `pgvector` extension + migration runner         | (none yet)                                            | Truth + empty DB       | S      |
+| **1 — Structured KB + ingestion**      | History-aware planning & coverage detection | `src/knowledge/` skeleton; **Postgres schema** (tables + `edges` + `JSONB`); `ingestRun()` at completion seam; `getAppProfile`/`getCoverageMap`; Planner context pack | **Planner** loads prior pages/flows/coverage          | Postgres (structured)  | M      |
+| **2 — Semantic retrieval + dedupe**    | Reuse & avoid duplicate generation          | add **`pgvector` columns + HNSW**; embeddings; hybrid retrieval; `planCoverageDecision`; `findSimilarSpecs`; Generator context pack + merge decisions                 | **Generator** reuses/extends/skips; intelligent merge | Postgres (+ pgvector)  | M–L    |
+| **3 — Healing memory + playbooks**     | Learn from fixes & strategies               | `HealingEvent` extraction; `getHealingPrecedents`; distillation → Playbooks; validation anti-patterns                                                                 | **Healer** uses precedents; all agents get playbooks  | Postgres               | M      |
+| **4 — Graph, governance, multi-agent** | Multi-hop reasoning, scale, provenance      | recursive-CTE/AGE graph queries (or Neo4j **if** needed); provenance on event stream; feedback re-weighting; HTTP API facade                                          | parallel/multi-agent workflows; explainability        | Postgres (+ AGE/Neo4j) | L      |
 
 **Recommended first slice (highest value / lowest risk): Phase 1.** It's pure
-structured data, reuses `coverage.ts`, needs no embeddings, and immediately makes
-the Planner history-aware and gives the UI a real coverage view. Phase 2 is the
-big reuse win and builds straight on it.
+structured data on Postgres, reuses `coverage.ts`, needs no embeddings, and
+immediately makes the Planner history-aware and gives the UI a real coverage view.
+Phase 0 does the one-time Postgres provisioning so Phase 1 is schema + ingestion
+only. Phase 2 then just adds `pgvector` columns to the same tables — the big reuse
+win, no new store.
 
 ---
 
 ## 9. Risks & mitigations
 
-| Risk                                                  | Mitigation                                                                                                                 |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| "Similar ≠ correct" — reusing a stale/wrong past spec | Trust re-ranking (approval + validation score + recency); reuse only above threshold _and_ last-passed; drift supersession |
-| Embedding/index drift over model changes              | Tier 0 is truth; indexes rebuildable by replay; embeddings keyed by content hash + model id                                |
-| Ingestion on the run hot-path slows runs              | Make `ingestRun` async/best-effort (mirror `persistence.save` "log, never throw"); heavy distillation is off-path          |
-| Knowledge bloat / context overflow                    | Token-budgeted packs; consolidation; tiered retention                                                                      |
-| Scope creep into Neo4j/microservices too early        | Embedded-first; graph/service are _promotion targets_ gated on real query/scale pressure                                   |
-| Stored secrets/PII from logs & screenshots            | Scrub-on-ingest; per-App TTL/delete; approval-gated trust                                                                  |
+| Risk                                                  | Mitigation                                                                                                                                       |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| "Similar ≠ correct" — reusing a stale/wrong past spec | Trust re-ranking (approval + validation score + recency); reuse only above threshold _and_ last-passed; drift supersession                       |
+| Embedding/index drift over model changes              | The artifact Truth tier is authoritative; Postgres indexes are rebuildable by replaying `ingestRun`; embeddings keyed by content hash + model id |
+| Ingestion on the run hot-path slows runs              | Make `ingestRun` async/best-effort (mirror `persistence.save` "log, never throw"); heavy distillation is off-path                                |
+| Knowledge bloat / context overflow                    | Token-budgeted packs; consolidation; tiered retention                                                                                            |
+| New DB dependency (departs the "no DB" posture)       | Use **managed/serverless Postgres** (Neon) — no server to run; one connection string; fully rebuildable from the Truth tier                      |
+| Postgres connection exhaustion in Next.js/serverless  | Single pooled `pg.Pool` on `globalThis` (mirrors `getRunStore`); use the serverless/HTTP driver on edge runtimes                                 |
+| Scope creep into Neo4j/microservices too early        | One Postgres engine already covers structured + vector + graph; Neo4j/AGE/own-service are _promotion targets_ gated on real query/scale pressure |
+| Stored secrets/PII from logs & screenshots            | Scrub-on-ingest; per-App TTL/delete; approval-gated trust                                                                                        |
 
 ---
 
