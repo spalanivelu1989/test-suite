@@ -82,19 +82,24 @@ export class LocalEmbedder implements Embedder {
  * texts map to a zero vector (→ semantic score 0, i.e. lexical-only).
  */
 export class FakeEmbedder implements Embedder {
-  readonly id = "fake";
+  readonly id: string;
   readonly dims: number;
   constructor(
     private readonly vectors: Record<string, number[]> = {},
     dims = 3,
+    id = "fake",
   ) {
     this.dims = dims;
+    this.id = id;
   }
   async embed(texts: string[]): Promise<number[][]> {
-    return texts.map((t) =>
-      this.vectors[t]
-        ? l2normalize(this.vectors[t])
-        : new Array(this.dims).fill(0),
-    );
+    return texts.map((t) => {
+      const base = this.vectors[t];
+      if (!base) return new Array(this.dims).fill(0); // unknown → zero → sem 0
+      // Pad/truncate the injected vector to `dims` so it fits a vector(dims) column.
+      const v = new Array(this.dims).fill(0);
+      for (let i = 0; i < Math.min(base.length, this.dims); i++) v[i] = base[i];
+      return l2normalize(v);
+    });
   }
 }

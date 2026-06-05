@@ -35,3 +35,14 @@ bge recommends an asymmetric "Represent this sentence…" prefix for query↔pas
 retrieval. We embed specs and scenarios **symmetrically** (no prefix) because both
 sides are short titles of the same kind and we want title↔title similarity, not
 query↔document. Revisit if recall underperforms in T15.
+
+### [2026-06-05] Embedding cache is GLOBAL by content_hash + model
+
+**Type:** Decision · **Task:** T8/T13 (R3)
+
+`embeddingForHash` matches on `content_hash` + `embedding_model` with no app/run
+scope — so two specs with identical source (anywhere) share one embedding and the
+model is called once. Correct and efficient (identical code ⇒ identical vector).
+Surfaced by a test-isolation bug: a sibling test pre-populated the cache for a
+shared spec template, so the cache test's "first" ingest hit cache. Fixed by
+giving that test a unique spec title (novel hash). Not a product issue.
