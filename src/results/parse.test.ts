@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   assessSuiteFlakiness,
   captureResults,
+  extractFailureReason,
   parsePlaywrightResults,
   reconcileHealing,
   type PlaywrightJsonReport,
@@ -52,6 +53,56 @@ test("parsePlaywrightResults maps passed/failed and detects fixme", () => {
   assert.equal(byFlow["Home"], "passed");
   assert.equal(byFlow["Contact"], "failed");
   assert.equal(byFlow["Search"], "fixme");
+});
+
+test("extractFailureReason: pulls the real Playwright error, strips ANSI + whitespace", () => {
+  const spec = {
+    title: "Nav",
+    file: "nav.spec.ts",
+    ok: false,
+    tests: [
+      {
+        results: [
+          {
+            status: "failed",
+            error: {
+              // real Playwright errors embed ANSI color codes + newlines
+              message:
+                "\u001b[31mTimeoutError\u001b[39m: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Send' })",
+            },
+          },
+        ],
+      },
+    ],
+  };
+  const reason = extractFailureReason(spec);
+  assert.ok(!reason.includes("\u001b"), "ANSI codes stripped");
+  assert.ok(!reason.includes("\n"), "newlines collapsed");
+  assert.ok(reason.startsWith("TimeoutError: locator.click"));
+  assert.ok(reason.includes("getByRole"), "keeps the locator detail");
+});
+
+test("extractFailureReason: reads the `errors` array too, and caps length", () => {
+  const long = "Error: " + "x".repeat(500);
+  const spec = {
+    title: "T",
+    file: "t.spec.ts",
+    ok: false,
+    tests: [{ results: [{ status: "failed", errors: [{ message: long }] }] }],
+  };
+  const reason = extractFailureReason(spec);
+  assert.ok(reason.length <= 240);
+  assert.ok(reason.startsWith("Error: x"));
+});
+
+test("extractFailureReason: falls back to 'test failed' when Playwright gave no message", () => {
+  const spec = {
+    title: "T",
+    file: "t.spec.ts",
+    ok: false,
+    tests: [{ results: [{ status: "failed" }] }],
+  };
+  assert.equal(extractFailureReason(spec), "test failed");
 });
 
 test("captureResults runs the suite via the workspace", async () => {

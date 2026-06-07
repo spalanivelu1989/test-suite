@@ -9,13 +9,43 @@ import type { TestResult } from "../types";
 interface PwAnnotation {
   type: string;
 }
+interface PwError {
+  message?: string;
+}
 interface PwTestRun {
   status?: string;
+  /** Playwright attaches the real failure here (with ANSI codes). */
+  error?: PwError;
+  errors?: PwError[];
 }
 interface PwTest {
   annotations?: PwAnnotation[];
   results: PwTestRun[];
   status?: string;
+}
+
+// Terminal ANSI color codes Playwright embeds in error messages.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching ANSI escapes
+const ANSI = /\u001b\[[0-9;]*m/g;
+
+/**
+ * Pull the REAL failure text from a spec's run results (Spec R3 support). A sharp
+ * reason like "TimeoutError: locator.click: waiting for getByRole('button')"
+ * yields a far more matchable healing signature than the generic "test failed".
+ * Cleaned (ANSI stripped, whitespace collapsed) and capped; falls back to
+ * "test failed" only when Playwright provided no message.
+ */
+export function extractFailureReason(spec: PwSpec): string {
+  for (const t of spec.tests ?? []) {
+    for (const r of t.results ?? []) {
+      const msg =
+        r.error?.message ?? r.errors?.find((e) => e?.message)?.message;
+      if (msg?.trim()) {
+        return msg.replace(ANSI, "").replace(/\s+/g, " ").trim().slice(0, 240);
+      }
+    }
+  }
+  return "test failed";
 }
 interface PwSpec {
   title: string;
@@ -69,7 +99,7 @@ export function parsePlaywrightResults(
       flowId,
       fileName,
       outcome: "failed",
-      failureReason: "test failed",
+      failureReason: extractFailureReason(spec),
     };
   });
 }
