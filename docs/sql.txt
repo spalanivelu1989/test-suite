@@ -31,3 +31,19 @@ psql -h localhost -p 5433 -U senthilpalanivelu -d knowledge
 
   -- Row counts across everything:
   SELECT relname AS table, n_live_tup AS rows FROM pg_stat_user_tables ORDER BY relname;
+
+
+
+  To make brew services work on 5433 permanently (one-time fix), set the port in its config, then let brew manage it:
+
+# point the config at 5433
+sed -i '' 's/^#*port = .*/port = 5433/' /opt/homebrew/var/postgresql@18/postgresql.conf
+brew services restart postgresql@18
+
+After that, plain brew services start postgresql@18 / stop will work and it'll auto-start on login.
+
+---
+After it's running — apply migrations / use it with the app
+
+npm run knowledge:migrate      # apply any pending schema migrations (0001–0003)
+npm run test:db                # run the DB-backed test suite
