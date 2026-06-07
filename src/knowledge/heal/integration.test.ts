@@ -134,6 +134,35 @@ test("disabled service returns no precedents (cold path, R13)", async () => {
   await svc.close();
 });
 
+test(
+  "embedder throwing mid-ingest → null embedding, ingest still commits (AC6/SC6)",
+  opts,
+  async () => {
+    const url = uniqueUrl();
+    const throwing = {
+      id: "throwing",
+      dims: 384,
+      async embed(): Promise<number[][]> {
+        throw new Error("embed boom");
+      },
+    };
+    const svc = createKnowledgeService({ databaseUrl: DB, embedder: throwing });
+    const appId = svc.appIdFor(url);
+    try {
+      await svc.ingestRun(report("run-C", url, [healEvent()]));
+      const pool = getPool(DB!);
+      const res = await pool.query(
+        "SELECT count(*)::int AS n, count(failure_embedding)::int AS embedded FROM healing_events WHERE app_id=$1",
+        [appId],
+      );
+      assert.equal(res.rows[0].n, 1); // event persisted
+      assert.equal(res.rows[0].embedded, 0); // but embedding is null
+    } finally {
+      await svc.close();
+    }
+  },
+);
+
 test("teardown pools", opts, async () => {
   await closeAllPools();
 });

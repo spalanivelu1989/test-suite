@@ -37,6 +37,7 @@ function report(runId: string, url: string): RunReport {
   return {
     runId,
     url,
+    crawlMode: "standard",
     flows: [{ id: "home", name: "Home" }],
     results: [{ flowId: "Home", fileName: "home.spec.ts", outcome: "healed" }],
     generatedSpecs: [{ file: "home.spec.ts", code: "test('home', () => {});" }],
@@ -79,6 +80,26 @@ test(
       const trusted = await svc.getPlaybooks({ kind: "global", key: "all" });
       assert.ok(trusted.some((p) => p.principle.length > 0));
       assert.ok(trusted.every((p) => p.status === "trusted")); // trusted-only (N6)
+    } finally {
+      await svc.close();
+    }
+  },
+);
+
+test(
+  "distill: repeated runs on one app → a procedural app playbook (AC17/R15)",
+  opts,
+  async () => {
+    const url = uniqueUrl();
+    const svc = createKnowledgeService({ databaseUrl: DB, embedder });
+    const appId = svc.appIdFor(url);
+    try {
+      await svc.ingestRun(report(`p-${randomUUID().slice(0, 8)}`, url));
+      await svc.ingestRun(report(`p-${randomUUID().slice(0, 8)}`, url));
+      const r = await runDistillation(getPool(DB!), {});
+      assert.ok(r.procedural >= 1, "expected a procedural playbook");
+      const appBooks = await svc.getPlaybooks({ kind: "app", key: appId });
+      assert.ok(appBooks.some((p) => p.principle.includes("standard")));
     } finally {
       await svc.close();
     }

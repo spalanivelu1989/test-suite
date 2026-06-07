@@ -41,9 +41,9 @@ export async function persistRun(
   );
 
   await client.query(
-    `INSERT INTO runs(run_id, app_id, url, status) VALUES ($1,$2,$3,$4)
-     ON CONFLICT (run_id) DO UPDATE SET app_id=$2, url=$3, status=$4`,
-    [run.runId, appId, run.url, run.status],
+    `INSERT INTO runs(run_id, app_id, url, status, crawl_mode) VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (run_id) DO UPDATE SET app_id=$2, url=$3, status=$4, crawl_mode=$5`,
+    [run.runId, appId, run.url, run.status, run.crawlMode],
   );
 
   // Idempotent replace of this run's child rows.

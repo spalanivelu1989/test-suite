@@ -2,6 +2,16 @@
 // is testable against a real pool. Incremental via the watermark: a no-op when no
 // new heals have landed. Reclusters over ALL healed episodes each run so support
 // counts stay correct and the upsert is idempotent.
+//
+//   watermark ──► new episodes? ──no──► no-op
+//        │ yes
+//        ▼
+//   ALL healed episodes ──cluster──► summarize (LLM│template) ──► upsert
+//        │                                              (episodic→trusted by
+//        ▼                                               support N, no contradiction)
+//   procedural aggregates (app × crawl-mode × coverage) ──► upsert
+//        │
+//        ▼  advance watermark
 
 import { createHash } from "node:crypto";
 import type { Pool } from "pg";

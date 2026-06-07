@@ -221,6 +221,8 @@ export interface RunReport {
   validation?: ValidationReport;
   /** Phase 3: heals captured by diffing pre/post-heal specs (ADR-0004). */
   healingEvents?: HealingEvent[];
+  /** Crawl strategy used for this run — persisted for procedural playbooks (R15). */
+  crawlMode?: CrawlMode;
 }
 
 /** A run as tracked by the in-memory store (R8). */

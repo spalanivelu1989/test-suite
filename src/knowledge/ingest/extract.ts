@@ -12,7 +12,13 @@ import type { HealingEvent } from "../types";
 
 export interface ExtractedRun {
   appId: string;
-  run: { runId: string; appId: string; url: string; status: string | null };
+  run: {
+    runId: string;
+    appId: string;
+    url: string;
+    status: string | null;
+    crawlMode: string | null;
+  };
   specs: {
     file: string;
     title: string | null;
@@ -207,7 +213,13 @@ export function extractRun(report: RunReport): ExtractedRun {
 
   return {
     appId,
-    run: { runId, appId, url: report.url ?? "", status: "completed" },
+    run: {
+      runId,
+      appId,
+      url: report.url ?? "",
+      status: "completed",
+      crawlMode: report.crawlMode ?? null,
+    },
     specs,
     flows: [...flowsById.values()].map((f) => ({ appId, ...f })),
     planScenarios,

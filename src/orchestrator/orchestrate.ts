@@ -289,6 +289,7 @@ export async function runPipeline(
     flows: deps.curatedFlows,
     screenshots,
     validation,
+    crawlMode: config.crawlMode,
   });
   // Phase 3: attach captured heals so ingestRun persists them (ADR-0004).
   report.healingEvents = healingEvents;
