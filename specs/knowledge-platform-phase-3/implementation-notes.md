@@ -44,3 +44,38 @@
   without a DB (same gate as Phase 2). tsc is clean and all 166 runnable unit
   tests pass. Action: start Postgres on :5433, run `npm run knowledge:migrate`
   (applies `0003`) then `npm run test:db`.
+
+## 2026-06-07 — Phase 3b (playbook distillation) built
+
+- **Distill core extracted to `distill/run.ts`; CLI is a thin wrapper.** Mirrors
+  the Phase-2 calibrate pattern (testable core + thin `bin/`). The DB integration
+  test calls `runDistillation(pool, opts)` directly.
+- **Recluster-over-all, watermark-as-gate (D3).** Rather than incrementally
+  merging support, each run reclusters ALL healed episodes (correct, stable
+  support counts) but is gated by the watermark: zero new heals since last run →
+  no-op. Keeps idempotency simple and support math obviously correct.
+- **Heal-derived playbooks are `global`; procedural playbooks are `app`.** A
+  locator/wait lesson learned on one app applies everywhere, so heal principles
+  use scope `global:all`; "which crawl mode covers this app" is inherently
+  app-scoped. Injection queries both (global + app) for each agent.
+- **Summarizer is injected, not imported (C4).** `summarizeCluster(cluster,
+summarize?)` takes an optional `(prompt)=>Promise<string>`. The CLI wires
+  `createClaudeClient` only when `ANTHROPIC_API_KEY` is set; tests pass a fake or
+  omit it (template fallback). No hard Claude dependency in the core.
+- **Contradiction signal is computed in clustering.** A signature healed by >1
+  strategy across runs marks each cluster's `contradictions`, which `nextStatus`
+  uses to demote — satisfies AC18 deterministically without extra tracking.
+- **Provisional thresholds (calibration deferred — T23).** `PRECEDENT_THRESHOLD`
+  0.6, `CLUSTER_THRESHOLD` 0.6, `PROMOTE_SUPPORT_N` 2 are named constants. Real
+  M1/M2/M3 calibration needs the labeled recurring-failure set (DEP4) and repeat
+  tarento.com runs — deferred to `/craft-framework:measure`, the same pattern
+  Phase 1/2 used for their outcome metrics. Not fabricating numbers here.
+
+## 2026-06-07 — Forge status
+
+- **Built & verified (code):** T1–T22 — all of Phase 3a + 3b + the additive-no-
+  regression guard (T21) + ADRs (T22). `tsc --noEmit` clean; **181 unit tests
+  pass, 0 fail** (26 DB-gated tests auto-skip without Postgres).
+- **Pending:** T23 (metrics calibration — needs DEP4 + a running DB + live runs)
+  and execution of the DB integration suites (heal + distill) once Postgres :5433
+  is back up. Both are environment/data-gated, not code-gated.

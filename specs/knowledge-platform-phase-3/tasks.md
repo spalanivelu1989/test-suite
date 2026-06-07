@@ -100,56 +100,56 @@ tasks at the same dependency level.
 
 ## Phase 3b — Playbook distillation
 
-### T13 — [ ] Types: Playbook, PlaybookScope; ContextPack extension [P]
+### T13 — [x] Types: Playbook, PlaybookScope; ContextPack extension [P]
 
 - **Covers:** R9, R12 (I3, I6)
 - **Depends on:** —
 - **Parallel:** yes
 - **Done-when:** `types.ts` adds `Playbook`, `PlaybookScope`, `getPlaybooks` on `KnowledgeService` (disabled → `[]`), and optional `healer`/`generator.locatorHints`/`playbooks` on `ContextPack`; `tsc` clean.
 
-### T14 — [ ] clusterEpisodes (deterministic) [P]
+### T14 — [x] clusterEpisodes (deterministic) [P]
 
 - **Covers:** R10
 - **Depends on:** T1
 - **Parallel:** yes
 - **Done-when:** `distill/cluster.ts` clusters episodes by failure-signature embedding cosine + strategy into bounded `Cluster[]`; pure and deterministic (fixed vectors → fixed clusters); unit-tested.
 
-### T15 — [ ] summarizeCluster (LLM + deterministic fallback)
+### T15 — [x] summarizeCluster (LLM + deterministic fallback)
 
 - **Covers:** R10, C4
 - **Depends on:** T14
 - **Parallel:** no
 - **Done-when:** `distill/summarize.ts` turns a bounded cluster into `{principle, antipattern?, recommendation}` via `createClaudeClient`; with no `ANTHROPIC_API_KEY` it returns a deterministic strategy-template principle (AC12); the LLM path is mockable in tests.
 
-### T16 — [ ] promote (trust gate)
+### T16 — [x] promote (trust gate)
 
 - **Covers:** R11, R14, R16
 - **Depends on:** T13
 - **Parallel:** no
 - **Done-when:** `distill/promote.ts` promotes `episodic`→`trusted` at `supportCount ≥ N` with no contradicting evidence, and **re-weights/demotes** (never deletes) on contradiction, retaining provenance (AC13/AC18); N is a named, calibratable constant.
 
-### T17 — [ ] repo: playbook upsert/read + watermark
+### T17 — [x] repo: playbook upsert/read + watermark
 
 - **Covers:** R9, R12, R14, N5
 - **Depends on:** T5, T13
 - **Parallel:** no
 - **Done-when:** `repo.ts` upserts playbooks (idempotent by scope+key+signature), reads `trusted`-only for `getPlaybooks`, stores `evidenceRunIds`, and reads/advances `distill_watermark`; second distill with no new episodes is a no-op (AC11/SC8).
 
-### T18 — [ ] bin/knowledge-distill.ts (incremental CLI) + procedural aggregation
+### T18 — [x] bin/knowledge-distill.ts (incremental CLI) + procedural aggregation
 
 - **Covers:** R9, R10, R11, R15, C3, N3
 - **Depends on:** T14, T15, T16, T17
 - **Parallel:** no
 - **Done-when:** `bin/knowledge-distill.ts` reads episodes since the watermark, clusters → summarizes → upserts (`status='episodic'`), aggregates passing runs into procedural `scope='app'` playbooks (AC17), runs promotion, advances the watermark; a `knowledge:distill` npm script runs it; the run path issues **zero** summarizer calls (N3).
 
-### T19 — [ ] getPlaybooks + budgeted injection into Planner/Generator/Healer
+### T19 — [x] getPlaybooks + budgeted injection into Planner/Generator/Healer
 
 - **Covers:** R12, R13, N6
 - **Depends on:** T17
 - **Parallel:** no
 - **Done-when:** `retrieve/playbooks.ts` + `assemble/contextPack.ts` inject a **token-budgeted** "Learned principles" block of **trusted-only** playbooks scoped to app + stage into all three agents; `index.ts` exposes `getPlaybooks` (best-effort); 0 `episodic` playbooks ever appear in a prompt (AC14/AC15/N6).
 
-### T20 — [ ] 3b unit + integration tests [P]
+### T20 — [x] 3b unit + integration tests [P]
 
 - **Covers:** R9, R10, R11, R12, R15, N3, N5, N6
 - **Depends on:** T18, T19
@@ -158,14 +158,14 @@ tasks at the same dependency level.
 
 ## Cross-cutting
 
-### T21 — [ ] Additive-no-regression guard (features off ⇒ Phase 2)
+### T21 — [x] Additive-no-regression guard (features off ⇒ Phase 2)
 
 - **Covers:** R13, N2
 - **Depends on:** T10, T19
 - **Parallel:** no
 - **Done-when:** a dedicated test runs the full assemble path with all Phase 3 features disabled (KB off, embeddings off, no trusted playbooks) and asserts the Planner/Generator/Healer prompts + coverage decisions are **identical** to Phase 2 over fixed inputs (AC16).
 
-### T22 — [ ] ADR-0004 + ADR-0005 [P]
+### T22 — [x] ADR-0004 + ADR-0005 [P]
 
 - **Covers:** R1, R9, R11 (provenance of decisions)
 - **Depends on:** —

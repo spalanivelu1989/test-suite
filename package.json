@@ -14,6 +14,7 @@
     "render:html": "tsx bin/render-html.ts",
     "knowledge:migrate": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-migrate.ts",
     "knowledge:embed-backfill": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-embed-backfill.ts",
+    "knowledge:distill": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-distill.ts",
     "knowledge:calibrate": "tsx bin/knowledge-calibrate.ts"
   },
   "dependencies": {

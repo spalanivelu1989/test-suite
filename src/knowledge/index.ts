@@ -213,8 +213,11 @@ class PgKnowledgeService implements KnowledgeService {
         const heals = await readSuccessfulHealingEvents(this.pool, appId, null);
         const locatorHints = deriveLocatorHints(heals);
         const pack = buildGeneratorPack(decisions, specs);
+        // Phase 3: trusted distilled principles, global + app-scoped (R12).
+        const playbooks = await this.trustedPlaybooks(appId);
         return {
           generator: locatorHints.length ? { ...pack, locatorHints } : pack,
+          ...(playbooks.length ? { playbooks } : {}),
         };
       },
       {},
@@ -302,6 +305,15 @@ class PgKnowledgeService implements KnowledgeService {
       [],
       { onError: this.onError },
     );
+  }
+
+  /** Global (cross-app heal lessons) + this app's procedural playbooks (R12). */
+  private async trustedPlaybooks(appId: string): Promise<Playbook[]> {
+    const [global, app] = await Promise.all([
+      readTrustedPlaybooks(this.pool, { kind: "global", key: "all" }),
+      readTrustedPlaybooks(this.pool, { kind: "app", key: appId }),
+    ]);
+    return [...global, ...app];
   }
 
   async close(): Promise<void> {

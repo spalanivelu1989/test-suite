@@ -21,10 +21,26 @@ import {
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { REUSE_MARKER, type KnowledgeService } from "../knowledge";
-import type { HealingPrecedent } from "../knowledge/types";
+import type { HealingPrecedent, Playbook } from "../knowledge/types";
 
 /** Max precedents injected into the Healer prompt (token budget, C5/D8). */
 const MAX_HEAL_PRECEDENTS = 5;
+
+/** Max playbooks injected into any agent prompt (token budget, C5/D8). */
+const MAX_PLAYBOOKS = 6;
+
+/** Render trusted playbooks as a compact "Learned principles" block (R12). */
+export function formatPlaybooks(playbooks: Playbook[] = []): string {
+  if (playbooks.length === 0) return "";
+  const lines = playbooks
+    .slice(0, MAX_PLAYBOOKS)
+    .map((p, i) => `${i + 1}. ${p.principle} → ${p.recommendation}`)
+    .join("\n");
+  return [
+    "LEARNED PRINCIPLES from prior runs (apply where relevant):",
+    lines,
+  ].join("\n");
+}
 
 /** Render prior fixes as a compact, budgeted prompt block (R7). Empty → "". */
 export function formatPrecedentsForHealer(
@@ -189,6 +205,23 @@ export async function planTests(
     memoryLines = [];
   }
 
+  // Phase 3: trusted procedural principles for this app (best crawl strategy) plus
+  // global lessons (R12). Best-effort and budgeted; none → prompt unchanged (N2).
+  let playbookLines: string[] = [];
+  try {
+    if (deps.knowledge) {
+      const appId = deps.knowledge.appIdFor(url);
+      const [app, global] = await Promise.all([
+        deps.knowledge.getPlaybooks({ kind: "app", key: appId }),
+        deps.knowledge.getPlaybooks({ kind: "global", key: "all" }),
+      ]);
+      const block = formatPlaybooks([...app, ...global]);
+      if (block) playbookLines = ["\n\n" + block];
+    }
+  } catch {
+    playbookLines = [];
+  }
+
   const prompt = [
     `Create a comprehensive Playwright test plan for the web application at ${url}.`,
     "Open the browser with playwright-cli first, then explore the app and identify the primary",
@@ -197,6 +230,7 @@ export async function planTests(
     "— write it there and nowhere else (do NOT write to the repository's own specs/ directory or any other path).",
     ...constraintLines,
     ...memoryLines,
+    ...playbookLines,
   ].join(" ");
 
   const res = await run({
@@ -285,13 +319,18 @@ async function applyGeneratorKnowledge(
 
   // Guarded so even a misbehaving service can never fail generation (N3).
   let gen;
+  let playbookBlock = "";
   try {
     const pack = await deps.knowledge.assembleContext(options.url, scenarios);
     gen = pack.generator;
+    playbookBlock = formatPlaybooks(pack.playbooks); // R12, budgeted
   } catch {
     return [];
   }
-  if (!gen || gen.decisions.length === 0) return [];
+  if (!gen || gen.decisions.length === 0) {
+    // No coverage decisions, but trusted principles can still guide generation.
+    return playbookBlock ? ["\n\n" + playbookBlock] : [];
+  }
 
   const codeByKey = new Map(
     gen.specs
@@ -337,6 +376,8 @@ async function applyGeneratorKnowledge(
       ...gen.locatorHints.map((h) => `- ${h}`),
     );
   }
+  // Phase 3: trusted distilled principles (R12, budgeted).
+  if (playbookBlock) lines.push("\n\n" + playbookBlock);
   return lines;
 }
 
@@ -464,6 +505,7 @@ export async function healTests(
   deps: StageDeps = {},
   validation?: ValidationReport,
   precedents: HealingPrecedent[] = [],
+  playbooks: Playbook[] = [],
 ): Promise<HealResult> {
   const load = deps.loadAgentFn ?? loadAgent;
   const run = deps.runner ?? runAgent;
@@ -472,15 +514,18 @@ export async function healTests(
   const validationBlock = validation
     ? formatValidationForHealer(validation)
     : "";
-  // Phase 3: surface prior successful fixes for similar failures (R7). Best-effort
-  // and token-budgeted; with no precedents the prompt is identical to Phase 2 (N2).
+  // Phase 3: surface prior successful fixes for similar failures (R7) and trusted
+  // principles (R12). Best-effort and token-budgeted; with none, the prompt is
+  // identical to Phase 2 (N2).
   const precedentBlock = formatPrecedentsForHealer(precedents);
+  const playbookBlock = formatPlaybooks(playbooks);
   const prompt = [
     "Run the generated test suite by executing npx playwright test via Bash. For each failing test, debug it by",
     "running it specifically or inspecting the page using playwright-cli, fix the spec (resilient locators, corrected assertions)",
     "using Edit/Write tools, and re-run until it passes. If a test cannot be fixed and you are confident it is a genuine failure,",
     "mark it test.fixme() with a comment explaining what is happening. Do not ask questions.",
     ...(precedentBlock ? ["\n\n" + precedentBlock] : []),
+    ...(playbookBlock ? ["\n\n" + playbookBlock] : []),
     ...(validationBlock ? ["\n\n" + validationBlock] : []),
   ].join(" ");
 

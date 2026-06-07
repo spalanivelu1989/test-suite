@@ -212,12 +212,18 @@ export async function runPipeline(
     config.url,
     initial,
   );
+  // Trusted distilled principles (global heal lessons + this app's) for the Healer.
+  const healPlaybooks = await knowledge.getPlaybooks({
+    kind: "global",
+    key: "all",
+  });
   await healTests(
     ws,
     onAgent("healing", "healer"),
     stageDeps,
     validation,
     precedents,
+    healPlaybooks,
   );
   agentRuns++;
   checkCancelled();

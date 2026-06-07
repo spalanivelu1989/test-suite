@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import type { RunReport } from "../../types";
+import type { EpisodeInput } from "../distill/cluster";
 import { signatureTokens } from "../heal/signature";
 import type { ExtractedRun } from "../ingest/extract";
 import type { HealingEventRow } from "../retrieve/healingPrecedents";
@@ -460,4 +461,142 @@ export async function readTrustedPlaybooks(
     confidence: r.confidence,
     status: "trusted" as const,
   }));
+}
+
+// ── Distillation: episodes in, playbooks out, watermark (R9) ─────────────────
+
+/** Healed episodes created after `sinceIso` (the distillation input, R9). */
+export async function readEpisodesSince(
+  pool: Pool,
+  sinceIso: string,
+): Promise<EpisodeInput[]> {
+  const res = await pool.query<{
+    run_id: string;
+    failure_signature: string;
+    strategy: string;
+    before_snippet: string;
+    after_snippet: string;
+    embedding: string | null;
+  }>(
+    `SELECT run_id, failure_signature, strategy, before_snippet, after_snippet,
+            failure_embedding::text AS embedding
+       FROM healing_events
+      WHERE outcome = 'healed' AND created_at > $1
+      ORDER BY created_at ASC`,
+    [sinceIso],
+  );
+  return res.rows.map((r) => ({
+    runId: r.run_id,
+    signature: r.failure_signature,
+    tokens: signatureTokens(r.failure_signature),
+    strategy: r.strategy as HealStrategy,
+    embedding: parseSqlVector(r.embedding),
+    before: r.before_snippet,
+    after: r.after_snippet,
+  }));
+}
+
+/** The latest healing-event timestamp, to advance the watermark. */
+export async function latestEpisodeAt(pool: Pool): Promise<string | null> {
+  const res = await pool.query<{ ts: string | null }>(
+    `SELECT max(created_at)::text AS ts FROM healing_events`,
+  );
+  return res.rows[0]?.ts ?? null;
+}
+
+/** Read / advance the single-row distillation watermark (incremental, R9). */
+export async function readWatermark(pool: Pool): Promise<string> {
+  const res = await pool.query<{ last_run_at: string }>(
+    `SELECT last_run_at::text FROM distill_watermark WHERE id = 1`,
+  );
+  return res.rows[0]?.last_run_at ?? "1970-01-01T00:00:00Z";
+}
+
+export async function setWatermark(pool: Pool, iso: string): Promise<void> {
+  await pool.query(
+    `UPDATE distill_watermark SET last_run_at = $1 WHERE id = 1`,
+    [iso],
+  );
+}
+
+/** Per-app crawl-strategy + coverage aggregate for procedural playbooks (R15). */
+export async function readProceduralAggregates(
+  pool: Pool,
+): Promise<
+  { appId: string; crawlMode: string; runs: number; avgPercent: number }[]
+> {
+  const res = await pool.query<{
+    app_id: string;
+    crawl_mode: string | null;
+    runs: string;
+    avg_percent: string | null;
+  }>(
+    `SELECT r.app_id, r.crawl_mode,
+            count(*)::text AS runs,
+            avg(cs.percent)::text AS avg_percent
+       FROM runs r
+       JOIN coverage_snapshots cs USING (run_id)
+      WHERE r.crawl_mode IS NOT NULL
+      GROUP BY r.app_id, r.crawl_mode`,
+    [],
+  );
+  return res.rows.map((r) => ({
+    appId: r.app_id,
+    crawlMode: r.crawl_mode ?? "unknown",
+    runs: Number(r.runs),
+    avgPercent: r.avg_percent ? Math.round(Number(r.avg_percent)) : 0,
+  }));
+}
+
+/** Fields needed to upsert a distilled playbook. */
+export interface PlaybookUpsert {
+  id: string;
+  scope: PlaybookScope;
+  principle: string;
+  antipattern?: string;
+  recommendation: string;
+  evidenceRunIds: string[];
+  supportCount: number;
+  confidence: number;
+  status: Playbook["status"];
+  embedding?: number[] | null;
+}
+
+/**
+ * Upsert a playbook (R9/R14). Idempotent by `id`: re-distilling unions the
+ * evidence run-ids and refreshes support/confidence/status — never duplicates.
+ */
+export async function upsertPlaybook(
+  pool: Pool,
+  pb: PlaybookUpsert,
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO playbooks
+       (id, scope_kind, scope_key, principle, antipattern, recommendation,
+        evidence_run_ids, support_count, confidence, status, embedding, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::vector, now())
+     ON CONFLICT (id) DO UPDATE SET
+       principle        = EXCLUDED.principle,
+       antipattern      = EXCLUDED.antipattern,
+       recommendation   = EXCLUDED.recommendation,
+       evidence_run_ids = EXCLUDED.evidence_run_ids,
+       support_count    = EXCLUDED.support_count,
+       confidence       = EXCLUDED.confidence,
+       status           = EXCLUDED.status,
+       embedding        = EXCLUDED.embedding,
+       updated_at       = now()`,
+    [
+      pb.id,
+      pb.scope.kind,
+      pb.scope.key,
+      pb.principle,
+      pb.antipattern ?? null,
+      pb.recommendation,
+      pb.evidenceRunIds,
+      pb.supportCount,
+      pb.confidence,
+      pb.status,
+      toSqlVector(pb.embedding),
+    ],
+  );
 }

@@ -7,7 +7,23 @@ and after every task completed during Forge.
 
 ## Current stage
 
-> **Two initiatives are now in flight:**
+> **Initiatives in flight:**
+>
+> **(D) Knowledge-Driven Testing Platform — Phase 3** (healing memory + playbook
+> distillation; spec at `specs/knowledge-platform-phase-3/`) — **Forge nearly
+> complete** (T1–T22 built on branch `phase-3-healing-playbooks`; tsc clean, 181
+> unit tests pass, 0 fail; 26 DB-gated tests auto-skip). Built: deterministic heal
+> capture by pre/post-heal spec diff (`src/knowledge/heal/`, ADR-0004), migration
+> `0003` (healing_events + playbooks + distill_watermark), embed-at-ingest for
+> failure signatures, hybrid precedent retrieval wired to the Healer + locator
+> hints to the Generator; off-hot-path distillation (`src/knowledge/distill/` +
+> `bin/knowledge-distill.ts`, ADR-0005) clustering heals into trusted playbooks
+> injected (budgeted) into Planner/Generator/Healer. Additive-no-regression guard
+> green (features off ⇒ Phase-2-identical prompts). New script `knowledge:distill`.
+> **Pending:** T23 metrics calibration (needs labeled recurring-failure set +
+> live runs → `/measure`) and running the DB integration suites once local
+> Postgres :5433 is back up (currently down — `postgresql@18` brew service errors).
+> Next: Stage 5 → `/craft-framework:test-tune`.
 >
 > **(A) AI UI Testing Tool — v0.3.0** — **Record complete** (Spec v0.3.0 Approved,
 > adds the deterministic Validation stage R18–R21). Next: Stage 3 (Assemble) to
