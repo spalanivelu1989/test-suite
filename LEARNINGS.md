@@ -185,3 +185,18 @@ wrapper hides it, so the test fails on a confusing count assertion.
 `semantic.integration.test.ts` pattern.
 **Future prevention:** any embedding integration fake uses the real column dim;
 when a "0 rows" assertion fails under best-effort ingest, suspect a silent rollback.
+
+### [2026-06-07] Capture the failure signal from the PRE-state, not the post-fix state
+
+**Trigger:** run 32a232e6 healed 4 failing tests but persisted 0 healing_events —
+so the healing-memory flywheel never started on real runs.
+**Root cause:** captureHealDeltas keyed the failure signature off the *reconciled*
+(post-heal) results, where a successful heal reads as `passed` with no
+`failureReason` → empty signature → event dropped. The signal it needed (what
+failed and why) only exists in the *initial* (pre-heal) results.
+**Fix:** pass both initial (failure + reason) and final (healed/fixme) results;
+derive the signature from initial, the outcome from final. Regression test:
+a heal that reads `passed` post-heal is still captured with a real signature.
+**Future prevention:** when recording "what was fixed", capture the failure from
+the BEFORE state — the after state has, by definition, erased it. A green test
+tells you nothing about what it used to fail on.
