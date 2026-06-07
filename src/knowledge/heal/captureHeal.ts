@@ -3,12 +3,13 @@
 // pre-heal spec against the post-heal spec — both already in hand at the
 // orchestrator seam. Pure: no DB, no LLM, no I/O. This is the heart of ADR-0004.
 //
-//   pre[]  (generated specs)          post[]  (healed specs)        results[]
-//        │                                  │                          │
-//        └────────────── per file: diffHunks(preCode, postCode) ──────┘
-//                                  │
-//                   for each hunk: classifyStrategy(before, after)
-//                   failureSignature = normalizeFailure(result.failureReason)
+//   pre[] (generated specs)   post[] (healed specs)   initial[] (pre-heal)   final[] (post-heal)
+//        │                          │                      │ failed+reason       │ healed|fixme
+//        └──── per file: diffHunks(preCode, postCode) ─────┤                     │
+//                                  │                       │                     │
+//                   for each hunk: classifyStrategy(before, after)               │
+//                   failureSignature = normalizeFailure( initial.failureReason ) ┘
+//                   outcome = final 'fixme' ? fixme : healed
 //                                  │
 //                                  ▼
 //                          HealingEvent[]  (append-only evidence)
@@ -88,43 +89,51 @@ export function diffHunks(
  * Reconstruct the Healer's repairs as append-only HealingEvents (R1). One event
  * per changed hunk in each spec the Healer modified, tagged with the failure it
  * resolved, the strategy, and the outcome.
+ *
+ * Crucially the failure SIGNATURE comes from the PRE-heal (`initial`) results —
+ * those carry `outcome:"failed"` and the real `failureReason`. The POST-heal
+ * (`final`) results only say whether the fix worked (`healed`/`fixme`), and a
+ * healed test reads as `passed` with NO reason — so keying the signature off the
+ * final outcome silently produced empty signatures and dropped real heals.
  */
 export function captureHealDeltas(
   pre: Spec[],
   post: Spec[],
-  results: TestResult[],
+  initial: TestResult[],
+  final: TestResult[],
   ctx: { runId: string; appId: string },
 ): HealingEvent[] {
   const preByFile = new Map(pre.map((s) => [s.file, s.code]));
-  const resultByBase = new Map(results.map((r) => [base(r.fileName), r]));
+  const initByBase = new Map(initial.map((r) => [base(r.fileName), r]));
+  const finalByBase = new Map(final.map((r) => [base(r.fileName), r]));
 
   const events: HealingEvent[] = [];
   for (const spec of post) {
     const before = preByFile.get(spec.file);
     if (before === undefined || before === spec.code) continue; // new/unchanged
 
-    const result = resultByBase.get(base(spec.file));
-    const quarantined =
-      result?.outcome === "fixme" || /\btest\.fixme\s*\(/.test(spec.code);
-    // Only capture from tests that actually failed-then-changed: a healed
-    // outcome, a fixme quarantine, or an explicit failure reason.
-    const relevant =
-      quarantined ||
-      result?.healed === true ||
-      result?.outcome === "healed" ||
-      result?.outcome === "failed" ||
-      !!result?.failureReason;
-    if (!relevant) continue;
+    const init = initByBase.get(base(spec.file)); // the failure being fixed
+    const fin = finalByBase.get(base(spec.file)); // did the fix work?
 
-    const failureSignature = normalizeFailure(result?.failureReason);
+    const quarantined =
+      fin?.outcome === "fixme" || /\btest\.fixme\s*\(/.test(spec.code);
+    // Capture only edits that address a REAL failure: the test failed before
+    // healing, or it was quarantined. A change to an already-passing test (e.g.
+    // proactive selector hardening) has no failure to key a precedent on — skip.
+    const failedInitially = init?.outcome === "failed" || !!init?.failureReason;
+    if (!failedInitially && !quarantined) continue;
+
+    // Signature from the INITIAL failure reason (the post-heal pass has none).
+    const failureSignature = normalizeFailure(init?.failureReason);
     const tokens = signatureTokens(failureSignature);
     const outcome: HealingEvent["outcome"] = quarantined ? "fixme" : "healed";
+    const flowId = init?.flowId ?? fin?.flowId ?? null;
 
     for (const hunk of diffHunks(before, spec.code)) {
       events.push({
         runId: ctx.runId,
         appId: ctx.appId,
-        flowId: result?.flowId ?? null,
+        flowId,
         file: spec.file,
         failureSignature,
         before: hunk.before,

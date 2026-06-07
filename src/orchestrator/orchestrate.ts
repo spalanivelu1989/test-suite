@@ -217,6 +217,15 @@ export async function runPipeline(
     kind: "global",
     key: "all",
   });
+  // Surface what past learning was actually applied (no silent magic) so a run's
+  // memory use is visible in the event stream, not only in the DB.
+  if (precedents.length)
+    emit(
+      "healing",
+      `🩹 Applying ${precedents.length} known fix(es) from past runs`,
+    );
+  if (healPlaybooks.length)
+    emit("healing", `🧠 ${healPlaybooks.length} learned principle(s) applied`);
   await healTests(
     ws,
     onAgent("healing", "healer"),
@@ -238,10 +247,18 @@ export async function runPipeline(
   const specs = await readGeneratedSpecs(ws);
 
   // Reconstruct what the Healer fixed by diffing pre/post-heal specs (ADR-0004).
-  const healingEvents = captureHealDeltas(preHealSpecs, specs, results, {
-    runId,
-    appId: knowledge.appIdFor(config.url),
-  });
+  // `initial` carries the pre-heal failures + reasons (the signature source);
+  // `results` carries the post-heal outcome (healed/fixme).
+  const healingEvents = captureHealDeltas(
+    preHealSpecs,
+    specs,
+    initial,
+    results,
+    {
+      runId,
+      appId: knowledge.appIdFor(config.url),
+    },
+  );
 
   const planMarkdown = await readPlan(ws);
   const coverage = coverageFromResults(deps.curatedFlows, results);
