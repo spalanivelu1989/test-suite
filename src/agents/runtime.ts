@@ -65,12 +65,31 @@ export interface RunAgentOptions {
   abortController?: AbortController;
   /** SDK lifecycle hooks — used to code-enforce crawl scope (see crawlGate). */
   hooks?: Options["hooks"];
+  /**
+   * Inactivity guard (ms): if no SDK event arrives for this long, abort the
+   * agent. Stops a stage hanging forever when the subprocess stream never
+   * delivers a terminal `result` (e.g. a lingering browser child holds stdio
+   * open). Defaults to {@link DEFAULT_IDLE_TIMEOUT_MS}; pass `Infinity` to disable.
+   */
+  idleTimeoutMs?: number;
+  /** Hard wall-clock cap (ms) for the whole agent run. Off by default. */
+  maxDurationMs?: number;
 }
+
+/**
+ * Default inactivity guard: 10 min of *complete silence* (no tool call, no text,
+ * no result) is unambiguously a hung stream, not slow work — a full Playwright
+ * suite still streams tool events well inside this. Tuned to never false-positive
+ * on legitimately slow agents while guaranteeing a stage cannot hang forever.
+ */
+export const DEFAULT_IDLE_TIMEOUT_MS = 10 * 60_000;
 
 export interface RunAgentResult {
   resultText: string;
   toolCalls: string[];
   isError: boolean;
+  /** True when the run was aborted by the idle/duration guard (not a normal end). */
+  timedOut?: boolean;
 }
 
 /**
@@ -83,6 +102,41 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   const toolCalls: string[] = [];
   let resultText = "";
   let isError = false;
+  let timedOut = false;
+
+  // A local controller we can abort on timeout. If the caller passed one (run
+  // stop), chain it so either source aborts the agent.
+  const control = new AbortController();
+  if (opts.abortController) {
+    if (opts.abortController.signal.aborted) control.abort();
+    else
+      opts.abortController.signal.addEventListener("abort", () =>
+        control.abort(),
+      );
+  }
+
+  const idleMs = opts.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let hardTimer: ReturnType<typeof setTimeout> | undefined;
+  const fireTimeout = (why: string) => {
+    timedOut = true;
+    resultText = `agent aborted: ${why}`;
+    control.abort();
+  };
+  const armIdle = () => {
+    if (!Number.isFinite(idleMs)) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(
+      () => fireTimeout(`no activity for ${Math.round(idleMs / 1000)}s`),
+      idleMs,
+    );
+  };
+  if (opts.maxDurationMs && Number.isFinite(opts.maxDurationMs)) {
+    hardTimer = setTimeout(
+      () => fireTimeout(`exceeded ${Math.round(opts.maxDurationMs! / 1000)}s`),
+      opts.maxDurationMs,
+    );
+  }
 
   const iterator = queryFn({
     prompt: opts.prompt,
@@ -95,7 +149,8 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
       // multi-flow run exhausted it mid-generation). 150 gives headroom.
       maxTurns: opts.maxTurns ?? 150,
       permissionMode: "bypassPermissions",
-      abortController: opts.abortController,
+      // The timeout/stop guard aborts THIS controller (chained to the caller's).
+      abortController: control,
       // PreToolUse hook denials apply even under bypassPermissions, so the crawl
       // gate can hard-block out-of-scope navigation.
       hooks: opts.hooks,
@@ -103,7 +158,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   });
 
   try {
+    armIdle(); // start the inactivity clock before the first message
     for await (const msg of iterator) {
+      armIdle(); // any activity resets it
       if (msg.type === "assistant") {
         for (const block of msg.message.content) {
           if (block.type === "text" && block.text) {
@@ -123,12 +180,17 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   } catch (err) {
     // The SDK rejects the iterator (not a result message) when the Claude Code
     // subprocess exits non-zero — notably on maxTurns ("Reached maximum number
-    // of turns"). Swallow it so partial work survives: the stage decides
-    // success from artifacts produced (e.g. spec count), not the turn cap.
+    // of turns") or when we abort on timeout. Swallow it so partial work
+    // survives: the stage decides success from artifacts produced (e.g. spec
+    // count), not the turn cap — and a hung stream becomes a clean stage exit.
     isError = true;
-    resultText = err instanceof Error ? err.message : String(err);
+    if (!timedOut)
+      resultText = err instanceof Error ? err.message : String(err);
     opts.onEvent?.({ kind: "result", isError, text: resultText });
+  } finally {
+    clearTimeout(idleTimer);
+    clearTimeout(hardTimer);
   }
 
-  return { resultText, toolCalls, isError };
+  return { resultText, toolCalls, isError, timedOut };
 }
