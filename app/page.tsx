@@ -393,9 +393,14 @@ export default function HomePage() {
                         color="transparent"
                         letterSpacing="-0.5px"
                         style={{
-                          background: isDark
+                          // Use `backgroundImage` (not the `background` shorthand,
+                          // which resets background-clip to border-box) and set
+                          // BOTH the standard + prefixed clip, or Chrome renders
+                          // the gradient as a solid block over the number.
+                          backgroundImage: isDark
                             ? "linear-gradient(to right, #99d1db, #8caaee)"
                             : "linear-gradient(to right, #0f2d59, #1d4ed8)",
+                          backgroundClip: "text",
                           WebkitBackgroundClip: "text",
                           WebkitTextFillColor: "transparent",
                         }}
@@ -491,9 +496,13 @@ export default function HomePage() {
                       color="transparent"
                       letterSpacing="-0.5px"
                       style={{
-                        background: isDark
+                        // backgroundImage (not the `background` shorthand) + both
+                        // standard & prefixed background-clip, so Chrome clips the
+                        // gradient to the glyphs instead of painting a solid block.
+                        backgroundImage: isDark
                           ? "linear-gradient(to right, #99d1db, #8caaee)"
                           : "linear-gradient(to right, #0f2d59, #1d4ed8)",
+                        backgroundClip: "text",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                       }}
