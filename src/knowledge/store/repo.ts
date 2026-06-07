@@ -1,6 +1,10 @@
 import type { Pool, PoolClient } from "pg";
 import type { RunReport } from "../../types";
+import type { EpisodeInput } from "../distill/cluster";
+import { signatureTokens } from "../heal/signature";
 import type { ExtractedRun } from "../ingest/extract";
+import type { HealingEventRow } from "../retrieve/healingPrecedents";
+import type { HealStrategy, Playbook, PlaybookScope } from "../types";
 
 // All SQL lives here (Plan D2). Writes are idempotent by run; every read is
 // app-scoped (N5). Callers get behavioral operations, never raw SQL.
@@ -37,13 +41,18 @@ export async function persistRun(
   );
 
   await client.query(
-    `INSERT INTO runs(run_id, app_id, url, status) VALUES ($1,$2,$3,$4)
-     ON CONFLICT (run_id) DO UPDATE SET app_id=$2, url=$3, status=$4`,
-    [run.runId, appId, run.url, run.status],
+    `INSERT INTO runs(run_id, app_id, url, status, crawl_mode) VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (run_id) DO UPDATE SET app_id=$2, url=$3, status=$4, crawl_mode=$5`,
+    [run.runId, appId, run.url, run.status, run.crawlMode],
   );
 
   // Idempotent replace of this run's child rows.
-  for (const t of ["specs", "plan_scenarios", "test_results"]) {
+  for (const t of [
+    "specs",
+    "plan_scenarios",
+    "test_results",
+    "healing_events",
+  ]) {
     await client.query(`DELETE FROM ${t} WHERE run_id = $1`, [run.runId]);
   }
   await client.query(`DELETE FROM coverage_snapshots WHERE run_id = $1`, [
@@ -110,6 +119,28 @@ export async function persistRun(
        VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (src_type, src_id, rel, dst_type, dst_id) DO NOTHING`,
       [e.appId, e.srcType, e.srcId, e.rel, e.dstType, e.dstId],
+    );
+  }
+
+  // Phase 3: append-only healing events (ADR-0004). Already deleted-by-run above.
+  for (const h of ex.healingEvents ?? []) {
+    await client.query(
+      `INSERT INTO healing_events
+         (run_id, app_id, flow_id, file, failure_signature, failure_embedding,
+          before_snippet, after_snippet, strategy, outcome)
+       VALUES ($1,$2,$3,$4,$5,$6::vector,$7,$8,$9,$10)`,
+      [
+        run.runId,
+        appId,
+        h.flowId,
+        h.file,
+        h.failureSignature,
+        toSqlVector(h.embedding),
+        h.before,
+        h.after,
+        h.strategy,
+        h.outcome,
+      ],
     );
   }
 
@@ -342,4 +373,230 @@ export async function countRuns(pool: Pool, appId: string): Promise<number> {
     [appId],
   );
   return Number(r.rows[0].n);
+}
+
+// ── Phase 3: healing events + playbooks ──────────────────────────────────────
+
+/**
+ * App-scoped SUCCESSFUL heals as match candidates (R6). When a query embedding
+ * is given, HNSW orders by cosine and we cap to `limit` nearest; otherwise the
+ * most recent. Final scoring/thresholding is the pure `selectPrecedents` (D7).
+ */
+export async function readSuccessfulHealingEvents(
+  pool: Pool,
+  appId: string,
+  queryEmbedding: number[] | null,
+  limit = 50,
+): Promise<HealingEventRow[]> {
+  const q = toSqlVector(queryEmbedding);
+  const order = q
+    ? `ORDER BY failure_embedding <=> $2::vector NULLS LAST`
+    : `ORDER BY created_at DESC`;
+  const params: unknown[] = q ? [appId, q, limit] : [appId, limit];
+  const limitParam = q ? "$3" : "$2";
+  const res = await pool.query<{
+    run_id: string;
+    file: string;
+    flow_id: string | null;
+    failure_signature: string;
+    strategy: string;
+    before_snippet: string;
+    after_snippet: string;
+    embedding: string | null;
+  }>(
+    `SELECT run_id, file, flow_id, failure_signature, strategy,
+            before_snippet, after_snippet, failure_embedding::text AS embedding
+       FROM healing_events
+      WHERE app_id = $1 AND outcome = 'healed'
+      ${order}
+      LIMIT ${limitParam}`,
+    params,
+  );
+  // HNSW narrows the candidate set; the pure selectPrecedents does the final
+  // hybrid (lexical OR cosine) scoring over the vectors we return here (D7).
+  return res.rows.map((r) => ({
+    runId: r.run_id,
+    file: r.file,
+    flowId: r.flow_id,
+    failureSignature: r.failure_signature,
+    strategy: r.strategy as HealStrategy,
+    before: r.before_snippet,
+    after: r.after_snippet,
+    tokens: signatureTokens(r.failure_signature),
+    embedding: parseSqlVector(r.embedding),
+  }));
+}
+
+/** Trusted playbooks for a scope (R12). Only `trusted` rows are ever returned. */
+export async function readTrustedPlaybooks(
+  pool: Pool,
+  scope: PlaybookScope,
+): Promise<Playbook[]> {
+  const res = await pool.query<{
+    id: string;
+    scope_kind: string;
+    scope_key: string;
+    principle: string;
+    antipattern: string | null;
+    recommendation: string;
+    evidence_run_ids: string[];
+    support_count: number;
+    confidence: number;
+  }>(
+    `SELECT id, scope_kind, scope_key, principle, antipattern, recommendation,
+            evidence_run_ids, support_count, confidence
+       FROM playbooks
+      WHERE status = 'trusted' AND scope_kind = $1 AND scope_key = $2
+      ORDER BY support_count DESC, confidence DESC`,
+    [scope.kind, scope.key],
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    scope: { kind: r.scope_kind as PlaybookScope["kind"], key: r.scope_key },
+    principle: r.principle,
+    antipattern: r.antipattern ?? undefined,
+    recommendation: r.recommendation,
+    evidenceRunIds: r.evidence_run_ids ?? [],
+    supportCount: r.support_count,
+    confidence: r.confidence,
+    status: "trusted" as const,
+  }));
+}
+
+// ── Distillation: episodes in, playbooks out, watermark (R9) ─────────────────
+
+/** Healed episodes created after `sinceIso` (the distillation input, R9). */
+export async function readEpisodesSince(
+  pool: Pool,
+  sinceIso: string,
+): Promise<EpisodeInput[]> {
+  const res = await pool.query<{
+    run_id: string;
+    failure_signature: string;
+    strategy: string;
+    before_snippet: string;
+    after_snippet: string;
+    embedding: string | null;
+  }>(
+    `SELECT run_id, failure_signature, strategy, before_snippet, after_snippet,
+            failure_embedding::text AS embedding
+       FROM healing_events
+      WHERE outcome = 'healed' AND created_at > $1
+      ORDER BY created_at ASC`,
+    [sinceIso],
+  );
+  return res.rows.map((r) => ({
+    runId: r.run_id,
+    signature: r.failure_signature,
+    tokens: signatureTokens(r.failure_signature),
+    strategy: r.strategy as HealStrategy,
+    embedding: parseSqlVector(r.embedding),
+    before: r.before_snippet,
+    after: r.after_snippet,
+  }));
+}
+
+/** The latest healing-event timestamp, to advance the watermark. */
+export async function latestEpisodeAt(pool: Pool): Promise<string | null> {
+  const res = await pool.query<{ ts: string | null }>(
+    `SELECT max(created_at)::text AS ts FROM healing_events`,
+  );
+  return res.rows[0]?.ts ?? null;
+}
+
+/** Read / advance the single-row distillation watermark (incremental, R9). */
+export async function readWatermark(pool: Pool): Promise<string> {
+  const res = await pool.query<{ last_run_at: string }>(
+    `SELECT last_run_at::text FROM distill_watermark WHERE id = 1`,
+  );
+  return res.rows[0]?.last_run_at ?? "1970-01-01T00:00:00Z";
+}
+
+export async function setWatermark(pool: Pool, iso: string): Promise<void> {
+  await pool.query(
+    `UPDATE distill_watermark SET last_run_at = $1 WHERE id = 1`,
+    [iso],
+  );
+}
+
+/** Per-app crawl-strategy + coverage aggregate for procedural playbooks (R15). */
+export async function readProceduralAggregates(
+  pool: Pool,
+): Promise<
+  { appId: string; crawlMode: string; runs: number; avgPercent: number }[]
+> {
+  const res = await pool.query<{
+    app_id: string;
+    crawl_mode: string | null;
+    runs: string;
+    avg_percent: string | null;
+  }>(
+    `SELECT r.app_id, r.crawl_mode,
+            count(*)::text AS runs,
+            avg(cs.percent)::text AS avg_percent
+       FROM runs r
+       JOIN coverage_snapshots cs USING (run_id)
+      WHERE r.crawl_mode IS NOT NULL
+      GROUP BY r.app_id, r.crawl_mode`,
+    [],
+  );
+  return res.rows.map((r) => ({
+    appId: r.app_id,
+    crawlMode: r.crawl_mode ?? "unknown",
+    runs: Number(r.runs),
+    avgPercent: r.avg_percent ? Math.round(Number(r.avg_percent)) : 0,
+  }));
+}
+
+/** Fields needed to upsert a distilled playbook. */
+export interface PlaybookUpsert {
+  id: string;
+  scope: PlaybookScope;
+  principle: string;
+  antipattern?: string;
+  recommendation: string;
+  evidenceRunIds: string[];
+  supportCount: number;
+  confidence: number;
+  status: Playbook["status"];
+  embedding?: number[] | null;
+}
+
+/**
+ * Upsert a playbook (R9/R14). Idempotent by `id`: re-distilling unions the
+ * evidence run-ids and refreshes support/confidence/status — never duplicates.
+ */
+export async function upsertPlaybook(
+  pool: Pool,
+  pb: PlaybookUpsert,
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO playbooks
+       (id, scope_kind, scope_key, principle, antipattern, recommendation,
+        evidence_run_ids, support_count, confidence, status, embedding, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::vector, now())
+     ON CONFLICT (id) DO UPDATE SET
+       principle        = EXCLUDED.principle,
+       antipattern      = EXCLUDED.antipattern,
+       recommendation   = EXCLUDED.recommendation,
+       evidence_run_ids = EXCLUDED.evidence_run_ids,
+       support_count    = EXCLUDED.support_count,
+       confidence       = EXCLUDED.confidence,
+       status           = EXCLUDED.status,
+       embedding        = EXCLUDED.embedding,
+       updated_at       = now()`,
+    [
+      pb.id,
+      pb.scope.kind,
+      pb.scope.key,
+      pb.principle,
+      pb.antipattern ?? null,
+      pb.recommendation,
+      pb.evidenceRunIds,
+      pb.supportCount,
+      pb.confidence,
+      pb.status,
+      toSqlVector(pb.embedding),
+    ],
+  );
 }

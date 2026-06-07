@@ -29,6 +29,7 @@ export async function ingestRun(
   const ex = extractRun(report);
 
   if (embedder) await embedSpecs(pool, ex, embedder);
+  if (embedder) await embedHealingSignatures(ex, embedder);
 
   const client = await pool.connect();
   try {
@@ -80,6 +81,36 @@ async function embedSpecs(
     // Best-effort: leave nulls → those specs are matched lexically only.
     console.error(
       `[knowledge] embed-at-ingest failed (lexical only): ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+}
+
+/**
+ * Embed each healing event's failure signature (Phase 3 R5). Best-effort: any
+ * failure leaves null embeddings and precedent matching falls back to lexical
+ * (R13/SC6). Unique signatures are embedded once, then fanned back out.
+ */
+async function embedHealingSignatures(
+  ex: ExtractedRun,
+  embedder: Embedder,
+): Promise<void> {
+  const events = ex.healingEvents ?? [];
+  if (events.length === 0) return;
+  const uniq = [...new Set(events.map((h) => h.failureSignature))].filter(
+    Boolean,
+  );
+  if (uniq.length === 0) return;
+  try {
+    const vecs = await embedder.embed(uniq);
+    const byText = new Map(uniq.map((t, i) => [t, vecs[i] ?? null]));
+    for (const h of events)
+      h.embedding = byText.get(h.failureSignature) ?? null;
+  } catch (err) {
+    // Best-effort: leave nulls → precedents matched lexically only.
+    console.error(
+      `[knowledge] heal-signature embed failed (lexical only): ${
         err instanceof Error ? err.message : String(err)
       }`,
     );

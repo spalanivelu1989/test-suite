@@ -1,5 +1,6 @@
 import type {
   CoverageSummary,
+  CrawlMode,
   FixPrompt,
   Flow,
   RunReport,
@@ -28,6 +29,7 @@ export interface ReportInput {
   flows?: Flow[];
   screenshots?: { filename: string; base64: string }[];
   validation?: ValidationReport;
+  crawlMode?: CrawlMode;
 }
 
 /** T15: assemble the canonical rich JSON report (R11, R16, R17). Pure. */
@@ -54,6 +56,7 @@ export function buildReport(input: ReportInput): RunReport {
     generatedSpecs: input.generatedSpecs,
     screenshots: input.screenshots ?? [],
     validation: input.validation,
+    crawlMode: input.crawlMode,
   };
 }
 

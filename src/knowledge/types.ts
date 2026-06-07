@@ -24,6 +24,91 @@ export interface SpecMatch {
 
 export type CoverageAction = "reuse" | "new";
 
+// ─── Phase 3: Healing memory (ADR-0004) ──────────────────────────────────────
+
+/** How the Healer repaired a failing locator/assertion — a closed set (R2). */
+export type HealStrategy =
+  | "role-locator" // brittle selector → getByRole/getByLabel/getByText
+  | "regex-text" // exact text → regex/partial match for dynamic content
+  | "wait-visibility" // added explicit visibility/wait before interaction
+  | "assertion-fix" // corrected an expectation/matcher
+  | "fixme" // quarantined as test.fixme() (unfixable)
+  | "other"; // a real change that fits none of the above
+
+/**
+ * One repair the Healer made in a run, reconstructed deterministically by
+ * diffing the pre-heal vs post-heal spec file (ADR-0004). Append-only evidence.
+ */
+export interface HealingEvent {
+  runId: string;
+  appId: string;
+  flowId: string | null;
+  file: string;
+  /** Normalized failure signature (ids/lines/timestamps stripped) — R3. */
+  failureSignature: string;
+  /** The broken locator/line(s) from the diff. */
+  before: string;
+  /** The repaired line(s) from the diff. */
+  after: string;
+  strategy: HealStrategy;
+  outcome: "healed" | "fixme";
+  /** Lexical tokens of the signature, for hybrid match (set at extract). */
+  tokens?: string[];
+  /** Semantic embedding of the signature (set at ingest, best-effort) — R5. */
+  embedding?: number[] | null;
+}
+
+/** A prior successful heal surfaced to the Healer/Generator for reuse (R6). */
+export interface HealingPrecedent {
+  runId: string;
+  file: string;
+  flowId: string | null;
+  failureSignature: string;
+  strategy: HealStrategy;
+  before: string;
+  after: string;
+  /** max(lexical, semantic) similarity to the query failure, 0..1. */
+  score: number;
+}
+
+/** A failure to look up precedents for (R6). */
+export interface FailureKey {
+  signature: string;
+  appId: string;
+  flowId?: string | null;
+  /** Optional semantic embedding of the signature (set by the service). */
+  embedding?: number[] | null;
+}
+
+// ─── Phase 3: Playbooks (ADR-0005) ───────────────────────────────────────────
+
+/** Where a distilled principle applies (R9/R12). */
+export interface PlaybookScope {
+  kind: "app" | "global" | "componentType";
+  key: string;
+}
+
+/** Lifecycle of a distilled principle. Only `trusted` is ever injected (R11). */
+export type PlaybookStatus = "episodic" | "trusted";
+
+/**
+ * A distilled, evidence-linked principle produced by the off-hot-path
+ * distillation job (ADR-0005). Generated, never hand-curated (R14 provenance).
+ */
+export interface Playbook {
+  id: string;
+  scope: PlaybookScope;
+  principle: string;
+  antipattern?: string;
+  recommendation: string;
+  /** Run ids whose episodes support this principle (provenance, R14). */
+  evidenceRunIds: string[];
+  supportCount: number;
+  confidence: number;
+  status: PlaybookStatus;
+  embedding?: number[] | null;
+}
+
 /** A reference to a previously generated spec (optionally with its source). */
 export interface SpecRef {
   runId: string;
@@ -78,18 +163,31 @@ export interface CoverageMap {
 export interface GeneratorPack {
   decisions: CoverageDecision[];
   specs: SpecRef[];
+  /** Phase 3: resilient-locator hints derived from past heals (R8). */
+  locatorHints?: string[];
+}
+
+/** Healer-facing half of a context pack — precedents for the run's failures (R7). */
+export interface HealerPack {
+  precedents: HealingPrecedent[];
 }
 
 /** Token-bounded knowledge injected into an agent prompt (I4). */
 export interface ContextPack {
   /** Decisions + existing specs for the Generator. */
   generator?: GeneratorPack;
+  /** Phase 3: healing precedents for the Healer (R7). */
+  healer?: HealerPack;
+  /** Phase 3: trusted distilled principles for any stage (R12). */
+  playbooks?: Playbook[];
 }
 
 /** Progress signals surfaced to the run's event stream (no silent magic). */
 export type KnowledgeEvent =
   | { kind: "ingested"; appId: string; runId: string; flows: number }
   | { kind: "decision"; reuse: number; new: number }
+  | { kind: "precedents"; failures: number; matched: number }
+  | { kind: "playbooks"; injected: number }
   | { kind: "disabled"; reason: string }
   | { kind: "error"; op: string; message: string };
 
@@ -131,6 +229,19 @@ export interface KnowledgeService {
     appId: string,
     k: number,
   ): Promise<SpecMatch[]>;
+  /**
+   * Phase 3: top-k prior SUCCESSFUL heals for a similar failure, app-scoped,
+   * via hybrid lexical-OR-semantic match (R6). Empty when disabled/cold.
+   */
+  getHealingPrecedents(
+    failure: FailureKey,
+    k?: number,
+  ): Promise<HealingPrecedent[]>;
+  /**
+   * Phase 3: trusted distilled playbooks for a scope (R12). Only `trusted`
+   * playbooks are ever returned; empty when disabled/cold.
+   */
+  getPlaybooks(scope: PlaybookScope): Promise<Playbook[]>;
   /** Release resources (pool). */
   close(): Promise<void>;
 }

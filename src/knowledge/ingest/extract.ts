@@ -4,6 +4,7 @@ import { norm, significantTokens } from "../../coverage/coverage";
 import { extractTitle, parsePlanScenarios } from "../../validator/validate";
 import { normalizeOrigin } from "../appId";
 import { REUSE_MARKER } from "../constants";
+import type { HealingEvent } from "../types";
 
 // Normalize a RunReport into knowledge-base rows (Spec R3). DEFENSIVE: any
 // missing/malformed field is skipped, never thrown (Plan RK5) — a partial report
@@ -11,7 +12,13 @@ import { REUSE_MARKER } from "../constants";
 
 export interface ExtractedRun {
   appId: string;
-  run: { runId: string; appId: string; url: string; status: string | null };
+  run: {
+    runId: string;
+    appId: string;
+    url: string;
+    status: string | null;
+    crawlMode: string | null;
+  };
   specs: {
     file: string;
     title: string | null;
@@ -58,6 +65,8 @@ export interface ExtractedRun {
     dstType: string;
     dstId: string;
   }[];
+  /** Phase 3: healing events captured by the orchestrator (ADR-0004). */
+  healingEvents: HealingEvent[];
 }
 
 function sha1(s: string): string {
@@ -195,14 +204,28 @@ export function extractRun(report: RunReport): ExtractedRun {
       });
   }
 
+  // Phase 3: heals are captured by the orchestrator (pre/post diff) and attached
+  // to the report; carry them through, re-stamping run/app so a partial report
+  // can't smuggle a mismatched id (ADR-0004).
+  const healingEvents: HealingEvent[] = (report.healingEvents ?? []).map(
+    (h) => ({ ...h, runId, appId }),
+  );
+
   return {
     appId,
-    run: { runId, appId, url: report.url ?? "", status: "completed" },
+    run: {
+      runId,
+      appId,
+      url: report.url ?? "",
+      status: "completed",
+      crawlMode: report.crawlMode ?? null,
+    },
     specs,
     flows: [...flowsById.values()].map((f) => ({ appId, ...f })),
     planScenarios,
     testResults,
     coverage,
     edges,
+    healingEvents,
   };
 }

@@ -14,7 +14,13 @@ import {
 } from "../results/parse";
 import { buildReport } from "../reporter/report";
 import { generateNarrative } from "../reporter/narrative";
-import type { Flow, ProgressEvent, RunConfig, RunReport } from "../types";
+import type {
+  Flow,
+  ProgressEvent,
+  RunConfig,
+  RunReport,
+  TestResult,
+} from "../types";
 import {
   generateTests,
   healTests,
@@ -23,6 +29,9 @@ import {
   type StageDeps,
 } from "./stages";
 import { createKnowledgeService, type KnowledgeService } from "../knowledge";
+import { captureHealDeltas } from "../knowledge/heal/captureHeal";
+import { normalizeFailure } from "../knowledge/heal/signature";
+import type { HealingPrecedent } from "../knowledge/types";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -50,6 +59,36 @@ export class CancelledError extends Error {
     super(message);
     this.name = "CancelledError";
   }
+}
+
+/**
+ * Phase 3: gather prior successful heals for this run's failures, deduped by
+ * failure signature (R7). Best-effort — the KnowledgeService never throws, so a
+ * cold/disabled KB just yields no precedents and the Healer runs as before.
+ */
+async function collectHealingPrecedents(
+  knowledge: KnowledgeService,
+  url: string,
+  results: TestResult[],
+): Promise<HealingPrecedent[]> {
+  const appId = knowledge.appIdFor(url);
+  const failed = results.filter(
+    (r) => r.outcome === "failed" || !!r.failureReason,
+  );
+  const seen = new Set<string>();
+  const out: HealingPrecedent[] = [];
+  for (const r of failed) {
+    const signature = normalizeFailure(r.failureReason);
+    if (!signature || seen.has(signature)) continue;
+    seen.add(signature);
+    const matches = await knowledge.getHealingPrecedents({
+      signature,
+      appId,
+      flowId: r.flowId,
+    });
+    out.push(...matches);
+  }
+  return out;
 }
 
 /**
@@ -162,9 +201,30 @@ export async function runPipeline(
   const initial = await captureResults(ws);
   checkCancelled();
 
+  // Snapshot specs BEFORE healing so we can diff what the Healer changed (ADR-0004).
+  const preHealSpecs = await readGeneratedSpecs(ws);
+
   // Feed validation findings to the Healer so it fixes flagged anti-patterns too.
+  // Healing precedents (prior fixes for similar failures) are injected best-effort.
   emit("healing", "Healer: repairing failures and quarantining the unfixable");
-  await healTests(ws, onAgent("healing", "healer"), stageDeps, validation);
+  const precedents = await collectHealingPrecedents(
+    knowledge,
+    config.url,
+    initial,
+  );
+  // Trusted distilled principles (global heal lessons + this app's) for the Healer.
+  const healPlaybooks = await knowledge.getPlaybooks({
+    kind: "global",
+    key: "all",
+  });
+  await healTests(
+    ws,
+    onAgent("healing", "healer"),
+    stageDeps,
+    validation,
+    precedents,
+    healPlaybooks,
+  );
   agentRuns++;
   checkCancelled();
 
@@ -176,6 +236,13 @@ export async function runPipeline(
   // 4. Reporter
   emit("reporting", "Reporter: aggregating results and recommendations");
   const specs = await readGeneratedSpecs(ws);
+
+  // Reconstruct what the Healer fixed by diffing pre/post-heal specs (ADR-0004).
+  const healingEvents = captureHealDeltas(preHealSpecs, specs, results, {
+    runId,
+    appId: knowledge.appIdFor(config.url),
+  });
+
   const planMarkdown = await readPlan(ws);
   const coverage = coverageFromResults(deps.curatedFlows, results);
   const narrative = await generateNarrative(
@@ -222,7 +289,10 @@ export async function runPipeline(
     flows: deps.curatedFlows,
     screenshots,
     validation,
+    crawlMode: config.crawlMode,
   });
+  // Phase 3: attach captured heals so ingestRun persists them (ADR-0004).
+  report.healingEvents = healingEvents;
 
   // T9/R11: new execution data becomes knowledge. Best-effort — ingestRun never
   // throws, so a KB hiccup cannot fail a completed run.
