@@ -76,6 +76,21 @@ summarize?)` takes an optional `(prompt)=>Promise<string>`. The CLI wires
 - **Built & verified (code):** T1–T22 — all of Phase 3a + 3b + the additive-no-
   regression guard (T21) + ADRs (T22). `tsc --noEmit` clean; **181 unit tests
   pass, 0 fail** (26 DB-gated tests auto-skip without Postgres).
-- **Pending:** T23 (metrics calibration — needs DEP4 + a running DB + live runs)
-  and execution of the DB integration suites (heal + distill) once Postgres :5433
-  is back up. Both are environment/data-gated, not code-gated.
+- **Pending:** T23 (metrics calibration — needs DEP4 labeled set + live runs →
+  `/measure`).
+
+## 2026-06-07 — DB blocker resolved; full DB suite green
+
+- Brought `postgresql@18` up on **:5433** directly (`pg_ctl -o "-p 5433"`; its
+  `postgresql.conf` defaults to 5432, which is why the brew service mismatched).
+  Created/where-present the `knowledge` DB, confirmed pgvector 0.8.x, ran
+  `knowledge:migrate` → **`0003` applied cleanly**.
+- **`npm run test:db`: 207 tests, 207 pass, 0 fail, 0 skipped.** Validates
+  migration 0003, healing-event persist + idempotency (re-ingest no-dup),
+  semantic precedent retrieval through the 384-d HNSW index, and the full
+  distillation → trusted-playbook → second-run-no-op flow. No regression in the
+  201 Phase-1/2 DB tests.
+- **Gotcha:** integration `FakeEmbedder` must be constructed with **dims=384**
+  (it pads) to match the `vector(384)` columns; a 3-d fake makes the insert throw
+  and best-effort `withKb` silently rolls back (0 rows). Matches the Phase-2
+  `semantic.integration.test.ts` pattern.

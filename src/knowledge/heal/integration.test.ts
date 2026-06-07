@@ -22,7 +22,8 @@ const VECS: Record<string, number[]> = {
   "timeouterror locator not found": [1, 0, 0],
   "expect tohavetext mismatch": [0, 1, 0],
 };
-const embedder = new FakeEmbedder(VECS, 3);
+// 384-d to match the vector(384) columns (FakeEmbedder pads).
+const embedder = new FakeEmbedder(VECS, 384);
 
 function healEvent(over: Partial<HealingEvent> = {}): HealingEvent {
   return {

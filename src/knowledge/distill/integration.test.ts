@@ -13,9 +13,10 @@ import { runDistillation } from "./run";
 const DB = process.env.KNOWLEDGE_DATABASE_URL;
 const opts = { skip: DB ? false : "KNOWLEDGE_DATABASE_URL not set" };
 
+// 384-d to match the vector(384) columns (FakeEmbedder pads).
 const embedder = new FakeEmbedder(
   { "timeouterror locator not found": [1, 0, 0] },
-  3,
+  384,
 );
 
 function healEvent(): HealingEvent {
