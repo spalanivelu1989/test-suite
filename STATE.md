@@ -10,17 +10,19 @@ and after every task completed during Forge.
 > **Initiatives in flight:**
 >
 > **(D) Knowledge-Driven Testing Platform — Phase 3** (healing memory + playbook
-> distillation; spec at `specs/knowledge-platform-phase-3/`) — **Test & Tune
-> complete; review PASS, recommend SHIP** (awaiting Human Gate). All 3 layers
-> PASS: Function (tsc clean, **209/209 DB tests** incl. migration 0003, heal
+> distillation; spec at `specs/knowledge-platform-phase-3/`) — **SHIPPED & MERGED
+> to `main`** (Stage 5 review PASS on all 3 layers → Human Gate: Ship → merged
+> `--no-ff`; post-merge tsc clean + **209/209 DB tests pass on main**; NOT yet
+> pushed to origin). All 3 layers PASS: Function (migration 0003, heal
 > persist/idempotency, semantic precedent via HNSW, distill→trusted→no-op),
 > Quality (deep modules, additive guarantee proven), Alignment (all 14 Must ACs +
-> both Shoulds pass). Review caught & fixed a dead R15 path (`crawl_mode` was never
+> both Shoulds). Review caught & fixed a dead R15 path (`crawl_mode` was never
 > persisted → procedural playbooks couldn't fire); `crawlMode` now threaded
-> end-to-end + AC17 test. Validator 18/18. Report at `…/review-report.md`. Deferred
-> to `/measure`: M1/M2/M3 outcome metrics + threshold calibration (need DEP4 labeled
-> set + live runs). Branch `phase-3-healing-playbooks` (5 commits, not yet merged).
-> Built on T1–T22; tsc clean. Built: deterministic heal
+> end-to-end + AC17 test. Validator 18/18. Report at `…/review-report.md`.
+> **Deferred to `/craft-framework:measure`:** M1 (heal-precedent reuse ≥60%), M2
+> (bad-fix propagation ≤5%), M3 (trusted-playbook precision ≥90%) + threshold
+> calibration — need the labeled recurring-failure set (DEP4) + live tarento.com
+> runs. New script `knowledge:distill`. Built: deterministic heal
 > capture by pre/post-heal spec diff (`src/knowledge/heal/`, ADR-0004), migration
 > `0003` (healing_events + playbooks + distill_watermark), embed-at-ingest for
 > failure signatures, hybrid precedent retrieval wired to the Healer + locator
