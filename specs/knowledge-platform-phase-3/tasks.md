@@ -14,84 +14,84 @@ tasks at the same dependency level.
 
 ## Phase 3a — Healing memory
 
-### T1 — [ ] Types: HealingEvent, HealStrategy, HealingPrecedent [P]
+### T1 — [x] Types: HealingEvent, HealStrategy, HealingPrecedent [P]
 
 - **Covers:** R1, R2, R6 (I1, I4)
 - **Depends on:** —
 - **Parallel:** yes
 - **Done-when:** `types.ts` defines `HealStrategy` (closed set: `role-locator`, `regex-text`, `wait-visibility`, `assertion-fix`, `fixme`, `other`), `HealingEvent` (per I1), and `HealingPrecedent`; `getHealingPrecedents` is added to `KnowledgeService`; the disabled service returns `[]`; `tsc --noEmit` clean.
 
-### T2 — [ ] Failure-signature normalizer [P]
+### T2 — [x] Failure-signature normalizer [P]
 
 - **Covers:** R3
 - **Depends on:** —
 - **Parallel:** yes
 - **Done-when:** `heal/signature.ts` `normalizeFailure(reason)` strips dynamic ids, line/column numbers, timestamps, and absolute paths to a stable key; unit-proven that two reasons differing only in those collapse to one signature (AC3).
 
-### T3 — [ ] Strategy classifier [P]
+### T3 — [x] Strategy classifier [P]
 
 - **Covers:** R2
 - **Depends on:** T1
 - **Parallel:** yes
 - **Done-when:** `heal/strategy.ts` `classifyStrategy(before, after)` returns the right `HealStrategy` for: role-locator swap, regex text fix, added visibility/explicit wait, assertion change, `test.fixme()`, and unknown→`other`; pure, table-driven tests (AC2); never throws.
 
-### T4 — [ ] captureHealDeltas (pure diff core)
+### T4 — [x] captureHealDeltas (pure diff core)
 
 - **Covers:** R1, N1
 - **Depends on:** T1, T2, T3
 - **Parallel:** no
 - **Done-when:** `heal/captureHeal.ts` `captureHealDeltas(preSpecs, postSpecs, results)` emits one `HealingEvent` per changed locator (line-scoped before/after, `strategy`, `signature`, `outcome` healed|fixme); pure (no DB/LLM); carries the inline capture diagram; unit-proven over pre/post fixtures (AC1).
 
-### T5 — [ ] Migration 0003 (healing_events + playbooks) [P]
+### T5 — [x] Migration 0003 (healing_events + playbooks) [P]
 
 - **Covers:** R4, R9
 - **Depends on:** —
 - **Parallel:** yes
 - **Done-when:** `store/migrations/0003_healing_playbooks.sql` creates `healing_events` (+ `failure_embedding vector(384)` + HNSW cosine index) and `playbooks` (+ `embedding vector(384)` + HNSW + `status`), plus a `distill_watermark` store; `npm run knowledge:migrate` applies it; re-running is a no-op (AC4).
 
-### T6 — [ ] extract: carry healingEvents
+### T6 — [x] extract: carry healingEvents
 
 - **Covers:** R1, R3
 - **Depends on:** T1, T2
 - **Parallel:** no
 - **Done-when:** `extract.ts` puts `healingEvents` on `ExtractedRun` (with `failureSignature` + lexical signature tokens) sourced from `report.healingEvents`; unit-proven the shape round-trips.
 
-### T7 — [ ] orchestrate: pre/post-heal snapshot → captureHealDeltas
+### T7 — [x] orchestrate: pre/post-heal snapshot → captureHealDeltas
 
 - **Covers:** R1
 - **Depends on:** T4
 - **Parallel:** no
 - **Done-when:** `orchestrate.ts` snapshots generated specs before `healTests`, re-reads healed specs after, calls `captureHealDeltas`, and attaches `report.healingEvents`; verified DEP3 (snapshots available) or snapshots into the workspace first; no behavior change when nothing healed.
 
-### T8 — [ ] repo + ingest: persist events, embed signature (best-effort, cached)
+### T8 — [x] repo + ingest: persist events, embed signature (best-effort, cached)
 
 - **Covers:** R4, R5, R13, N5
 - **Depends on:** T5, T6
 - **Parallel:** no
 - **Done-when:** `persistRun` writes `healing_events` (DELETE-by-run then INSERT — idempotent); `ingestRun` embeds each signature via cache-or-`withKb(embed)` (null on failure, ingestion still commits); carries the inline embed-at-ingest diagram (AC5/AC6).
 
-### T9 — [ ] repo: findHealingPrecedents + getHealingPrecedents core
+### T9 — [x] repo: findHealingPrecedents + getHealingPrecedents core
 
 - **Covers:** R6
 - **Depends on:** T1, T8
 - **Parallel:** no
 - **Done-when:** `retrieve/healingPrecedents.ts` selects top-k **successful** prior heals by `max(lexical, semantic)` ≥ threshold, app-scoped (pure core, fake-embedder testable); `repo.findHealingPrecedents` provides HNSW candidate fetch; `index.ts` exposes `getHealingPrecedents` (best-effort, `[]` when disabled) (AC7).
 
-### T10 — [ ] Wire precedents into Healer + locator hints into Generator
+### T10 — [x] Wire precedents into Healer + locator hints into Generator
 
 - **Covers:** R7, R8, N2
 - **Depends on:** T9
 - **Parallel:** no
 - **Done-when:** `stages.ts`/`contextPack.ts` inject matched precedents (strategy + before→after) into the Healer prompt and `locatorHints` into the Generator pack; both best-effort and token-budgeted; with none present the prompts are byte-identical to Phase 2 (AC8/AC9).
 
-### T11 — [ ] 3a unit tests: capture, classifier, normalizer, precedent, no-regression [P]
+### T11 — [x] 3a unit tests: capture, classifier, normalizer, precedent, no-regression [P]
 
 - **Covers:** R1, R2, R3, R6, R13, N1, N2
 - **Depends on:** T4, T9, T10
 - **Parallel:** yes
 - **Done-when:** `tsx --test` (no DB/LLM): `captureHealDeltas` (AC1), `classifyStrategy` (AC2), `normalizeFailure` (AC3), hybrid precedent selection (AC7), and **features-off ⇒ prompts identical to Phase 2** (AC16/N2); capture+persist ≤200 ms (N1).
 
-### T12 — [ ] 3a integration tests vs pgvector DB [P]
+### T12 — [x] 3a integration tests vs pgvector DB [P]
 
 - **Covers:** R4, R5, R6, N4, N5
 - **Depends on:** T8, T9

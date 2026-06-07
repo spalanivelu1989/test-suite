@@ -32,6 +32,8 @@ function fakeKnowledge(partial: Partial<KnowledgeService>): KnowledgeService {
       s.map((x) => ({ scenario: x.name, action: "new", score: 0 })),
     assembleContext: async () => ({}),
     findSimilarSpecs: async () => [],
+    getHealingPrecedents: async () => [],
+    getPlaybooks: async () => [],
     close: async () => {},
     ...partial,
   };

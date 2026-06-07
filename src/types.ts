@@ -2,6 +2,9 @@
 // module (crawler, flows, generator, runner, reporter, store, API, UI) agrees on
 // one vocabulary (CONTEXT.md). Builders implement the producers in later tasks.
 
+// Type-only import (erased at compile — no runtime cycle with knowledge/types).
+import type { HealingEvent } from "./knowledge/types";
+
 /**
  * Crawl strategy selected by the user in the Launch Wizard.
  * Drives both the depth of exploration and the expected test-scenario budget.
@@ -216,6 +219,8 @@ export interface RunReport {
   screenshots?: { filename: string; base64: string }[];
   /** Static-validation results for the generated specs (Validation stage). */
   validation?: ValidationReport;
+  /** Phase 3: heals captured by diffing pre/post-heal specs (ADR-0004). */
+  healingEvents?: HealingEvent[];
 }
 
 /** A run as tracked by the in-memory store (R8). */

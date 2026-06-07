@@ -1,6 +1,9 @@
 import type { Pool, PoolClient } from "pg";
 import type { RunReport } from "../../types";
+import { signatureTokens } from "../heal/signature";
 import type { ExtractedRun } from "../ingest/extract";
+import type { HealingEventRow } from "../retrieve/healingPrecedents";
+import type { HealStrategy, Playbook, PlaybookScope } from "../types";
 
 // All SQL lives here (Plan D2). Writes are idempotent by run; every read is
 // app-scoped (N5). Callers get behavioral operations, never raw SQL.
@@ -43,7 +46,12 @@ export async function persistRun(
   );
 
   // Idempotent replace of this run's child rows.
-  for (const t of ["specs", "plan_scenarios", "test_results"]) {
+  for (const t of [
+    "specs",
+    "plan_scenarios",
+    "test_results",
+    "healing_events",
+  ]) {
     await client.query(`DELETE FROM ${t} WHERE run_id = $1`, [run.runId]);
   }
   await client.query(`DELETE FROM coverage_snapshots WHERE run_id = $1`, [
@@ -110,6 +118,28 @@ export async function persistRun(
        VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (src_type, src_id, rel, dst_type, dst_id) DO NOTHING`,
       [e.appId, e.srcType, e.srcId, e.rel, e.dstType, e.dstId],
+    );
+  }
+
+  // Phase 3: append-only healing events (ADR-0004). Already deleted-by-run above.
+  for (const h of ex.healingEvents ?? []) {
+    await client.query(
+      `INSERT INTO healing_events
+         (run_id, app_id, flow_id, file, failure_signature, failure_embedding,
+          before_snippet, after_snippet, strategy, outcome)
+       VALUES ($1,$2,$3,$4,$5,$6::vector,$7,$8,$9,$10)`,
+      [
+        run.runId,
+        appId,
+        h.flowId,
+        h.file,
+        h.failureSignature,
+        toSqlVector(h.embedding),
+        h.before,
+        h.after,
+        h.strategy,
+        h.outcome,
+      ],
     );
   }
 
@@ -342,4 +372,92 @@ export async function countRuns(pool: Pool, appId: string): Promise<number> {
     [appId],
   );
   return Number(r.rows[0].n);
+}
+
+// ── Phase 3: healing events + playbooks ──────────────────────────────────────
+
+/**
+ * App-scoped SUCCESSFUL heals as match candidates (R6). When a query embedding
+ * is given, HNSW orders by cosine and we cap to `limit` nearest; otherwise the
+ * most recent. Final scoring/thresholding is the pure `selectPrecedents` (D7).
+ */
+export async function readSuccessfulHealingEvents(
+  pool: Pool,
+  appId: string,
+  queryEmbedding: number[] | null,
+  limit = 50,
+): Promise<HealingEventRow[]> {
+  const q = toSqlVector(queryEmbedding);
+  const order = q
+    ? `ORDER BY failure_embedding <=> $2::vector NULLS LAST`
+    : `ORDER BY created_at DESC`;
+  const params: unknown[] = q ? [appId, q, limit] : [appId, limit];
+  const limitParam = q ? "$3" : "$2";
+  const res = await pool.query<{
+    run_id: string;
+    file: string;
+    flow_id: string | null;
+    failure_signature: string;
+    strategy: string;
+    before_snippet: string;
+    after_snippet: string;
+    embedding: string | null;
+  }>(
+    `SELECT run_id, file, flow_id, failure_signature, strategy,
+            before_snippet, after_snippet, failure_embedding::text AS embedding
+       FROM healing_events
+      WHERE app_id = $1 AND outcome = 'healed'
+      ${order}
+      LIMIT ${limitParam}`,
+    params,
+  );
+  // HNSW narrows the candidate set; the pure selectPrecedents does the final
+  // hybrid (lexical OR cosine) scoring over the vectors we return here (D7).
+  return res.rows.map((r) => ({
+    runId: r.run_id,
+    file: r.file,
+    flowId: r.flow_id,
+    failureSignature: r.failure_signature,
+    strategy: r.strategy as HealStrategy,
+    before: r.before_snippet,
+    after: r.after_snippet,
+    tokens: signatureTokens(r.failure_signature),
+    embedding: parseSqlVector(r.embedding),
+  }));
+}
+
+/** Trusted playbooks for a scope (R12). Only `trusted` rows are ever returned. */
+export async function readTrustedPlaybooks(
+  pool: Pool,
+  scope: PlaybookScope,
+): Promise<Playbook[]> {
+  const res = await pool.query<{
+    id: string;
+    scope_kind: string;
+    scope_key: string;
+    principle: string;
+    antipattern: string | null;
+    recommendation: string;
+    evidence_run_ids: string[];
+    support_count: number;
+    confidence: number;
+  }>(
+    `SELECT id, scope_kind, scope_key, principle, antipattern, recommendation,
+            evidence_run_ids, support_count, confidence
+       FROM playbooks
+      WHERE status = 'trusted' AND scope_kind = $1 AND scope_key = $2
+      ORDER BY support_count DESC, confidence DESC`,
+    [scope.kind, scope.key],
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    scope: { kind: r.scope_kind as PlaybookScope["kind"], key: r.scope_key },
+    principle: r.principle,
+    antipattern: r.antipattern ?? undefined,
+    recommendation: r.recommendation,
+    evidenceRunIds: r.evidence_run_ids ?? [],
+    supportCount: r.support_count,
+    confidence: r.confidence,
+    status: "trusted" as const,
+  }));
 }

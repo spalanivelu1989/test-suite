@@ -3,8 +3,13 @@ import { normalizeOrigin } from "./appId";
 import { buildGeneratorPack } from "./assemble/contextPack";
 import { type Embedder, LocalEmbedder } from "./embeddings/embed";
 import { ingestRun as doIngest } from "./ingest/ingestRun";
+import { signatureTokens } from "./heal/signature";
 import { getAppProfile, getCoverageMap } from "./retrieve/appProfile";
 import { decideForSpecs } from "./retrieve/coverageDecision";
+import {
+  deriveLocatorHints,
+  selectPrecedents,
+} from "./retrieve/healingPrecedents";
 import { withKb } from "./safety";
 import { closePool, getPool } from "./store/db";
 import {
@@ -12,15 +17,21 @@ import {
   readLastPlan,
   readSpecCode,
   readSpecsForApp,
+  readSuccessfulHealingEvents,
+  readTrustedPlaybooks,
 } from "./store/repo";
 import type {
   AppProfile,
   ContextPack,
   CoverageDecision,
   CoverageMap,
+  FailureKey,
+  HealingPrecedent,
   KnowledgeConfig,
   KnowledgeEvent,
   KnowledgeService,
+  Playbook,
+  PlaybookScope,
   ScenarioInput,
   SpecMatch,
   SpecRef,
@@ -66,6 +77,12 @@ class DisabledKnowledgeService implements KnowledgeService {
     return {};
   }
   async findSimilarSpecs(): Promise<SpecMatch[]> {
+    return [];
+  }
+  async getHealingPrecedents(): Promise<HealingPrecedent[]> {
+    return [];
+  }
+  async getPlaybooks(): Promise<Playbook[]> {
     return [];
   }
   async close() {}
@@ -192,7 +209,13 @@ class PgKnowledgeService implements KnowledgeService {
         const decisions = decideForSpecs(withEmb, specRows);
         const specs = await this.collectSpecRefs(decisions);
         this.onEvent?.({ kind: "decision", ...tally(decisions) });
-        return { generator: buildGeneratorPack(decisions, specs) };
+        // Phase 3: resilient-locator hints from this app's past heals (R8).
+        const heals = await readSuccessfulHealingEvents(this.pool, appId, null);
+        const locatorHints = deriveLocatorHints(heals);
+        const pack = buildGeneratorPack(decisions, specs);
+        return {
+          generator: locatorHints.length ? { ...pack, locatorHints } : pack,
+        };
       },
       {},
       { onError: this.onError },
@@ -235,6 +258,47 @@ class PgKnowledgeService implements KnowledgeService {
         if (!emb) return [];
         return findNearestSpecs(this.pool, appId, emb, k);
       },
+      [],
+      { onError: this.onError },
+    );
+  }
+
+  async getHealingPrecedents(
+    failure: FailureKey,
+    k = 3,
+  ): Promise<HealingPrecedent[]> {
+    return withKb<HealingPrecedent[]>(
+      "getHealingPrecedents",
+      async () => {
+        // Embed the query signature (best-effort), let HNSW narrow candidates,
+        // then the pure selectPrecedents does the hybrid scoring (D7).
+        const [emb] = await this.embedTexts([failure.signature]);
+        const candidates = await readSuccessfulHealingEvents(
+          this.pool,
+          failure.appId,
+          emb,
+        );
+        const precedents = selectPrecedents(
+          { tokens: signatureTokens(failure.signature), embedding: emb },
+          candidates,
+          { k },
+        );
+        this.onEvent?.({
+          kind: "precedents",
+          failures: 1,
+          matched: precedents.length,
+        });
+        return precedents;
+      },
+      [],
+      { onError: this.onError },
+    );
+  }
+
+  async getPlaybooks(scope: PlaybookScope): Promise<Playbook[]> {
+    return withKb<Playbook[]>(
+      "getPlaybooks",
+      () => readTrustedPlaybooks(this.pool, scope),
       [],
       { onError: this.onError },
     );

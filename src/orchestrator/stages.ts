@@ -21,6 +21,29 @@ import {
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { REUSE_MARKER, type KnowledgeService } from "../knowledge";
+import type { HealingPrecedent } from "../knowledge/types";
+
+/** Max precedents injected into the Healer prompt (token budget, C5/D8). */
+const MAX_HEAL_PRECEDENTS = 5;
+
+/** Render prior fixes as a compact, budgeted prompt block (R7). Empty → "". */
+export function formatPrecedentsForHealer(
+  precedents: HealingPrecedent[],
+): string {
+  if (precedents.length === 0) return "";
+  const lines = precedents
+    .slice(0, MAX_HEAL_PRECEDENTS)
+    .map((p, i) => {
+      const before = p.before.replace(/\s+/g, " ").trim().slice(0, 160);
+      const after = p.after.replace(/\s+/g, " ").trim().slice(0, 160);
+      return `${i + 1}. [${p.strategy}] failure "${p.failureSignature}" was fixed by: ${before} -> ${after}`;
+    })
+    .join("\n");
+  return [
+    "KNOWN FIXES from prior runs (apply the matching one before improvising):",
+    lines,
+  ].join("\n");
+}
 
 // The four pipeline stages (T6–T8 + results). Each stage runs one agent in the
 // run workspace via the runtime; deps are injectable so the orchestration is
@@ -307,6 +330,13 @@ async function applyGeneratorKnowledge(
   lines.push(
     "Generate tests for every other scenario in the plan — do not skip any.",
   );
+  // Phase 3: resilient-locator hints distilled from this app's past heals (R8).
+  if (gen.locatorHints?.length) {
+    lines.push(
+      "RESILIENT LOCATORS — apply these lessons from prior healed failures:",
+      ...gen.locatorHints.map((h) => `- ${h}`),
+    );
+  }
   return lines;
 }
 
@@ -433,6 +463,7 @@ export async function healTests(
   onEvent?: (e: AgentEvent) => void,
   deps: StageDeps = {},
   validation?: ValidationReport,
+  precedents: HealingPrecedent[] = [],
 ): Promise<HealResult> {
   const load = deps.loadAgentFn ?? loadAgent;
   const run = deps.runner ?? runAgent;
@@ -441,11 +472,15 @@ export async function healTests(
   const validationBlock = validation
     ? formatValidationForHealer(validation)
     : "";
+  // Phase 3: surface prior successful fixes for similar failures (R7). Best-effort
+  // and token-budgeted; with no precedents the prompt is identical to Phase 2 (N2).
+  const precedentBlock = formatPrecedentsForHealer(precedents);
   const prompt = [
     "Run the generated test suite by executing npx playwright test via Bash. For each failing test, debug it by",
     "running it specifically or inspecting the page using playwright-cli, fix the spec (resilient locators, corrected assertions)",
     "using Edit/Write tools, and re-run until it passes. If a test cannot be fixed and you are confident it is a genuine failure,",
     "mark it test.fixme() with a comment explaining what is happening. Do not ask questions.",
+    ...(precedentBlock ? ["\n\n" + precedentBlock] : []),
     ...(validationBlock ? ["\n\n" + validationBlock] : []),
   ].join(" ");
 
