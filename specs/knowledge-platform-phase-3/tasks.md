@@ -12,7 +12,9 @@ tasks at the same dependency level.
 
 ---
 
-## Phase 3a — Healing memory
+## Task list
+
+### Phase 3a — Healing memory
 
 ### T1 — [x] Types: HealingEvent, HealStrategy, HealingPrecedent [P]
 
@@ -98,7 +100,7 @@ tasks at the same dependency level.
 - **Parallel:** yes
 - **Done-when:** against a pgvector test DB: ingest→persist events; re-ingest same `runId` → no duplicates (AC5); embedder-throws → null embedding, ingest commits (AC6); `findHealingPrecedents` ranks the matching successful heal first, app-scoped (AC7); warm retrieval ≤300 ms (N4). Deterministic embedder.
 
-## Phase 3b — Playbook distillation
+### Phase 3b — Playbook distillation
 
 ### T13 — [x] Types: Playbook, PlaybookScope; ContextPack extension [P]
 

@@ -160,3 +160,28 @@ additive and prove the baseline-equivalence with a diff test, not a manual argum
 review report; live numbers deferred to /measure.
 **Future prevention:** any metric whose ground truth is AI-generated is provisional
 until a human verifies the set — say so loudly next to the number.
+
+### [2026-06-07] A new requirement can be silently dead if nothing writes the column it reads
+
+**Trigger:** Phase 3 R15 (procedural playbooks) read `runs.crawl_mode`, but
+`persistRun` never wrote it and `RunReport` never carried it — the aggregation
+always returned empty. Caught in Stage 5 by tracing the data to its source.
+**Root cause:** a Should-level requirement depended on a legacy column that no
+producer populated; tests that didn't set it passed anyway (empty result).
+**Fix:** threaded `crawlMode` RunConfig→RunReport→buildReport→extract→persistRun;
+added an AC17 procedural test that asserts a real row.
+**Future prevention:** when a requirement reads an existing schema column, verify a
+producer actually writes it; add a test that asserts a non-empty result, not just
+"no error".
+
+### [2026-06-07] Integration fakes must match the pgvector column dimension
+
+**Trigger:** Phase 3 heal/distill DB tests inserted 3-d fake embeddings into
+`vector(384)` columns; the insert threw and best-effort `withKb` rolled back,
+surfacing as "0 rows" rather than an error.
+**Root cause:** a dimension mismatch is a hard pgvector error, but the best-effort
+wrapper hides it, so the test fails on a confusing count assertion.
+**Fix:** construct `FakeEmbedder(map, 384)` (it pads) — the Phase-2
+`semantic.integration.test.ts` pattern.
+**Future prevention:** any embedding integration fake uses the real column dim;
+when a "0 rows" assertion fails under best-effort ingest, suspect a silent rollback.
