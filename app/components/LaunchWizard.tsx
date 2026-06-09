@@ -47,7 +47,14 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
   const getExpectedTests = (pagesVal: string) => {
     const pages = parseInt(pagesVal);
     const budget = crawlMode === "direct" ? (pages === 2 ? 1.5 : 1) : pages;
-    const rate = crawlMode === "direct" ? 8 : crawlMode === "standard" ? 5 : crawlMode === "deep" ? 4 : 3;
+    const rate =
+      crawlMode === "direct"
+        ? 8
+        : crawlMode === "standard"
+          ? 5
+          : crawlMode === "deep"
+            ? 4
+            : 3;
     return budget * rate;
   };
 
@@ -68,7 +75,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
       case "standard":
         return "This tests the starting page and all pages directly linked from it (1 click away). Perfect for verifying your main sections like Login, About, and Contact pages.";
       case "deep":
-        return "This tests pages up to 3 clicks away from the starting page. Best for checking nested features, product catalogs, or multi-step forms.";
+        return "This tests pages up to 2 clicks away from the starting page. Best for checking nested features, product catalogs, or multi-step forms.";
       case "aggressive":
         return "This tests pages up to 10 clicks away from the starting page, scanning almost the entire site. Best for comprehensive audits of large portals.";
       default:
@@ -277,9 +284,8 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     {crawlMode === "direct" && "Direct page only (depth 0)"}
                     {crawlMode === "standard" &&
                       "Standard depth — links of entry (depth 1)"}
-                    {crawlMode === "deep" && "Deep — 3 levels down"}
-                    {crawlMode === "aggressive" &&
-                      "Aggressive crawl (depth 10)"}
+                    {crawlMode === "deep" && "Deep — 2 levels down"}
+                    {crawlMode === "aggressive" && "Aggressive crawl"}
                   </Text>
                   <ChevronDown
                     size={14}
@@ -325,10 +331,10 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                           value: "standard",
                           label: "Standard depth — links of entry (depth 1)",
                         },
-                        { value: "deep", label: "Deep — 3 levels down" },
+                        { value: "deep", label: "Deep — 2 levels down" },
                         {
                           value: "aggressive",
-                          label: "Aggressive crawl (depth 10)",
+                          label: "Aggressive crawl",
                         },
                       ].map((opt) => {
                         const isSelected = crawlMode === opt.value;
@@ -388,7 +394,12 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     </MotionBox>
                   )}
                 </AnimatePresence>
-                <Text fontSize="11px" color={colors.subtext} mt={1.5} lineHeight="short">
+                <Text
+                  fontSize="11px"
+                  color={colors.subtext}
+                  mt={1.5}
+                  lineHeight="short"
+                >
                   {getDepthHelperText()}
                 </Text>
               </VStack>
@@ -435,17 +446,17 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     {crawlMode === "direct"
                       ? getPagesFullLabel(maxPages, "")
                       : getPagesFullLabel(
-                        maxPages,
-                        maxPages === "5"
-                          ? "5 pages (Quick test)"
-                          : maxPages === "10"
-                            ? "10 pages (Standard)"
-                            : maxPages === "20"
-                              ? "20 pages"
-                              : maxPages === "50"
-                                ? "50 pages (Thorough)"
-                                : "100 pages (Large suite)"
-                      )}
+                          maxPages,
+                          maxPages === "5"
+                            ? "5 pages (Quick test)"
+                            : maxPages === "10"
+                              ? "10 pages (Standard)"
+                              : maxPages === "20"
+                                ? "20 pages"
+                                : maxPages === "50"
+                                  ? "50 pages (Thorough)"
+                                  : "100 pages (Large suite)",
+                        )}
                   </Text>
                   <ChevronDown
                     size={14}
@@ -484,16 +495,22 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     >
                       {(crawlMode === "direct"
                         ? [
-                          { value: "1", label: "1 page (Entry page only — Max 8 tests)" },
-                          { value: "2", label: "1 page (Entry page only — Max 12 tests)" },
-                        ]
+                            {
+                              value: "1",
+                              label: "1 page (Entry page only — Max 8 tests)",
+                            },
+                            {
+                              value: "2",
+                              label: "1 page (Entry page only — Max 12 tests)",
+                            },
+                          ]
                         : [
-                          { value: "5", label: "5 pages (Quick test)" },
-                          { value: "10", label: "10 pages (Standard)" },
-                          { value: "20", label: "20 pages" },
-                          { value: "50", label: "50 pages (Thorough)" },
-                          { value: "100", label: "100 pages (Large suite)" },
-                        ]
+                            { value: "5", label: "5 pages (Quick test)" },
+                            { value: "10", label: "10 pages (Standard)" },
+                            { value: "20", label: "20 pages" },
+                            { value: "50", label: "50 pages (Thorough)" },
+                            { value: "100", label: "100 pages (Large suite)" },
+                          ]
                       ).map((opt) => {
                         const isSelected = maxPages === opt.value;
                         return (
@@ -532,7 +549,9 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                             }}
                             transition="background-color 0.12s ease"
                           >
-                            <Text truncate>{getPagesFullLabel(opt.value, opt.label)}</Text>
+                            <Text truncate>
+                              {getPagesFullLabel(opt.value, opt.label)}
+                            </Text>
                             {isSelected && (
                               <Check
                                 size={12}
@@ -547,7 +566,12 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     </MotionBox>
                   )}
                 </AnimatePresence>
-                <Text fontSize="11px" color={colors.subtext} mt={1.5} lineHeight="short">
+                <Text
+                  fontSize="11px"
+                  color={colors.subtext}
+                  mt={1.5}
+                  lineHeight="short"
+                >
                   {getPagesHelperText()}
                 </Text>
               </VStack>
@@ -631,24 +655,22 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             borderRadius="lg"
             cursor={submitting ? "not-allowed" : "pointer"}
             border="1px solid"
-            borderColor={
-              isDark ? "rgba(0, 0, 0, 0.15)" : "#1a263b"
-            }
+            borderColor={isDark ? "rgba(0, 0, 0, 0.15)" : "#1a263b"}
             boxShadow="0 3px 12px rgba(0, 0, 0, 0.1)"
             transition="background-color 0.2s ease"
             _hover={
               submitting
                 ? {}
                 : {
-                  bg: isDark ? "#f3f2f0" : "#dcdbd9",
-                }
+                    bg: isDark ? "#f3f2f0" : "#dcdbd9",
+                  }
             }
             _active={
               submitting
                 ? {}
                 : {
-                  bg: isDark ? "#d2d1cf" : "#c8c7c5",
-                }
+                    bg: isDark ? "#d2d1cf" : "#c8c7c5",
+                  }
             }
             display="flex"
             alignItems="center"
@@ -662,7 +684,11 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               </>
             ) : (
               <>
-                <Play size={13} fill="currentColor" style={{ color: "currentColor" }} />
+                <Play
+                  size={13}
+                  fill="currentColor"
+                  style={{ color: "currentColor" }}
+                />
                 <span>Launch Test</span>
               </>
             )}

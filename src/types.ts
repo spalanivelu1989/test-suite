@@ -13,7 +13,7 @@ import type { HealingEvent } from "./knowledge/types";
  * |-------------|-----------|-----------------|
  * | direct      | 0         | 8               |
  * | standard    | 1         | 5               |
- * | deep        | 3         | 4               |
+ * | deep        | 2         | 4               |
  * | aggressive  | 10 (unlimited) | 3           |
  */
 export type CrawlMode = "direct" | "standard" | "deep" | "aggressive";
@@ -22,7 +22,7 @@ export type CrawlMode = "direct" | "standard" | "deep" | "aggressive";
 export const CRAWL_MODE_DEPTH: Record<CrawlMode, number> = {
   direct: 0,
   standard: 1,
-  deep: 3,
+  deep: 2,
   aggressive: 10,
 };
 
@@ -55,8 +55,8 @@ export function effectivePageBudget(mode: CrawlMode, maxPages: number): number {
 export const CRAWL_MODE_LABEL: Record<CrawlMode, string> = {
   direct: "Direct page only (depth 0)",
   standard: "Standard depth (depth 1)",
-  deep: "Deep crawl (depth 3)",
-  aggressive: "Aggressive crawl (depth 10)",
+  deep: "Deep crawl (2 levels down)",
+  aggressive: "Aggressive crawl",
 };
 
 /** User-supplied run configuration (R1). */

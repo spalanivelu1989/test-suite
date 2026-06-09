@@ -351,7 +351,7 @@ test("planTests injects deep-mode constraint with correct depth and page cap", a
       { crawlMode: "deep", maxPages: 10 },
     );
 
-    assert.ok(capturedPrompt.includes("depth ≤ 3"), `got: ${capturedPrompt}`);
+    assert.ok(capturedPrompt.includes("depth ≤ 2"), `got: ${capturedPrompt}`);
     // maxScenarios = 10 pages × 4 scenarios/page = 40
     assert.ok(
       capturedPrompt.includes("40"),

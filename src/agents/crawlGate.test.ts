@@ -180,7 +180,7 @@ test("depth limit denies going one hop too deep", async () => {
 });
 
 test("page budget denies opening pages beyond the cap", async () => {
-  // deep allows depth 3, so depth won't be the limiter; cap pages at 2.
+  // deep allows depth 2, so depth won't be the limiter; cap pages at 2.
   const gate = createCrawlGate({
     mode: "deep",
     maxPages: 2,
