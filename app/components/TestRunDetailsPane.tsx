@@ -32,11 +32,23 @@ import {
   Maximize2,
   Minimize2,
   Copy,
+  Search,
+  ListFilter,
+  ArrowDownToLine,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { RobotFace } from "./RobotFace";
 import { getAWSColors, AWS_COLORS, getStatusStyle } from "@/app/theme/aws";
 import { useThemeMode } from "@/app/providers";
-import type { Run, ProgressEvent, RunReport, TestOutcome } from "@/src/types";
+import type {
+  Run,
+  ProgressEvent,
+  RunReport,
+  RunStage,
+  TestOutcome,
+} from "@/src/types";
 import { ThreeProgressBar } from "./ThreeProgressBar";
 
 interface TestRunDetailsPaneProps {
@@ -527,6 +539,260 @@ function AWSCodeViewer({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Console Logs — execution timeline + per-test results breakdown
+// ---------------------------------------------------------------------------
+
+type LogLevel =
+  | "error"
+  | "warn"
+  | "success"
+  | "tool"
+  | "heal"
+  | "knowledge"
+  | "agent"
+  | "info";
+
+/** Glyph + color per log level (rendered on the dark terminal panel). */
+const LOG_LEVEL_META: Record<
+  LogLevel,
+  { label: string; color: string; glyph: string }
+> = {
+  error: { label: "Error", color: "#e78284", glyph: "✗" },
+  warn: { label: "Warning", color: "#e5c890", glyph: "⚠" },
+  success: { label: "Success", color: "#a6d189", glyph: "✓" },
+  tool: { label: "Tool", color: "#8caaee", glyph: "🔧" },
+  heal: { label: "Heal", color: "#ca9ee6", glyph: "🩹" },
+  knowledge: { label: "Knowledge", color: "#81c8be", glyph: "🧠" },
+  agent: { label: "Agent", color: "#babbf1", glyph: "✦" },
+  info: { label: "Info", color: "#949cbb", glyph: "›" },
+};
+
+/** Filter-chip order (quiet → loud). */
+const LOG_LEVEL_ORDER: LogLevel[] = [
+  "info",
+  "agent",
+  "tool",
+  "success",
+  "heal",
+  "knowledge",
+  "warn",
+  "error",
+];
+
+interface ParsedLogLine {
+  level: LogLevel;
+  /** Agent label parsed from a "[planner] …" prefix, if any. */
+  agent?: string;
+  /** Message with the "[label]" prefix stripped. */
+  text: string;
+  at: string;
+  stage: RunStage;
+  raw: string;
+}
+
+/**
+ * Classify a progress event into a log level for color/iconography. Ordering
+ * matters: tool/heal/knowledge markers win, stage-intro lines stay neutral even
+ * when they mention "failures", then error/warn/success heuristics apply.
+ */
+function classifyLogLine(stage: RunStage, raw: string, text: string): LogLevel {
+  const t = text.trim();
+  if (/^tool:\s/i.test(t) || /\]\s*tool:\s/i.test(raw)) return "tool";
+  if (raw.includes("🩹") || /auto-?heal/i.test(raw)) return "heal";
+  if (raw.includes("🧠") || /^knowledge\b/i.test(t)) return "knowledge";
+
+  // "Validation score 82/100 — 1 error(s), 3 warning(s)" → level from counts.
+  const vs = t.match(/validation score\s+\d+\/100\s+—\s+(\d+)\s+error/i);
+  if (vs) {
+    if (Number(vs[1]) > 0) return "error";
+    const warn = t.match(/(\d+)\s+warning/i);
+    return warn && Number(warn[1]) > 0 ? "warn" : "success";
+  }
+
+  if (stage === "error" || stage === "cancelled") return "error";
+  // Stage-intro lines ("Healer: repairing failures…") stay neutral.
+  if (
+    /^(planner|generator|validator|healer|reporter|running generated|re-running)/i.test(
+      t,
+    )
+  )
+    return "info";
+  if (/\b(failed|could not|unable to|no tests|exception|cannot)\b/i.test(t))
+    return "error";
+  if (/\b(warn|warning|trimmed|quarantin|missing|skipped)\b/i.test(t))
+    return "warn";
+  if (
+    stage === "done" ||
+    /\b(complete|completed|success|passed)\b/i.test(t) ||
+    t.includes("✓")
+  )
+    return "success";
+  return "info";
+}
+
+function parseLogEvent(ev: ProgressEvent): ParsedLogLine {
+  let text = ev.message;
+  let agent: string | undefined;
+  const labelMatch = text.match(/^\[([^\]]+)\]\s*([\s\S]*)$/);
+  if (labelMatch) {
+    agent = labelMatch[1];
+    text = labelMatch[2];
+  }
+  let level = classifyLogLine(ev.stage, ev.message, text);
+  // Plain agent narration (had a label, nothing notable) gets the agent glyph.
+  if (level === "info" && agent) level = "agent";
+  return { level, agent, text, at: ev.at, stage: ev.stage, raw: ev.message };
+}
+
+/** Maps pipeline stages into the ordered, user-facing timeline groups. */
+const TIMELINE_GROUPS: { id: string; label: string; stages: RunStage[] }[] = [
+  { id: "plan", label: "Planner", stages: ["planning"] },
+  { id: "generate", label: "Generator", stages: ["generating"] },
+  { id: "validate", label: "Validator", stages: ["validating"] },
+  {
+    id: "execute",
+    label: "Run & Heal",
+    stages: ["running", "healing", "flake-check"],
+  },
+  { id: "report", label: "Reporter", stages: ["reporting"] },
+  { id: "complete", label: "Complete", stages: ["done"] },
+  { id: "system", label: "System", stages: ["queued", "cancelled", "error"] },
+];
+
+interface TimelineGroup {
+  id: string;
+  label: string;
+  ordinal: number;
+  lines: ParsedLogLine[];
+  startAt?: string;
+  endAt?: string;
+  durationMs?: number;
+  status: "pending" | "active" | "completed" | "failed";
+  counts: Partial<Record<LogLevel, number>>;
+}
+
+/** Group the flat event stream into ordered pipeline stages with timing/status. */
+function buildTimeline(
+  events: ProgressEvent[],
+  runStatus: string,
+  runUpdatedAt: string,
+): TimelineGroup[] {
+  const groupOf = (stage: RunStage) =>
+    TIMELINE_GROUPS.find((g) => g.stages.includes(stage))?.id ?? "system";
+
+  const linesByGroup: Record<string, ParsedLogLine[]> = {};
+  for (const ev of events) {
+    const gid = groupOf(ev.stage);
+    (linesByGroup[gid] ??= []).push(parseLogEvent(ev));
+  }
+
+  // Canonical pipeline groups always show as a skeleton; "system" only if used.
+  const ordered = TIMELINE_GROUPS.filter(
+    (g) => g.id !== "system" || (linesByGroup[g.id]?.length ?? 0) > 0,
+  );
+  const nonEmpty = ordered.filter((g) => (linesByGroup[g.id]?.length ?? 0) > 0);
+  const lastActiveId = nonEmpty[nonEmpty.length - 1]?.id;
+  const running = runStatus === "running" || runStatus === "pending";
+
+  return ordered.map((g, i) => {
+    const lines = linesByGroup[g.id] ?? [];
+    const counts: Partial<Record<LogLevel, number>> = {};
+    for (const l of lines) counts[l.level] = (counts[l.level] ?? 0) + 1;
+
+    const startAt = lines[0]?.at;
+    // Stage ends when the next non-empty stage begins; the live one is open-ended.
+    let endAt: string | undefined;
+    for (let j = i + 1; j < ordered.length; j++) {
+      const nl = linesByGroup[ordered[j].id];
+      if (nl?.length) {
+        endAt = nl[0].at;
+        break;
+      }
+    }
+    if (!endAt && lines.length && !(g.id === lastActiveId && running)) {
+      endAt = runUpdatedAt;
+    }
+    const durationMs =
+      startAt && endAt
+        ? Math.max(0, new Date(endAt).getTime() - new Date(startAt).getTime())
+        : undefined;
+
+    let status: TimelineGroup["status"] = "pending";
+    if (lines.length === 0) status = "pending";
+    else if (g.id === lastActiveId)
+      status =
+        runStatus === "running" || runStatus === "pending"
+          ? "active"
+          : runStatus === "failed" || runStatus === "cancelled"
+            ? "failed"
+            : "completed";
+    else status = "completed";
+
+    return {
+      id: g.id,
+      label: g.label,
+      ordinal: i + 1,
+      lines,
+      startAt,
+      endAt,
+      durationMs,
+      status,
+      counts,
+    };
+  });
+}
+
+function formatClock(at: string): string {
+  const d = new Date(at);
+  return isNaN(d.getTime())
+    ? "--:--:--"
+    : d.toLocaleTimeString("en-GB", { hour12: false });
+}
+
+function formatDur(ms?: number): string {
+  if (ms == null) return "—";
+  const s = Math.round(ms / 1000);
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+const OUTCOME_GLYPH: Record<TestOutcome, string> = {
+  passed: "✓",
+  failed: "✗",
+  flaky: "~",
+  healed: "🩹",
+  fixme: "⏸",
+};
+
+const OUTCOME_HEX: Record<TestOutcome, string> = {
+  passed: "#a6d189",
+  failed: "#e78284",
+  flaky: "#ef9f76",
+  healed: "#8caaee",
+  fixme: "#949cbb",
+};
+
+/** Derive the step list for a test result (mirrors the User Flows tab logic). */
+function stepsForResult(
+  report: RunReport,
+  fileName: string,
+  flowId: string,
+): string[] {
+  const name = fileName || `${flowId}.spec.ts`;
+  const matchedFlow = report.flows?.find(
+    (f) => f.id === flowId || flowId.includes(f.id) || f.id.includes(flowId),
+  );
+  if (matchedFlow?.steps?.length) return matchedFlow.steps;
+  return FLOW_MOCK_DETAILS[name]?.steps ?? [];
+}
+
+/** Plain-text export of the whole stream for the Copy / Download actions. */
+function logsToPlainText(events: ProgressEvent[]): string {
+  return events
+    .map((ev) => `[${formatClock(ev.at)}] [${ev.stage}] ${ev.message}`)
+    .join("\n");
+}
+
 export function TestRunDetailsPane({
   run,
   events,
@@ -549,6 +815,45 @@ export function TestRunDetailsPane({
     "narrative",
   );
 
+  // Console Logs tab state.
+  const [logLevelFilter, setLogLevelFilter] = useState<Set<LogLevel>>(
+    () => new Set(LOG_LEVEL_ORDER),
+  );
+  const [logSearch, setLogSearch] = useState("");
+  const [logAutoScroll, setLogAutoScroll] = useState(true);
+  const [collapsedLogGroups, setCollapsedLogGroups] = useState<
+    Record<string, boolean>
+  >({});
+  const [copiedLogs, setCopiedLogs] = useState(false);
+  const [expandedTestRows, setExpandedTestRows] = useState<
+    Record<string, boolean>
+  >({});
+
+  const toggleLogLevel = (lvl: LogLevel) =>
+    setLogLevelFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(lvl)) next.delete(lvl);
+      else next.add(lvl);
+      // Never let the filter empty out — that would hide every line.
+      return next.size === 0 ? new Set(LOG_LEVEL_ORDER) : next;
+    });
+
+  const handleCopyLogs = () => {
+    navigator.clipboard.writeText(logsToPlainText(events));
+    setCopiedLogs(true);
+    setTimeout(() => setCopiedLogs(false), 2000);
+  };
+
+  const handleDownloadLogs = () => {
+    const blob = new Blob([logsToPlainText(events)], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `run-${run.id.slice(0, 8)}-console.log`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleCopyCode = (filename: string, code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedFile(filename);
@@ -568,12 +873,16 @@ export function TestRunDetailsPane({
     }
   }, [report, selectedSpecFile]);
 
-  // Auto-scroll logs
+  // Auto-scroll logs (only while on the Console Logs tab and auto-scroll is on).
   useEffect(() => {
-    if (logContainerRef.current) {
+    if (
+      logAutoScroll &&
+      activeDetailsTab === "logs" &&
+      logContainerRef.current
+    ) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [events]);
+  }, [events, logAutoScroll, activeDetailsTab]);
 
   const shortId = `i-${run.id.slice(0, 17)}`;
   const statusStyle = getStatusStyle(run.status);
@@ -2143,74 +2452,734 @@ export function TestRunDetailsPane({
 
           {/* TAB 4: CONSOLE LOGS */}
           <Box display={activeDetailsTab === "logs" ? "block" : "none"}>
-            <Flex justify="space-between" align="center" mb={2}>
-              <Text fontSize="13px" fontWeight="bold" color={colors.subtext}>
-                Live System Log Stream (stdout)
-              </Text>
-              <HStack gap={2}>
-                <Box
-                  w="6px"
-                  h="6px"
-                  borderRadius="full"
-                  bg={run.status === "running" ? "green.500" : "slate.500"}
-                  className={run.status === "running" ? "animate-pulse" : ""}
-                />
-                <Text fontSize="12px" color={colors.subtext} fontFamily="mono">
-                  {run.status === "running" ? "STREAMING" : "STREAM CLOSED"}
-                </Text>
-              </HStack>
-            </Flex>
+            {(() => {
+              const timeline = buildTimeline(events, run.status, run.updatedAt);
+              const search = logSearch.trim().toLowerCase();
+              const isFiltering =
+                search !== "" || logLevelFilter.size < LOG_LEVEL_ORDER.length;
 
-            {/* Terminal Window */}
-            <Box
-              ref={logContainerRef}
-              bg="black"
-              color="#99d1db"
-              p={4}
-              borderRadius="sm"
-              fontFamily="mono"
-              fontSize="13px"
-              h={isMaximized ? "calc(100vh - 240px)" : "260px"}
-              overflowY="auto"
-              border="1px solid"
-              borderColor="slate.800"
-              boxShadow="inset 0 2px 8px rgba(0,0,0,0.8)"
-            >
-              {events.length === 0 ? (
-                <Text color="slate.600" fontStyle="italic">
-                  Waiting for system console log messages...
-                </Text>
-              ) : (
-                events.map((ev, i) => (
+              const matches = (l: ParsedLogLine) =>
+                logLevelFilter.has(l.level) &&
+                (search === "" ||
+                  l.text.toLowerCase().includes(search) ||
+                  (l.agent ?? "").toLowerCase().includes(search) ||
+                  l.stage.toLowerCase().includes(search));
+
+              // Which levels actually occur — only show those filter chips.
+              const presentLevels = new Set<LogLevel>();
+              for (const g of timeline)
+                for (const l of g.lines) presentLevels.add(l.level);
+
+              const visibleMatchCount = timeline.reduce(
+                (n, g) => n + g.lines.filter(matches).length,
+                0,
+              );
+
+              const setAllCollapsed = (collapsed: boolean) =>
+                setCollapsedLogGroups(
+                  Object.fromEntries(timeline.map((g) => [g.id, collapsed])),
+                );
+
+              const STATUS_DOT: Record<TimelineGroup["status"], string> = {
+                pending: "#51576d",
+                active: "#a6d189",
+                completed: "#8caaee",
+                failed: "#e78284",
+              };
+
+              return (
+                <VStack align="stretch" gap={4}>
+                  {/* Toolbar */}
                   <Flex
-                    key={i}
-                    align="flex-start"
-                    gap={2}
-                    mb={1}
-                    lineHeight={1.5}
+                    direction={{ base: "column", lg: "row" }}
+                    justify="space-between"
+                    align={{ base: "stretch", lg: "center" }}
+                    gap={3}
                   >
-                    <Text color="emerald.500" userSelect="none" flexShrink={0}>
-                      &gt;
-                    </Text>
-                    <Text
-                      color="slate.500"
-                      w="65px"
-                      flexShrink={0}
-                      userSelect="none"
-                    >
-                      [{ev.stage}]
-                    </Text>
-                    <Text
-                      color="white"
-                      wordBreak="break-word"
-                      whiteSpace="pre-wrap"
-                    >
-                      {ev.message}
-                    </Text>
+                    <HStack gap={2.5} flexWrap="wrap">
+                      <HStack gap={2}>
+                        <Box
+                          w="7px"
+                          h="7px"
+                          borderRadius="full"
+                          bg={
+                            run.status === "running" ? "green.500" : "slate.500"
+                          }
+                          className={
+                            run.status === "running" ? "animate-pulse" : ""
+                          }
+                        />
+                        <Text
+                          fontSize="12px"
+                          color={colors.subtext}
+                          fontFamily="mono"
+                          fontWeight="bold"
+                        >
+                          {run.status === "running"
+                            ? "STREAMING"
+                            : "STREAM CLOSED"}
+                        </Text>
+                      </HStack>
+                      <Badge
+                        variant="subtle"
+                        fontSize="10px"
+                        bg={isDark ? "white/5" : "gray.100"}
+                        color={colors.subtext}
+                        borderRadius="sm"
+                        px={2}
+                      >
+                        {events.length} events
+                        {isFiltering ? ` · ${visibleMatchCount} shown` : ""}
+                      </Badge>
+                    </HStack>
+
+                    <HStack gap={2} flexWrap="wrap">
+                      {/* Search */}
+                      <Flex
+                        align="center"
+                        gap={1.5}
+                        px={2.5}
+                        h="28px"
+                        borderRadius="sm"
+                        border="1px solid"
+                        borderColor={colors.border}
+                        bg={isDark ? "#232634" : "white"}
+                      >
+                        <Search size={12} color={colors.subtext} />
+                        <input
+                          placeholder="Search logs…"
+                          value={logSearch}
+                          onChange={(e) => setLogSearch(e.target.value)}
+                          style={{
+                            width: "150px",
+                            fontSize: "12px",
+                            border: "none",
+                            outline: "none",
+                            background: "transparent",
+                            color: isDark ? "#c6d0f5" : "#1a1a1a",
+                          }}
+                        />
+                      </Flex>
+
+                      <IconButton
+                        aria-label={
+                          logAutoScroll ? "Auto-scroll on" : "Auto-scroll off"
+                        }
+                        title="Toggle auto-scroll to newest"
+                        size="xs"
+                        variant={logAutoScroll ? "solid" : "outline"}
+                        borderColor={colors.border}
+                        bg={
+                          logAutoScroll ? AWS_COLORS.orange.main : "transparent"
+                        }
+                        color={logAutoScroll ? "white" : colors.subtext}
+                        cursor="pointer"
+                        onClick={() => setLogAutoScroll((v) => !v)}
+                      >
+                        <ArrowDownToLine size={13} />
+                      </IconButton>
+                      <IconButton
+                        aria-label="Expand all stages"
+                        title="Expand all stages"
+                        size="xs"
+                        variant="outline"
+                        borderColor={colors.border}
+                        color={colors.subtext}
+                        cursor="pointer"
+                        onClick={() => setAllCollapsed(false)}
+                      >
+                        <ChevronsUpDown size={13} />
+                      </IconButton>
+                      <IconButton
+                        aria-label="Collapse all stages"
+                        title="Collapse all stages"
+                        size="xs"
+                        variant="outline"
+                        borderColor={colors.border}
+                        color={colors.subtext}
+                        cursor="pointer"
+                        onClick={() => setAllCollapsed(true)}
+                      >
+                        <ChevronsDownUp size={13} />
+                      </IconButton>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        borderColor={colors.border}
+                        color={colors.text}
+                        cursor="pointer"
+                        fontSize="11.5px"
+                        onClick={handleCopyLogs}
+                      >
+                        <Copy size={11} /> {copiedLogs ? "Copied!" : "Copy"}
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        borderColor={colors.border}
+                        color={colors.text}
+                        cursor="pointer"
+                        fontSize="11.5px"
+                        onClick={handleDownloadLogs}
+                      >
+                        <Download size={11} /> Export
+                      </Button>
+                    </HStack>
                   </Flex>
-                ))
-              )}
-            </Box>
+
+                  {/* Level filter chips */}
+                  {presentLevels.size > 0 && (
+                    <HStack gap={1.5} flexWrap="wrap">
+                      <ListFilter size={12} color={colors.subtext} />
+                      {LOG_LEVEL_ORDER.filter((lvl) =>
+                        presentLevels.has(lvl),
+                      ).map((lvl) => {
+                        const meta = LOG_LEVEL_META[lvl];
+                        const on = logLevelFilter.has(lvl);
+                        return (
+                          <Box
+                            key={lvl}
+                            as="button"
+                            onClick={() => toggleLogLevel(lvl)}
+                            px={2}
+                            py={0.5}
+                            borderRadius="full"
+                            border="1px solid"
+                            borderColor={on ? meta.color : colors.border}
+                            bg={on ? `${meta.color}1A` : "transparent"}
+                            color={on ? meta.color : colors.subtext}
+                            opacity={on ? 1 : 0.55}
+                            cursor="pointer"
+                            fontSize="10.5px"
+                            fontWeight="bold"
+                            display="flex"
+                            alignItems="center"
+                            gap={1}
+                            transition="all 0.15s"
+                          >
+                            <span>{meta.glyph}</span>
+                            {meta.label}
+                          </Box>
+                        );
+                      })}
+                    </HStack>
+                  )}
+
+                  {/* Execution timeline (terminal panel) */}
+                  <Box
+                    ref={logContainerRef}
+                    bg={isDark ? "#11111b" : "#1e1e2e"}
+                    borderRadius="md"
+                    fontFamily="mono"
+                    fontSize="12.5px"
+                    minH="120px"
+                    maxH={isMaximized ? "calc(100vh - 440px)" : "320px"}
+                    overflowY="auto"
+                    border="1px solid"
+                    borderColor={isDark ? "#313244" : "#45475a"}
+                    boxShadow="inset 0 2px 8px rgba(0,0,0,0.6)"
+                    css={{
+                      "&::-webkit-scrollbar": { width: "8px" },
+                      "&::-webkit-scrollbar-thumb": {
+                        background: "#45475a",
+                        borderRadius: "4px",
+                      },
+                    }}
+                  >
+                    {events.length === 0 ? (
+                      <Text color="#6c7086" fontStyle="italic" p={4}>
+                        Waiting for system console log messages…
+                      </Text>
+                    ) : (
+                      timeline.map((group) => {
+                        const visibleLines = group.lines.filter(matches);
+                        // Hide pending skeletons while filtering; hide emptied
+                        // groups unless they're the live one.
+                        if (group.lines.length === 0 && isFiltering)
+                          return null;
+                        if (
+                          isFiltering &&
+                          visibleLines.length === 0 &&
+                          group.status !== "active"
+                        )
+                          return null;
+
+                        const cleanCompleted =
+                          group.status === "completed" &&
+                          !group.counts.error &&
+                          !group.counts.warn;
+                        const collapsed =
+                          collapsedLogGroups[group.id] ??
+                          (cleanCompleted && group.lines.length > 0);
+                        const linesToRender = isFiltering
+                          ? visibleLines
+                          : group.lines;
+
+                        return (
+                          <Box key={group.id}>
+                            {/* Stage header */}
+                            <Flex
+                              as="button"
+                              w="100%"
+                              align="center"
+                              gap={2.5}
+                              px={3}
+                              py={2}
+                              textAlign="left"
+                              cursor={
+                                group.lines.length > 0 ? "pointer" : "default"
+                              }
+                              bg={isDark ? "#181825" : "#181825"}
+                              borderTop="1px solid"
+                              borderColor={isDark ? "#313244" : "#313244"}
+                              _hover={
+                                group.lines.length > 0
+                                  ? { bg: "#1e1e2e" }
+                                  : undefined
+                              }
+                              onClick={() =>
+                                group.lines.length > 0 &&
+                                setCollapsedLogGroups((p) => ({
+                                  ...p,
+                                  [group.id]: !collapsed,
+                                }))
+                              }
+                              position="sticky"
+                              top={0}
+                              zIndex={1}
+                            >
+                              {group.lines.length > 0 ? (
+                                collapsed ? (
+                                  <ChevronRight size={13} color="#6c7086" />
+                                ) : (
+                                  <ChevronDown size={13} color="#6c7086" />
+                                )
+                              ) : (
+                                <Box w="13px" />
+                              )}
+                              <Flex
+                                align="center"
+                                justify="center"
+                                w="18px"
+                                h="18px"
+                                borderRadius="full"
+                                bg={`${STATUS_DOT[group.status]}22`}
+                                color={STATUS_DOT[group.status]}
+                                fontSize="10px"
+                                fontWeight="bold"
+                                flexShrink={0}
+                              >
+                                {group.ordinal}
+                              </Flex>
+                              <Text
+                                color="#cdd6f4"
+                                fontWeight="bold"
+                                fontSize="12.5px"
+                              >
+                                {group.label}
+                              </Text>
+                              {group.status === "active" && (
+                                <Box
+                                  w="6px"
+                                  h="6px"
+                                  borderRadius="full"
+                                  bg="#a6d189"
+                                  className="animate-pulse"
+                                />
+                              )}
+                              {/* Count chips */}
+                              <HStack gap={1.5} ml={1}>
+                                {(["error", "warn", "heal"] as LogLevel[])
+                                  .filter((lvl) => group.counts[lvl])
+                                  .map((lvl) => (
+                                    <Text
+                                      key={lvl}
+                                      fontSize="10px"
+                                      color={LOG_LEVEL_META[lvl].color}
+                                      fontWeight="bold"
+                                    >
+                                      {LOG_LEVEL_META[lvl].glyph}
+                                      {group.counts[lvl]}
+                                    </Text>
+                                  ))}
+                              </HStack>
+                              <HStack gap={3} ml="auto" flexShrink={0}>
+                                <Text fontSize="10.5px" color="#6c7086">
+                                  {group.lines.length} log
+                                  {group.lines.length === 1 ? "" : "s"}
+                                </Text>
+                                <Text
+                                  fontSize="10.5px"
+                                  color="#9399b2"
+                                  fontFamily="mono"
+                                  minW="42px"
+                                  textAlign="right"
+                                >
+                                  {group.status === "active"
+                                    ? "live"
+                                    : formatDur(group.durationMs)}
+                                </Text>
+                              </HStack>
+                            </Flex>
+
+                            {/* Stage log lines */}
+                            {!collapsed &&
+                              linesToRender.map((l, i) => {
+                                const meta = LOG_LEVEL_META[l.level];
+                                const loud =
+                                  l.level === "error" || l.level === "warn";
+                                return (
+                                  <Flex
+                                    key={i}
+                                    align="flex-start"
+                                    gap={2}
+                                    pl={9}
+                                    pr={3}
+                                    py={0.5}
+                                    lineHeight={1.55}
+                                    _hover={{ bg: "#1e1e2e" }}
+                                  >
+                                    <Text
+                                      color="#585b70"
+                                      flexShrink={0}
+                                      userSelect="none"
+                                      fontSize="11px"
+                                      mt="1px"
+                                    >
+                                      {formatClock(l.at)}
+                                    </Text>
+                                    <Text
+                                      flexShrink={0}
+                                      userSelect="none"
+                                      w="14px"
+                                      textAlign="center"
+                                      color={meta.color}
+                                    >
+                                      {meta.glyph}
+                                    </Text>
+                                    {l.agent && (
+                                      <Text
+                                        flexShrink={0}
+                                        color="#7f849c"
+                                        userSelect="none"
+                                      >
+                                        {l.agent}
+                                      </Text>
+                                    )}
+                                    <Text
+                                      color={loud ? meta.color : "#bac2de"}
+                                      fontWeight={loud ? "bold" : "normal"}
+                                      wordBreak="break-word"
+                                      whiteSpace="pre-wrap"
+                                    >
+                                      {l.text}
+                                    </Text>
+                                  </Flex>
+                                );
+                              })}
+                          </Box>
+                        );
+                      })
+                    )}
+                  </Box>
+
+                  {/* Per-test execution results breakdown */}
+                  {report && report.results?.length ? (
+                    <Box>
+                      <Flex
+                        align="center"
+                        justify="space-between"
+                        mb={2.5}
+                        flexWrap="wrap"
+                        gap={2}
+                      >
+                        <Text
+                          fontSize="13px"
+                          fontWeight="bold"
+                          color={colors.text}
+                        >
+                          Test Execution Results
+                        </Text>
+                        <HStack gap={1.5} flexWrap="wrap">
+                          {(
+                            [
+                              "passed",
+                              "failed",
+                              "healed",
+                              "flaky",
+                              "fixme",
+                            ] as TestOutcome[]
+                          )
+                            .map((o) => ({
+                              o,
+                              n: report.results.filter((r) => r.outcome === o)
+                                .length,
+                            }))
+                            .filter((x) => x.n > 0)
+                            .map(({ o, n }) => (
+                              <Badge
+                                key={o}
+                                variant="subtle"
+                                fontSize="10px"
+                                fontWeight="bold"
+                                borderRadius="sm"
+                                px={2}
+                                style={{
+                                  background: `${OUTCOME_HEX[o]}22`,
+                                  color: OUTCOME_HEX[o],
+                                }}
+                              >
+                                {OUTCOME_GLYPH[o]} {n} {o}
+                              </Badge>
+                            ))}
+                        </HStack>
+                      </Flex>
+
+                      <VStack
+                        align="stretch"
+                        gap={0}
+                        border="1px solid"
+                        borderColor={colors.border}
+                        borderRadius="md"
+                        overflow="hidden"
+                      >
+                        {report.results.map((res, idx) => {
+                          const key = res.fileName || res.flowId || `r${idx}`;
+                          const steps = stepsForResult(
+                            report,
+                            res.fileName,
+                            res.flowId,
+                          );
+                          const expanded = !!expandedTestRows[key];
+                          const failIdx =
+                            res.outcome === "failed" && steps.length
+                              ? steps.length
+                              : -1;
+                          const summary =
+                            res.outcome === "failed"
+                              ? steps.length
+                                ? `step ${steps.length}/${steps.length} failed`
+                                : "failed"
+                              : res.outcome === "healed"
+                                ? "auto-healed"
+                                : res.outcome === "flaky"
+                                  ? "flaky — passed on retry"
+                                  : res.outcome === "fixme"
+                                    ? "quarantined (fixme)"
+                                    : steps.length
+                                      ? `passed · ${steps.length} step${steps.length === 1 ? "" : "s"}`
+                                      : "passed";
+
+                          return (
+                            <Box
+                              key={key}
+                              borderTop={idx === 0 ? "none" : "1px solid"}
+                              borderColor={colors.border}
+                            >
+                              <Flex
+                                as="button"
+                                w="100%"
+                                align="center"
+                                gap={2.5}
+                                px={3}
+                                py={2}
+                                textAlign="left"
+                                cursor="pointer"
+                                bg={
+                                  expanded
+                                    ? isDark
+                                      ? "white/5"
+                                      : "gray.50"
+                                    : "transparent"
+                                }
+                                _hover={{ bg: colors.rowHover }}
+                                onClick={() =>
+                                  setExpandedTestRows((p) => ({
+                                    ...p,
+                                    [key]: !p[key],
+                                  }))
+                                }
+                              >
+                                {expanded ? (
+                                  <ChevronDown
+                                    size={13}
+                                    color={colors.subtext}
+                                  />
+                                ) : (
+                                  <ChevronRight
+                                    size={13}
+                                    color={colors.subtext}
+                                  />
+                                )}
+                                <Text
+                                  flexShrink={0}
+                                  fontWeight="bold"
+                                  style={{ color: OUTCOME_HEX[res.outcome] }}
+                                >
+                                  {OUTCOME_GLYPH[res.outcome]}
+                                </Text>
+                                <Text
+                                  fontFamily="mono"
+                                  fontSize="12.5px"
+                                  fontWeight="medium"
+                                  color={colors.text}
+                                  overflow="hidden"
+                                  textOverflow="ellipsis"
+                                  whiteSpace="nowrap"
+                                >
+                                  {res.fileName || res.flowId}
+                                </Text>
+                                <Text
+                                  ml="auto"
+                                  flexShrink={0}
+                                  fontSize="11.5px"
+                                  color={
+                                    res.outcome === "failed"
+                                      ? "#e78284"
+                                      : colors.subtext
+                                  }
+                                >
+                                  {summary}
+                                </Text>
+                              </Flex>
+
+                              {expanded && (
+                                <Box
+                                  px={4}
+                                  pb={3}
+                                  pt={1}
+                                  bg={isDark ? "#1c1c28" : "gray.50"}
+                                >
+                                  {steps.length > 0 ? (
+                                    <VStack align="stretch" gap={0}>
+                                      {steps.map((step, sIdx) => {
+                                        const stepNum = sIdx + 1;
+                                        const isFail = failIdx === stepNum;
+                                        const ok =
+                                          res.outcome === "passed" ||
+                                          res.outcome === "healed" ||
+                                          res.outcome === "flaky" ||
+                                          (res.outcome === "failed" && !isFail);
+                                        return (
+                                          <HStack
+                                            key={sIdx}
+                                            align="flex-start"
+                                            gap={2.5}
+                                            py={1}
+                                          >
+                                            {isFail ? (
+                                              <CircleX
+                                                size={14}
+                                                color="#e78284"
+                                                style={{
+                                                  flexShrink: 0,
+                                                  marginTop: "2px",
+                                                }}
+                                              />
+                                            ) : ok ? (
+                                              <CircleCheck
+                                                size={14}
+                                                color="#a6d189"
+                                                style={{
+                                                  flexShrink: 0,
+                                                  marginTop: "2px",
+                                                }}
+                                              />
+                                            ) : (
+                                              <Box
+                                                w="13px"
+                                                h="13px"
+                                                mt="2px"
+                                                borderRadius="full"
+                                                border="2px solid"
+                                                borderColor="gray.500"
+                                                flexShrink={0}
+                                              />
+                                            )}
+                                            <Text
+                                              fontSize="11px"
+                                              color={colors.subtext}
+                                              fontFamily="mono"
+                                              flexShrink={0}
+                                              mt="2px"
+                                            >
+                                              {stepNum}.
+                                            </Text>
+                                            <Text
+                                              fontSize="12px"
+                                              color={
+                                                isFail ? "#e78284" : colors.text
+                                              }
+                                              fontWeight={
+                                                isFail ? "bold" : "normal"
+                                              }
+                                            >
+                                              {step}
+                                            </Text>
+                                          </HStack>
+                                        );
+                                      })}
+                                    </VStack>
+                                  ) : (
+                                    <Text
+                                      fontSize="12px"
+                                      color={colors.subtext}
+                                      fontStyle="italic"
+                                    >
+                                      No step-level breakdown captured for this
+                                      test.
+                                    </Text>
+                                  )}
+
+                                  {res.failureReason && (
+                                    <Box
+                                      mt={2.5}
+                                      p={2.5}
+                                      borderRadius="sm"
+                                      bg="#e782841A"
+                                      borderLeft="3px solid"
+                                      borderColor="#e78284"
+                                    >
+                                      <Text
+                                        fontSize="10.5px"
+                                        fontWeight="bold"
+                                        color="#e78284"
+                                        mb={0.5}
+                                      >
+                                        FAILURE REASON
+                                      </Text>
+                                      <Text
+                                        fontSize="11.5px"
+                                        fontFamily="mono"
+                                        color={colors.text}
+                                        whiteSpace="pre-wrap"
+                                        wordBreak="break-word"
+                                      >
+                                        {res.failureReason}
+                                      </Text>
+                                    </Box>
+                                  )}
+                                  {res.healed && !res.failureReason && (
+                                    <Text
+                                      mt={2}
+                                      fontSize="11.5px"
+                                      color="#8caaee"
+                                    >
+                                      🩹 A failing locator was auto-healed and
+                                      the test passed on re-run.
+                                    </Text>
+                                  )}
+                                </Box>
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </VStack>
+                    </Box>
+                  ) : null}
+                </VStack>
+              );
+            })()}
           </Box>
 
           {/* TAB 5: TEST PLAN & SPECS CODE */}
