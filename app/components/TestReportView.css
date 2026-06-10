@@ -192,26 +192,37 @@
 
 /* Sidebar Toggle Button */
 .test-report-container .sidebar-toggle-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
   border-radius: var(--radius-sm);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
 }
 
 .test-report-container .sidebar-toggle-btn:hover {
-  background: var(--surface-2);
+  background: var(--surface-3, var(--surface-2));
+  border-color: var(--accent, var(--text-3));
   color: var(--text);
+  transform: scale(1.05);
+}
+
+.test-report-container.dark .sidebar-toggle-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #e6e6e6;
 }
 
 .test-report-container.dark .sidebar-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.35);
   color: #ffffff;
 }
 
@@ -281,6 +292,9 @@
   font-weight: 800;
   color: var(--text);
   line-height: 1.3;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Nav Tabs styling */
@@ -1605,7 +1619,10 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -1709,8 +1726,12 @@
 }
 
 @keyframes fadeInModal {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .lightbox-content {
@@ -1726,8 +1747,14 @@
 }
 
 @keyframes scaleIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .lightbox-content img {
