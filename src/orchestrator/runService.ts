@@ -1,3 +1,4 @@
+import { propagateAttributes, startActiveObservation } from "@langfuse/tracing";
 import { createClaudeClient } from "../claude/client";
 import type { Flow, RunConfig, RunReport } from "../types";
 import { runPipeline } from "./orchestrate";
@@ -36,11 +37,60 @@ export async function runToReport(
   abortController?: AbortController,
 ): Promise<RunReport> {
   const claude = createClaudeClient();
-  // stageDeps default to the real Agent SDK runtime; the workspace runs the suite.
-  return runPipeline(runId, config, {
-    claude,
-    curatedFlows: loadCuratedFlows(config.url),
-    emit,
-    abortController,
-  });
+  const crawlMode = config.crawlMode ?? "standard";
+
+  // Root Langfuse trace for the whole run. `sessionId` = runId groups every
+  // observation (planner/generator/healer agents + the Reporter narrative) under
+  // one trace in the Sessions view. When tracing is disabled (no LANGFUSE_* keys)
+  // these helpers are non-recording no-ops and the pipeline runs unchanged.
+  return propagateAttributes(
+    {
+      traceName: "test-suite-run",
+      sessionId: runId,
+      tags: [crawlMode],
+      // Metadata values must be strings; numbers are stringified.
+      metadata: {
+        url: config.url,
+        crawlMode,
+        maxPages: String(config.maxPages ?? ""),
+      },
+    },
+    () =>
+      startActiveObservation("test-suite-run", async (root) => {
+        root.update({
+          input: {
+            url: config.url,
+            crawlMode,
+            maxPages: config.maxPages,
+          },
+        });
+        try {
+          // stageDeps default to the real Agent SDK runtime; the workspace runs the suite.
+          const report = await runPipeline(runId, config, {
+            claude,
+            curatedFlows: loadCuratedFlows(config.url),
+            emit,
+            abortController,
+          });
+          root.update({
+            output: {
+              successRate: report.successRate.rate,
+              passed: report.successRate.passed,
+              total: report.successRate.total,
+              coveragePercent: report.coverage.percent,
+              flakeRate: report.flakeRate,
+              healSuccessRate: report.healSuccessRate,
+              claudeCallCount: report.claudeCallCount,
+            },
+          });
+          return report;
+        } catch (err) {
+          root.update({
+            level: "ERROR",
+            statusMessage: err instanceof Error ? err.message : String(err),
+          });
+          throw err;
+        }
+      }),
+  );
 }

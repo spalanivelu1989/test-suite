@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { runToReport } from "../src/orchestrator/runService";
+import {
+  flushObservability,
+  initObservability,
+} from "../src/observability/langfuse";
 import { reportToJson } from "../src/reporter/report";
 import { renderHtml, renderMarkdown } from "../src/reporter/render";
 import type { RunConfig } from "../src/types";
@@ -36,8 +40,13 @@ async function main() {
   }
 
   const config: RunConfig = { url: args.url };
-  if (args.crawlMode !== undefined) config.crawlMode = args.crawlMode as RunConfig["crawlMode"];
+  if (args.crawlMode !== undefined)
+    config.crawlMode = args.crawlMode as RunConfig["crawlMode"];
   if (args.maxPages !== undefined) config.maxPages = args.maxPages;
+
+  // Short-lived process: use immediate export so the last spans aren't lost,
+  // and force a flush before exit below. No-op without LANGFUSE_* keys.
+  initObservability({ exportMode: "immediate" });
 
   const runId = randomUUID();
   const report = await runToReport(runId, config, (e) =>
@@ -55,13 +64,16 @@ async function main() {
     `\nSuccess rate ${Math.round(rate * 100)}% (${passed}/${total}) · ` +
       `coverage ${report.coverage.percent}% · report in ${outDir}`,
   );
+  // Deliver any buffered traces before the process exits.
+  await flushObservability();
   // Non-zero exit unless every planned test passed (fixme/failed gate CI). (R10, D7)
   process.exit(passed < total ? 1 : 0);
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error(
     `Run failed: ${err instanceof Error ? err.message : String(err)}`,
   );
+  await flushObservability();
   process.exit(1);
 });

@@ -4,6 +4,8 @@ import {
   type Options,
   query as sdkQuery,
 } from "@anthropic-ai/claude-agent-sdk";
+import { startObservation } from "@langfuse/tracing";
+import { boundText } from "../observability/langfuse";
 
 /** A parsed Playwright agent definition (from `.claude/agents/<name>.md`). */
 export interface AgentDef {
@@ -104,6 +106,36 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   let isError = false;
   let timedOut = false;
 
+  // Langfuse generation for this agent run. The Agent SDK drives Claude in a
+  // subprocess, so the per-turn LLM calls can't be auto-instrumented — instead we
+  // record the whole run as one generation and attach the model, token usage, and
+  // cost the SDK reports in its terminal `result` message. Nests under the active
+  // run trace; a non-recording no-op when tracing is disabled.
+  const generation = startObservation(
+    `agent:${opts.agent.name}`,
+    {
+      model: opts.agent.model,
+      input: boundText(opts.prompt).text,
+      metadata: {
+        agent: opts.agent.name,
+        tools: opts.agent.tools.join(","),
+        maxTurns: opts.maxTurns ?? 150,
+      },
+    },
+    { asType: "generation" },
+  );
+  let usage:
+    | {
+        input?: number;
+        output?: number;
+        cacheRead?: number;
+        cacheWrite?: number;
+      }
+    | undefined;
+  let costUsd: number | undefined;
+  let numTurns: number | undefined;
+  let modelUsed: string | undefined;
+
   // A local controller we can abort on timeout. If the caller passed one (run
   // stop), chain it so either source aborts the agent.
   const control = new AbortController();
@@ -174,6 +206,16 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
         isError = msg.subtype !== "success";
         resultText =
           "result" in msg && typeof msg.result === "string" ? msg.result : "";
+        // Pull model/token/cost telemetry off the terminal result for the span.
+        usage = {
+          input: msg.usage?.input_tokens,
+          output: msg.usage?.output_tokens,
+          cacheRead: msg.usage?.cache_read_input_tokens,
+          cacheWrite: msg.usage?.cache_creation_input_tokens,
+        };
+        costUsd = msg.total_cost_usd;
+        numTurns = msg.num_turns;
+        modelUsed = Object.keys(msg.modelUsage ?? {})[0];
         opts.onEvent?.({ kind: "result", isError, text: resultText });
       }
     }
@@ -190,6 +232,38 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   } finally {
     clearTimeout(idleTimer);
     clearTimeout(hardTimer);
+    // Close out the generation with the run's outcome, usage, and cost.
+    const usageDetails: Record<string, number> = {};
+    if (usage?.input !== undefined) usageDetails.input = usage.input;
+    if (usage?.output !== undefined) usageDetails.output = usage.output;
+    if (usage?.cacheRead !== undefined)
+      usageDetails.cache_read_input_tokens = usage.cacheRead;
+    if (usage?.cacheWrite !== undefined)
+      usageDetails.cache_creation_input_tokens = usage.cacheWrite;
+    generation
+      .update({
+        // Prefer the configured model; fall back to whatever the SDK reported.
+        ...((opts.agent.model ?? modelUsed)
+          ? { model: opts.agent.model ?? modelUsed }
+          : {}),
+        output: boundText(resultText).text,
+        ...(Object.keys(usageDetails).length ? { usageDetails } : {}),
+        ...(costUsd !== undefined ? { costDetails: { total: costUsd } } : {}),
+        metadata: {
+          toolCallCount: toolCalls.length,
+          distinctTools: Array.from(new Set(toolCalls)).join(","),
+          numTurns,
+          isError,
+          timedOut,
+        },
+        ...(isError
+          ? {
+              level: "ERROR" as const,
+              statusMessage: resultText.slice(0, 500),
+            }
+          : {}),
+      })
+      .end();
   }
 
   return { resultText, toolCalls, isError, timedOut };
