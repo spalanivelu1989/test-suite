@@ -29,6 +29,7 @@ import {
   type StageDeps,
 } from "./stages";
 import { createKnowledgeService, type KnowledgeService } from "../knowledge";
+import { loadAuthFromEnv } from "../auth/credentials";
 import { captureHealDeltas } from "../knowledge/heal/captureHeal";
 import { normalizeFailure } from "../knowledge/heal/signature";
 import type { HealingPrecedent } from "../knowledge/types";
@@ -123,7 +124,24 @@ export async function runPipeline(
     if (deps.abortController?.signal.aborted) throw new CancelledError();
   };
 
-  const ws = await (deps.makeWorkspace ?? createWorkspace)(runId);
+  // Optional form-login: when TARGET_USERNAME/PASSWORD are set, the agents log in
+  // before exploring and the suite runs authenticated via a saved storage state.
+  // Unset → null → pipeline runs exactly as before (graceful degradation).
+  const auth = loadAuthFromEnv();
+  const ws = await (
+    deps.makeWorkspace ??
+    ((id: string) => createWorkspace(id, undefined, { authEnabled: !!auth }))
+  )(runId);
+  if (auth)
+    emit(
+      "planning",
+      "🔐 Login enabled — the agent will authenticate before exploring the app",
+    );
+  if (config.focus)
+    emit(
+      "planning",
+      `🎯 Focus set — the run is scoped to: ${config.focus.length > 120 ? config.focus.slice(0, 120) + "…" : config.focus}`,
+    );
   // Knowledge Layer: env-configured by default, disabled (cold) when no DB.
   // Its events are bridged onto the run's progress stream (no silent magic).
   const knowledge =
@@ -149,7 +167,12 @@ export async function runPipeline(
     config.url,
     onAgent("planning", "planner"),
     stageDeps,
-    { crawlMode: config.crawlMode, maxPages: config.maxPages },
+    {
+      crawlMode: config.crawlMode,
+      maxPages: config.maxPages,
+      auth: auth ?? undefined,
+      focus: config.focus,
+    },
   );
   agentRuns++;
   checkCancelled();
@@ -162,7 +185,13 @@ export async function runPipeline(
     ws,
     onAgent("generating", "generator"),
     stageDeps,
-    { crawlMode: config.crawlMode, maxPages: config.maxPages, url: config.url },
+    {
+      crawlMode: config.crawlMode,
+      maxPages: config.maxPages,
+      url: config.url,
+      auth: auth ?? undefined,
+      focus: config.focus,
+    },
   );
   if (gen.trimmedCount > 0) {
     emit(
@@ -233,6 +262,7 @@ export async function runPipeline(
     validation,
     precedents,
     healPlaybooks,
+    auth ?? undefined,
   );
   agentRuns++;
   checkCancelled();

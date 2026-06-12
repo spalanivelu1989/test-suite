@@ -1,6 +1,14 @@
 import type { CrawlMode, RunConfig } from "../types";
 
-const VALID_CRAWL_MODES: CrawlMode[] = ["direct", "standard", "deep", "aggressive"];
+const VALID_CRAWL_MODES: CrawlMode[] = [
+  "direct",
+  "standard",
+  "deep",
+  "aggressive",
+];
+
+/** Upper bound on the free-text focus directive (keeps prompts bounded). */
+export const FOCUS_MAX_CHARS = 1000;
 
 export type ParseResult =
   | { ok: true; config: RunConfig }
@@ -39,6 +47,21 @@ export function parseRunRequest(body: unknown): ParseResult {
       return { ok: false, error: "maxPages must be a positive number" };
     }
     config.maxPages = b.maxPages;
+  }
+  if (b.focus !== undefined && b.focus !== null) {
+    if (typeof b.focus !== "string") {
+      return { ok: false, error: "focus must be a string" };
+    }
+    const focus = b.focus.trim();
+    if (focus.length > FOCUS_MAX_CHARS) {
+      return {
+        ok: false,
+        error: `focus must be at most ${FOCUS_MAX_CHARS} characters`,
+      };
+    }
+    // Empty/whitespace-only focus is treated as "no focus" (unscoped), so the
+    // field stays omitted from the config rather than injecting a blank directive.
+    if (focus.length > 0) config.focus = focus;
   }
   return { ok: true, config };
 }

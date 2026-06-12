@@ -76,6 +76,13 @@ export interface RunAgentOptions {
   idleTimeoutMs?: number;
   /** Hard wall-clock cap (ms) for the whole agent run. Off by default. */
   maxDurationMs?: number;
+  /**
+   * Extra environment variables for the agent's tool subprocess (e.g. login
+   * credentials the agent references as "$TARGET_PASSWORD" rather than typing as
+   * a shell-mangle-prone literal). Merged OVER the inherited process env, so the
+   * agent keeps PATH/ANTHROPIC_API_KEY/etc. Omit → the SDK inherits as usual.
+   */
+  env?: Record<string, string>;
 }
 
 /**
@@ -186,6 +193,12 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
       // PreToolUse hook denials apply even under bypassPermissions, so the crawl
       // gate can hard-block out-of-scope navigation.
       hooks: opts.hooks,
+      // Pass a full env (inherited + extras) so the agent's shell keeps PATH/API
+      // keys AND gets any injected credentials. Only set when extras are given so
+      // default inheritance is untouched for non-auth runs.
+      ...(opts.env
+        ? { env: { ...(process.env as Record<string, string>), ...opts.env } }
+        : {}),
     },
   });
 

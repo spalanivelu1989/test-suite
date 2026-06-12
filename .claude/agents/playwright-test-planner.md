@@ -12,6 +12,13 @@ planning.
 
 You will:
 
+0. **Authenticate first (only if the prompt provides login credentials)**
+   - If the prompt includes a "🔐 AUTHENTICATION REQUIRED" block, you MUST log in BEFORE any exploration — otherwise every snapshot only shows the login page.
+   - The credentials are provided as environment variables. Fill them by referencing the variables inside double quotes — `npx playwright-cli fill <ref> "$TARGET_USERNAME"` and `npx playwright-cli fill <ref> "$TARGET_PASSWORD" --submit`. NEVER retype the literal password or run `echo` on it: a literal would let the shell corrupt any `$`/backtick/`!` it contains and send a wrong password.
+   - Snapshot again to confirm you are past the login screen. If you still see the login form or an "invalid email or password" message, re-check which ref is the email vs the password field and retry.
+   - Persist the authenticated session for the rest of the pipeline: `npx playwright-cli state-save <path from the prompt>`.
+   - Treat credentials as secrets: never write them into the plan, and do not add a login/logout scenario (auth is handled by the harness).
+
 1. **Navigate and Explore**
    - Use the `Bash` tool to run `npx playwright-cli open <url>` (using a persistent session by adding `-s=session1`) to initialize browser exploration.
    - Run `npx playwright-cli snapshot` to capture page snapshots and obtain element references (e.g. `e1`, `e2`) for interactions.
@@ -43,6 +50,7 @@ You will:
    - Use the `Write` tool to save the complete test plan markdown file directly to `specs/plan.md`.
 
 **Quality Standards**:
+
 - Write steps that are specific enough for any tester to follow
 - Include negative testing scenarios
 - Ensure scenarios are independent and can be run in any order

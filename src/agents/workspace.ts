@@ -18,6 +18,12 @@ import type { PlaywrightJsonReport } from "../results/parse";
 const RESULTS_FILE = "results.json";
 /** The Markdown plan filename the Generator reads (the Planner saves a plan here). */
 const PLAN_FILE = "plan.md";
+/**
+ * Where the authenticated session is saved (Planner `state-save`s here) and
+ * reused (playwright.config.ts loads it as `use.storageState`). Relative to the
+ * workspace root so the config and the `npx playwright test` cwd agree on it.
+ */
+const AUTH_STATE_REL_PATH = ".auth/storageState.json";
 
 export interface Workspace {
   root: string;
@@ -25,10 +31,26 @@ export interface Workspace {
   testsDir: string;
   seedPath: string;
   configPath: string;
+  /**
+   * Absolute path to the saved storage-state file. The Planner saves the
+   * authenticated session here; the suite config loads it. Always defined; only
+   * actually written/loaded when a run has auth enabled.
+   */
+  authStatePath: string;
   /** Run the generated suite in this workspace and return Playwright's raw JSON report. */
   runSuite(): Promise<PlaywrightJsonReport>;
   /** Write (or overwrite) the Markdown plan the Generator will read. */
   writePlan(markdown: string): Promise<void>;
+}
+
+export interface WorkspaceOptions {
+  /**
+   * When true, the suite config loads the saved storage state so every test runs
+   * authenticated, and a placeholder state file is pre-created so `npx playwright
+   * test` never errors with "storageState file not found" before the Planner
+   * saves the real one.
+   */
+  authEnabled?: boolean;
 }
 
 const SEED = `import { test, expect } from '@playwright/test';
@@ -40,18 +62,30 @@ test.describe('Test group', () => {
 });
 `;
 
-const CONFIG = `import { defineConfig, devices } from '@playwright/test';
+/** Build the workspace Playwright config. When auth is enabled, every test loads
+ * the saved storage state so it runs already logged in. */
+function buildConfig(authEnabled: boolean): string {
+  const storageStateLine = authEnabled
+    ? `\n    storageState: '${AUTH_STATE_REL_PATH}',`
+    : "";
+  return `import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   reporter: [['json', { outputFile: '${RESULTS_FILE}' }], ['line']],
-  use: { 
-    headless: true, 
+  use: {
+    headless: true,
     ...devices['Desktop Chrome'],
     screenshot: 'only-on-failure',
-    trace: 'retain-on-failure'
+    trace: 'retain-on-failure',${storageStateLine}
   },
 });
 `;
+}
+
+/** An empty-but-valid storage state, written as a placeholder when auth is
+ * enabled so the suite config can reference the file before the Planner logs in
+ * and overwrites it with the real authenticated session. */
+const EMPTY_AUTH_STATE = JSON.stringify({ cookies: [], origins: [] });
 
 /**
  * Run `npx playwright test` in the workspace and parse the JSON report it writes.
@@ -81,6 +115,7 @@ async function runSuiteAt(root: string): Promise<PlaywrightJsonReport> {
 export async function createWorkspace(
   runId: string,
   baseDir = ".runs",
+  options: WorkspaceOptions = {},
 ): Promise<Workspace> {
   const root = join(getRunsRoot(baseDir), runId);
   const specsDir = join(root, "specs");
@@ -91,14 +126,22 @@ export async function createWorkspace(
   await mkdir(screenshotsDir, { recursive: true });
   const seedPath = join(root, "seed.spec.ts");
   const configPath = join(root, "playwright.config.ts");
+  const authStatePath = join(root, AUTH_STATE_REL_PATH);
   await writeFile(seedPath, SEED, "utf8");
-  await writeFile(configPath, CONFIG, "utf8");
+  await writeFile(configPath, buildConfig(!!options.authEnabled), "utf8");
+  // Pre-create a placeholder auth state so the suite config can load it even if
+  // the Planner has not yet logged in (avoids a confusing "file not found").
+  if (options.authEnabled) {
+    await mkdir(join(root, ".auth"), { recursive: true });
+    await writeFile(authStatePath, EMPTY_AUTH_STATE, "utf8");
+  }
   return {
     root,
     specsDir,
     testsDir,
     seedPath,
     configPath,
+    authStatePath,
     runSuite: () => runSuiteAt(root),
     writePlan: (markdown: string) =>
       writeFile(join(specsDir, PLAN_FILE), markdown, "utf8"),

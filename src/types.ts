@@ -66,6 +66,15 @@ export interface RunConfig {
   crawlMode?: CrawlMode;
   /** Max number of pages to visit (R1 scope limit). Default: 10. */
   maxPages?: number;
+  /**
+   * Optional free-text focus instruction. When set, it is injected as a
+   * high-priority directive into the Planner and Generator prompts so the run
+   * targets one specific in-page flow/platform that URL/depth scoping (crawlMode,
+   * maxPages, the crawl gate) cannot isolate — e.g. "select the Logistics
+   * platform from the selector, fill its inputs, and complete only that
+   * workflow; ignore all other platforms." Empty/unset → unscoped, as before.
+   */
+  focus?: string;
 }
 
 /** Pipeline stages, in order. Drives progress events (R8) and SSE (T17). */

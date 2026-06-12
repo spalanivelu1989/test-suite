@@ -22,6 +22,13 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { REUSE_MARKER, type KnowledgeService } from "../knowledge";
 import type { HealingPrecedent, Playbook } from "../knowledge/types";
+import {
+  type AuthCredentials,
+  authEnvFor,
+  buildGeneratorAuthPreamble,
+  buildHealerAuthPreamble,
+  buildPlannerAuthPreamble,
+} from "../auth/credentials";
 
 /** Max precedents injected into the Healer prompt (token budget, C5/D8). */
 const MAX_HEAL_PRECEDENTS = 5;
@@ -85,6 +92,10 @@ export interface PlanOptions {
   crawlMode?: CrawlMode;
   /** Maximum number of unique pages to visit. Default: 10. */
   maxPages?: number;
+  /** Form-login credentials; when set, the Planner logs in before exploring. */
+  auth?: AuthCredentials;
+  /** Free-text focus directive scoping the plan to one in-page flow/platform. */
+  focus?: string;
 }
 
 /**
@@ -141,6 +152,30 @@ function buildPlannerConstraints(
   );
 
   return lines;
+}
+
+/**
+ * Build a high-priority FOCUS directive from the user's free-text instruction.
+ * Returns "" when there is no focus, so callers can unconditionally concatenate.
+ *
+ * This is the only lever that can scope a run to ONE in-page flow/platform when
+ * URL/depth scoping (crawlMode, maxPages, the crawl gate) cannot — e.g. several
+ * platforms living behind a single page with no unique sub-URL. The directive is
+ * deliberately strong ("ONLY", "ignore everything else") so a stray sibling flow
+ * never sneaks into the plan or the generated specs.
+ */
+export function buildFocusBlock(focus: string | undefined): string {
+  const trimmed = focus?.trim();
+  if (!trimmed) return "";
+  return [
+    "🎯 FOCUS — SCOPE THIS RUN TO ONE TARGET ONLY (highest priority, overrides breadth):",
+    trimmed,
+    "Test ONLY the flow/platform described above. Do NOT plan, explore, or generate tests for any",
+    "other platform, section, or flow on the page — even if it is visible, linked, or obviously testable.",
+    "If the target requires selecting it first (a tab, dropdown, card, or toggle), perform that selection,",
+    "then fill its input fields and complete that workflow end to end. When in doubt about whether something",
+    "belongs in scope, leave it out.",
+  ].join("\n");
 }
 
 /** T6: run the Planner → it explores the live app and saves a Markdown plan. */
@@ -222,16 +257,32 @@ export async function planTests(
     playbookLines = [];
   }
 
-  const prompt = [
-    `Create a comprehensive Playwright test plan for the web application at ${url}.`,
-    "Open the browser with playwright-cli first, then explore the app and identify the primary",
-    "user flows (navigation, key content pages, forms, search). Save the finished plan",
-    `with the Write tool to exactly this absolute path: ${ws.specsDir}/plan.md`,
-    "— write it there and nowhere else (do NOT write to the repository's own specs/ directory or any other path).",
-    ...constraintLines,
-    ...memoryLines,
-    ...playbookLines,
-  ].join(" ");
+  // When the app is behind a login screen, the Planner must authenticate (and
+  // save the session for the rest of the pipeline) before it can see anything.
+  const authPreamble = options.auth
+    ? buildPlannerAuthPreamble(options.auth, url, ws.authStatePath) + "\n\n"
+    : "";
+
+  // A user-supplied focus narrows the run to one in-page flow/platform that the
+  // URL/depth crawl scope cannot isolate. Placed before the breadth instructions
+  // (and crawl constraints) so it dominates how the Planner explores.
+  const focusBlock = options.focus
+    ? buildFocusBlock(options.focus) + "\n\n"
+    : "";
+
+  const prompt =
+    authPreamble +
+    focusBlock +
+    [
+      `Create a comprehensive Playwright test plan for the web application at ${url}.`,
+      "Open the browser with playwright-cli first, then explore the app and identify the primary",
+      "user flows (navigation, key content pages, forms, search). Save the finished plan",
+      `with the Write tool to exactly this absolute path: ${ws.specsDir}/plan.md`,
+      "— write it there and nowhere else (do NOT write to the repository's own specs/ directory or any other path).",
+      ...constraintLines,
+      ...memoryLines,
+      ...playbookLines,
+    ].join(" ");
 
   const res = await run({
     agent,
@@ -240,6 +291,10 @@ export async function planTests(
     onEvent,
     abortController: deps.abortController,
     hooks: mergeHooks(guard.hooks, gate.hooks),
+    // Inject credentials as env vars so the agent references "$TARGET_PASSWORD"
+    // instead of typing a shell-mangle-prone literal (keeps the secret out of
+    // the prompt/traces too). Only the Planner logs in; later stages state-load.
+    ...(options.auth ? { env: authEnvFor(options.auth) } : {}),
   });
   const planMarkdown = await readPlan(ws);
   return {
@@ -268,6 +323,10 @@ export interface GenerateOptions {
   maxPages?: number;
   /** Entry URL — used to scope knowledge retrieval for the Generator (R10). */
   url?: string;
+  /** Form-login credentials; when set, the Generator loads the saved session. */
+  auth?: AuthCredentials;
+  /** Free-text focus directive; mirrors the Planner so generation stays scoped. */
+  focus?: string;
 }
 
 /**
@@ -340,9 +399,11 @@ async function applyGeneratorKnowledge(
   const reuse = gen.decisions.filter((d) => d.action === "reuse");
   const newCount = gen.decisions.filter((d) => d.action === "new").length;
 
-  // Copy each confident match forward. A `reuse` whose source is unavailable
-  // (budget-trimmed or missing) is NOT skipped — it falls back to generation,
-  // so no planned scenario is ever left without a test.
+  // Copy each confident match forward. A `reuse` whose source is genuinely
+  // unavailable (e.g. the prior run's raw report was pruned) is NOT skipped — it
+  // falls back to generation, so no planned scenario is ever left without a test.
+  // Source is no longer token-bounded, so a covered scenario is never dropped
+  // merely because earlier specs in the suite filled a prompt budget.
   const copied: string[] = [];
   for (const d of reuse) {
     const ms = d.matchedSpec;
@@ -432,7 +493,18 @@ export async function generateTests(
     onEvent,
   );
 
+  const authLines =
+    options.auth && options.url
+      ? [buildGeneratorAuthPreamble(options.url, ws.authStatePath)]
+      : [];
+
+  // Carry the same focus into generation: the plan is already scoped, but this
+  // guards against generating a spec for any stray out-of-focus scenario and
+  // reminds the Generator to perform the platform selection before each flow.
+  const focusLines = options.focus ? [buildFocusBlock(options.focus)] : [];
+
   const prompt = [
+    ...focusLines,
     `Read the Markdown test plan at ${ws.specsDir}/plan.md.`,
     "Write each test scenario (#### N.M <Scenario Title>) into its own separate spec file.",
     "Do NOT group multiple scenarios into a single file.",
@@ -443,6 +515,7 @@ export async function generateTests(
     "Write spec files there and nowhere else (do NOT write to the repository's own tests/ directory).",
     `Use the seed at ${ws.seedPath} as the starting template.`,
     ...knowledgeLines,
+    ...authLines,
   ].join(" ");
 
   const gate = createCrawlGate({
@@ -506,6 +579,7 @@ export async function healTests(
   validation?: ValidationReport,
   precedents: HealingPrecedent[] = [],
   playbooks: Playbook[] = [],
+  auth?: AuthCredentials,
 ): Promise<HealResult> {
   const load = deps.loadAgentFn ?? loadAgent;
   const run = deps.runner ?? runAgent;
@@ -514,6 +588,7 @@ export async function healTests(
   const validationBlock = validation
     ? formatValidationForHealer(validation)
     : "";
+  const authBlock = auth ? buildHealerAuthPreamble(ws.authStatePath) : "";
   // Phase 3: surface prior successful fixes for similar failures (R7) and trusted
   // principles (R12). Best-effort and token-budgeted; with none, the prompt is
   // identical to Phase 2 (N2).
@@ -527,6 +602,7 @@ export async function healTests(
     ...(precedentBlock ? ["\n\n" + precedentBlock] : []),
     ...(playbookBlock ? ["\n\n" + playbookBlock] : []),
     ...(validationBlock ? ["\n\n" + validationBlock] : []),
+    ...(authBlock ? [authBlock] : []),
   ].join(" ");
 
   const gate = createCrawlGate({

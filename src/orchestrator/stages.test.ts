@@ -300,6 +300,60 @@ test("planTests injects direct-mode constraint (no other pages)", async () => {
   }
 });
 
+test("planTests injects the focus directive when set", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    let capturedPrompt = "";
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      capturedPrompt = opts.prompt;
+      await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
+      return { resultText: "saved", toolCalls: ["Write"], isError: false };
+    };
+    await planTests(
+      ws,
+      "https://example.com",
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      {
+        crawlMode: "direct",
+        maxPages: 5,
+        focus: "Only the Logistics platform",
+      },
+    );
+
+    assert.ok(capturedPrompt.includes("🎯 FOCUS"), `got: ${capturedPrompt}`);
+    assert.ok(
+      capturedPrompt.includes("Only the Logistics platform"),
+      `got: ${capturedPrompt}`,
+    );
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("planTests omits the focus block when no focus is given", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    let capturedPrompt = "";
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      capturedPrompt = opts.prompt;
+      await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
+      return { resultText: "saved", toolCalls: ["Write"], isError: false };
+    };
+    await planTests(
+      ws,
+      "https://example.com",
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      { crawlMode: "direct", maxPages: 5 },
+    );
+
+    assert.ok(!capturedPrompt.includes("🎯 FOCUS"), `got: ${capturedPrompt}`);
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
 test("planTests injects standard-mode depth-1 constraint", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {

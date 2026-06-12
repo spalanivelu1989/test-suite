@@ -517,14 +517,33 @@ export function renderHtml(report: RunReport): string {
       <ul class="prose">
         ${report.summary
           .map(
-            (item) => `
-          <li>
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <span>${esc(item)}</span>
-          </li>
-        `,
+            (item, idx) => {
+              const testResult = report.results?.[idx];
+              const fileName = testResult?.fileName;
+              const hasSpec = report.generatedSpecs?.some(
+                (s) => s.file.split("/").pop() === fileName || (testResult && s.file.includes(testResult.flowId))
+              );
+              const linkHtml = hasSpec && fileName
+                ? `
+                <button type="button" class="code-pill-btn" onclick="viewSpecCode('${esc(fileName)}')">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;margin-right:4px;">
+                    <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
+                  </svg>
+                  ${esc(fileName)}
+                </button>`
+                : "";
+              return `
+              <li>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                  <span>${esc(item)}</span>
+                  ${linkHtml}
+                </div>
+              </li>
+            `;
+            }
           )
           .join("")}
       </ul>
@@ -539,7 +558,12 @@ export function renderHtml(report: RunReport): string {
   <title>Test Report — ${esc(report.url)}</title>
   <script>
     (function() {
-      const saved = localStorage.getItem('report-theme');
+      let saved = null;
+      try {
+        saved = localStorage.getItem('report-theme');
+      } catch (e) {
+        console.warn('localStorage not accessible:', e);
+      }
       const isDark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
       document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
       if (isDark) {
@@ -984,7 +1008,129 @@ export function renderHtml(report: RunReport): string {
     </div>
   </div>
 
+  <!-- Code Viewer Modal -->
+  <div id="code-modal" class="lightbox-overlay" onclick="closeCodeModal()">
+    <div class="lightbox-content" onclick="event.stopPropagation()" style="max-width: 90%; width: 900px; height: 80vh; display: flex; flex-direction: column; background: #1e1e2e; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;">
+      <button class="lightbox-close" onclick="closeCodeModal()" style="top: 12px; right: 16px;">×</button>
+      <div style="padding: 12px 16px; border-bottom: 1px solid #414559; display: flex; align-items: center; justify-content: space-between; background: #181825; user-select: none;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #81c8be; width: 14px; height: 14px;">
+            <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
+          </svg>
+          <span id="code-modal-filename" style="font-size: 13px; font-weight: bold; font-family: var(--mono); color: #b5bfe2;">spec-file.spec.ts</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; margin-right: 32px;">
+          <span style="font-size: 10px; font-weight: bold; text-transform: uppercase; background: #414559; color: #81c8be; padding: 2px 6px; border-radius: 4px;">TypeScript</span>
+          <button type="button" id="code-modal-copy" style="background: transparent; border: none; font-size: 12px; color: #b5bfe2; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; transition: background-color 0.2s;">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            <span id="code-modal-copy-text">Copy</span>
+          </button>
+        </div>
+      </div>
+      <div id="code-modal-body" style="flex: 1; overflow: auto; padding: 16px; background: #232634; color: #b5bfe2; font-family: var(--mono); font-size: 13px;">
+      </div>
+    </div>
+  </div>
+
   <script>
+    const GENERATED_SPECS = ${JSON.stringify(report.generatedSpecs || [])};
+
+    function safeGetItem(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        console.warn('localStorage.getItem failed:', e);
+        return null;
+      }
+    }
+
+    function safeSetItem(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        console.warn('localStorage.setItem failed:', e);
+      }
+    }
+
+    function highlightTypeScript(code) {
+      const lines = code.split("\\n");
+      return lines.map((line, idx) => {
+        let html = line
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        html = html.replace(
+          /(["'\`])(.*?)\\1/g,
+          '<span style="color: #a6d189;">$1$2$1</span>'
+        );
+
+        const keywords = [
+          "import", "from", "const", "let", "var", "await", "async",
+          "function", "class", "return", "export", "default", "if",
+          "else", "for", "while", "new", "type", "interface", "as"
+        ];
+        const kwRegex = new RegExp("\\\\b(" + keywords.join("|") + ")\\\\b", "g");
+        html = html.replace(
+          kwRegex,
+          '<span style="color: #ca9ee6; font-weight: bold;">$1</span>'
+        );
+
+        const testTerms = [
+          "test", "expect", "describe", "beforeAll", "beforeEach",
+          "afterEach", "goto", "click", "fill", "locator"
+        ];
+        const termRegex = new RegExp("\\\\b(" + testTerms.join("|") + ")\\\\b", "g");
+        html = html.replace(termRegex, '<span style="color: #8caaee;">$1</span>');
+
+        html = html.replace(
+          /(\\/\\/.*)$/g,
+          '<span style="color: #838ba7; font-style: italic;">$1</span>'
+        );
+
+        return '<div style="display: flex; align-items: flex-start; py: 2px; font-family: var(--mono); font-size: 13px;">' +
+          '<span style="width: 30px; min-width: 30px; color: #838ba7; text-align: right; padding-right: 10px; user-select: none; border-right: 1px solid #414559; margin-right: 12px;">' + (idx + 1) + '</span>' +
+          '<div style="flex: 1; white-space: pre-wrap; word-break: break-all; color: #b5bfe2;">' + (html || " ") + '</div>' +
+          '</div>';
+      }).join("");
+    }
+
+    let activeCode = '';
+
+    function viewSpecCode(fileName) {
+      const spec = GENERATED_SPECS.find(s => s.file.split('/').pop() === fileName || s.file.includes(fileName));
+      if (!spec) return;
+
+      activeCode = spec.code;
+      document.getElementById('code-modal-filename').innerText = fileName;
+      document.getElementById('code-modal-body').innerHTML = highlightTypeScript(spec.code);
+      document.getElementById('code-modal-copy-text').innerText = 'Copy';
+      document.getElementById('code-modal').classList.add('active');
+    }
+
+    function closeCodeModal() {
+      document.getElementById('code-modal').classList.remove('active');
+    }
+
+    const copyBtn = document.getElementById('code-modal-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(activeCode);
+        document.getElementById('code-modal-copy-text').innerText = 'Copied!';
+        setTimeout(() => {
+          document.getElementById('code-modal-copy-text').innerText = 'Copy';
+        }, 2000);
+      });
+      copyBtn.addEventListener('mouseenter', () => {
+        copyBtn.style.backgroundColor = '#414559';
+      });
+      copyBtn.addEventListener('mouseleave', () => {
+        copyBtn.style.backgroundColor = 'transparent';
+      });
+    }
+
     let currentFilter = 'all';
 
     function openLightbox(src) {
@@ -1161,7 +1307,7 @@ export function renderHtml(report: RunReport): string {
         const root = document.getElementById('report-root');
         if (root) root.classList.toggle('dark', isDark);
         document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        localStorage.setItem('report-theme', isDark ? 'dark' : 'light');
+        safeSetItem('report-theme', isDark ? 'dark' : 'light');
       });
     }
 
@@ -1172,7 +1318,7 @@ export function renderHtml(report: RunReport): string {
       const chevronLeft = sidebarToggle.querySelector('.chevron-left-icon');
       const chevronRight = sidebarToggle.querySelector('.chevron-right-icon');
 
-      const isCollapsed = localStorage.getItem('report-sidebar-collapsed') === 'true';
+      const isCollapsed = safeGetItem('report-sidebar-collapsed') === 'true';
       if (isCollapsed) {
         pageRoot.classList.add('sidebar-collapsed');
         if (chevronLeft) chevronLeft.style.display = 'none';
@@ -1182,7 +1328,7 @@ export function renderHtml(report: RunReport): string {
 
       sidebarToggle.addEventListener('click', () => {
         const collapsed = pageRoot.classList.toggle('sidebar-collapsed');
-        localStorage.setItem('report-sidebar-collapsed', String(collapsed));
+        safeSetItem('report-sidebar-collapsed', String(collapsed));
         if (collapsed) {
           if (chevronLeft) chevronLeft.style.display = 'none';
           if (chevronRight) chevronRight.style.display = 'block';

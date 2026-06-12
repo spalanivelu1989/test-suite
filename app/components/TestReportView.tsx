@@ -10,7 +10,7 @@ import {
   Button,
   Spinner,
 } from "@chakra-ui/react";
-import { ChevronDown, Check, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, Check, Download, ChevronLeft, ChevronRight, Code2, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useThemeMode } from "@/app/providers";
 import "./TestReportView.css";
@@ -252,6 +252,100 @@ const OUTCOME_EMOJI: Record<TestOutcome, React.ReactNode> = {
   fixme: <SkipIcon />,
 };
 
+function highlightTypeScript(code: string) {
+  const lines = code.split("\n");
+  return lines.map((line, idx) => {
+    let html = line
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    html = html.replace(
+      /(["'`])(.*?)\1/g,
+      '<span style="color: #a6d189;">$1$2$1</span>',
+    );
+
+    const keywords = [
+      "import",
+      "from",
+      "const",
+      "let",
+      "var",
+      "await",
+      "async",
+      "function",
+      "class",
+      "return",
+      "export",
+      "default",
+      "if",
+      "else",
+      "for",
+      "while",
+      "new",
+      "type",
+      "interface",
+      "as",
+    ];
+    const kwRegex = new RegExp(`\\b(${keywords.join("|")})\\b`, "g");
+    html = html.replace(
+      kwRegex,
+      '<span style="color: #ca9ee6; font-weight: bold;">$1</span>',
+    );
+
+    const testTerms = [
+      "test",
+      "expect",
+      "describe",
+      "beforeAll",
+      "beforeEach",
+      "afterEach",
+      "goto",
+      "click",
+      "fill",
+      "locator",
+    ];
+    const termRegex = new RegExp(`\\b(${testTerms.join("|")})\\b`, "g");
+    html = html.replace(termRegex, '<span style="color: #8caaee;">$1</span>');
+
+    html = html.replace(
+      /(\/\/.*)$/g,
+      '<span style="color: #838ba7; font-style: italic;">$1</span>',
+    );
+
+    return (
+      <Flex
+        key={idx}
+        align="flex-start"
+        py={0.5}
+        fontFamily="mono"
+        fontSize="13px"
+      >
+        <Text
+          w="30px"
+          minW="30px"
+          color="#838ba7"
+          textAlign="right"
+          pr={2.5}
+          userSelect="none"
+          borderRight="1px solid"
+          borderColor="#414559"
+          mr={3}
+        >
+          {idx + 1}
+        </Text>
+        <Box
+          flex={1}
+          whiteSpace="pre-wrap"
+          wordBreak="break-all"
+          color="#b5bfe2"
+          dangerouslySetInnerHTML={{ __html: html || " " }}
+        />
+      </Flex>
+    );
+  });
+}
+
 export function TestReportView({
   run,
   report,
@@ -261,13 +355,19 @@ export function TestReportView({
   // Tab selector state inside report
   const [activeSubTab, setActiveSubTab] = useState("dashboard");
   const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
+  const [selectedSpec, setSelectedSpec] = useState<{ file: string; code: string } | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("sidebar-collapsed") === "true";
+      try {
+        return localStorage.getItem("sidebar-collapsed") === "true";
+      } catch (e) {
+        console.warn("localStorage.getItem failed:", e);
+      }
     }
     return false;
   });
@@ -275,7 +375,11 @@ export function TestReportView({
   const toggleSidebar = () => {
     setIsSidebarCollapsed((prev) => {
       const next = !prev;
-      localStorage.setItem("sidebar-collapsed", String(next));
+      try {
+        localStorage.setItem("sidebar-collapsed", String(next));
+      } catch (e) {
+        console.warn("localStorage.setItem failed:", e);
+      }
       return next;
     });
   };
@@ -322,6 +426,12 @@ export function TestReportView({
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   // Detailed Results Table Search & Filtering States
@@ -1808,12 +1918,34 @@ export function TestReportView({
             </p>
             {report.summary && report.summary.length > 0 ? (
               <ul className="prose">
-                {report.summary.map((summaryItem, idx) => (
-                  <li key={idx}>
-                    <CheckIcon />
-                    <span>{summaryItem}</span>
-                  </li>
-                ))}
+                {report.summary.map((summaryItem, idx) => {
+                  const testResult = report.results?.[idx];
+                  const fileName = testResult?.fileName;
+                  const spec = report.generatedSpecs?.find(
+                    (s) =>
+                      s.file.split("/").pop() === fileName ||
+                      (testResult && s.file.includes(testResult.flowId))
+                  );
+
+                  return (
+                    <li key={idx}>
+                      <CheckIcon />
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%" }}>
+                        <span>{summaryItem}</span>
+                        {spec && (
+                          <button
+                            type="button"
+                            className="code-pill-btn"
+                            onClick={() => setSelectedSpec(spec)}
+                          >
+                            <Code2 size={12} />
+                            {spec.file.split("/").pop()}
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="empty-msg">
@@ -2048,6 +2180,107 @@ export function TestReportView({
           <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
             <button className="lightbox-close" onClick={() => setSelectedLightboxImage(null)}>×</button>
             <img src={selectedLightboxImage} alt="Enlarged screenshot" />
+          </div>
+        </div>
+      )}
+
+      {/* Code Viewer Modal */}
+      {selectedSpec && (
+        <div className="lightbox-overlay active" onClick={() => setSelectedSpec(null)}>
+          <div
+            className="lightbox-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "90%",
+              width: "900px",
+              height: "80vh",
+              display: "flex",
+              flexDirection: "column",
+              background: "#1e1e2e",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-lg)",
+              overflow: "hidden",
+            }}
+          >
+            <button
+              className="lightbox-close"
+              onClick={() => setSelectedSpec(null)}
+              style={{ top: "12px", right: "16px" }}
+            >
+              ×
+            </button>
+            <div
+              style={{
+                padding: "12px 16px",
+                borderBottom: "1px solid #414559",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "#181825",
+                userSelect: "none",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Code2 size={13} style={{ color: "#81c8be" }} />
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: "bold",
+                    fontFamily: "var(--mono)",
+                    color: "#b5bfe2",
+                  }}
+                >
+                  {selectedSpec.file.split("/").pop()}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginRight: "32px" }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: "bold",
+                    textTransform: "uppercase",
+                    background: "#414559",
+                    color: "#81c8be",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  TypeScript
+                </span>
+                <button
+                  type="button"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    fontSize: "12px",
+                    color: "#b5bfe2",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    transition: "background-color 0.2s",
+                  }}
+                  onClick={() => handleCopyCode(selectedSpec.code)}
+                  onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#414559")}
+                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  <Copy size={11} />
+                  {copiedCode ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+            <div
+              style={{
+                flex: 1,
+                overflow: "auto",
+                padding: "16px",
+                background: "#232634",
+              }}
+            >
+              {highlightTypeScript(selectedSpec.code)}
+            </div>
           </div>
         </div>
       )}

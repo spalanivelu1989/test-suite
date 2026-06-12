@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Box,
   Input,
+  Textarea,
   Flex,
   Text,
   VStack,
@@ -35,6 +36,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
   const isDark = theme === "dark";
 
   const [url, setUrl] = useState("");
+  const [focus, setFocus] = useState("");
   const [crawlMode, setCrawlMode] = useState("direct");
   const [maxPages, setMaxPages] = useState("1");
   const [submitting, setSubmitting] = useState(false);
@@ -151,6 +153,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           url,
           crawlMode,
           maxPages: parseInt(maxPages),
+          ...(focus.trim() ? { focus: focus.trim() } : {}),
         }),
       });
       const data = (await res.json()) as { runId?: string; error?: string };
@@ -223,6 +226,49 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
             <Text fontSize="11.5px" color={colors.subtext}>
               The AI agent will crawl this URL, planning and executing test
               suites automatically.
+            </Text>
+          </VStack>
+
+          {/* Section 1b: Focus (optional) */}
+          <VStack align="stretch" gap={3}>
+            <HStack gap={2} align="baseline">
+              <Text
+                fontSize="13px"
+                fontWeight="extrabold"
+                color={colors.text}
+                letterSpacing="0.03em"
+                fontFamily="mono"
+                textTransform="uppercase"
+              >
+                Focus
+              </Text>
+              <Text fontSize="11px" color={colors.subtext} fontFamily="mono">
+                (optional)
+              </Text>
+            </HStack>
+            <Textarea
+              value={focus}
+              onChange={(e) => setFocus(e.target.value.slice(0, 1000))}
+              placeholder={
+                'Scope the run to one flow on the page. e.g. "Select the Logistics platform from the platform selector, fill in its input fields, and complete only that workflow — ignore all other platforms."'
+              }
+              fontSize="13px"
+              bg={isDark ? "#232634" : "#ffffff"}
+              borderColor={colors.border}
+              borderRadius="md"
+              size="sm"
+              rows={3}
+              resize="vertical"
+              disabled={submitting}
+              _focus={{
+                borderColor: "#85c1dc",
+                boxShadow: "0 0 0 1px #85c1dc",
+              }}
+            />
+            <Text fontSize="11.5px" color={colors.subtext}>
+              Leave blank to test the whole page. Use this when several
+              platforms live on one URL with no separate link — the agent will
+              plan and test only the flow you describe. {focus.length}/1000
             </Text>
           </VStack>
 

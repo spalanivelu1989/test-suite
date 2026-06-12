@@ -112,6 +112,7 @@ test("captureResults runs the suite via the workspace", async () => {
     testsDir: "",
     seedPath: "",
     configPath: "",
+    authStatePath: "",
     runSuite: async () => report,
     writePlan: async () => {},
   });
@@ -168,6 +169,7 @@ test("assessSuiteFlakiness flags a test whose result diverges across re-runs", a
     testsDir: "",
     seedPath: "",
     configPath: "",
+    authStatePath: "",
     runSuite,
     writePlan: async () => {},
   };

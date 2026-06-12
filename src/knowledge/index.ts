@@ -199,7 +199,7 @@ class PgKnowledgeService implements KnowledgeService {
     //                       ▼                                                       ▼
     //   readSpecsForApp(appId)  ─►  decideForSpecs(scenarios+emb, specs)  ─► (sem=0 ⇒ Phase-1 lexical)
     //                       ▼
-    //   buildGeneratorPack(decisions, reused-spec code)  ─►  Generator prompt
+    //   buildGeneratorPack(decisions, full reused-spec source)  ─►  copy-forward
     return withKb<ContextPack>(
       "assembleContext.generating",
       async () => {
