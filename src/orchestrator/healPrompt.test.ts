@@ -3,12 +3,12 @@ import { test } from "node:test";
 import type { HealingPrecedent, Playbook } from "../knowledge/types";
 import {
   formatPlaybooks,
-  formatPrecedentsForHealer,
-  healTests,
+  formatPrecedentsForEvolver,
+  evolveTests,
 } from "./stages";
 import type { StageDeps } from "./stages";
 
-// Phase 3 additive-no-regression guard for the Healer prompt (R13/N2/AC8/AC16):
+// Phase 3 additive-no-regression guard for the Evolver prompt (R13/N2/AC8/AC16):
 // with no precedents and no playbooks the prompt must be byte-identical to
 // Phase 2; with them, the injected blocks appear.
 
@@ -34,7 +34,7 @@ const playbook: Playbook = {
   status: "trusted",
 };
 
-/** Run healTests with a fake agent+runner that captures the prompt. */
+/** Run evolveTests with a fake agent+runner that captures the prompt. */
 async function capturePrompt(
   precedents: HealingPrecedent[],
   playbooks: Playbook[],
@@ -47,7 +47,7 @@ async function capturePrompt(
       return { toolCalls: [], isError: false, resultText: "" };
     },
   } as StageDeps;
-  await healTests(
+  await evolveTests(
     { root: "/tmp/x", testsDir: "/tmp/x/tests" } as never,
     undefined,
     deps,
@@ -59,18 +59,18 @@ async function capturePrompt(
 }
 
 test("formatters: empty inputs → empty string (no prompt change)", () => {
-  assert.equal(formatPrecedentsForHealer([]), "");
+  assert.equal(formatPrecedentsForEvolver([]), "");
   assert.equal(formatPlaybooks([]), "");
 });
 
-test("healTests prompt: no precedents/playbooks → identical to Phase 2 (AC16/N2)", async () => {
+test("evolveTests prompt: no precedents/playbooks → identical to Phase 2 (AC16/N2)", async () => {
   const base = await capturePrompt([], []);
   assert.ok(!base.includes("KNOWN FIXES"));
   assert.ok(!base.includes("LEARNED PRINCIPLES"));
   assert.ok(base.includes("Run the generated test suite"));
 });
 
-test("healTests prompt: precedents + playbooks → blocks injected (AC8/AC15)", async () => {
+test("evolveTests prompt: precedents + playbooks → blocks injected (AC8/AC15)", async () => {
   const enriched = await capturePrompt([precedent], [playbook]);
   assert.ok(enriched.includes("KNOWN FIXES"));
   assert.ok(enriched.includes("role-locator"));

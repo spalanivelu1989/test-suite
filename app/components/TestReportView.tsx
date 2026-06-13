@@ -2160,7 +2160,7 @@ export function TestReportView({
                 <div style={{ fontSize: "40px", marginBottom: "16px" }}>📷</div>
                 <h3 style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "8px" }}>No screenshots found</h3>
                 <p style={{ color: "gray", fontSize: "13px", maxWidth: "400px", margin: "0 auto" }}>
-                  This run does not contain any visual logs. Interactive explorer screenshots are saved when running Planner or Generator agents.
+                  This run does not contain any visual logs. Interactive explorer screenshots are saved when running Discoverer or Designer agents.
                 </p>
               </div>
             )}

@@ -11,10 +11,12 @@ import {
   CRAWL_MODE_DEPTH,
   CRAWL_MODE_SCENARIOS_PER_PAGE,
   effectivePageBudget,
+  effectiveScenarioCap,
+  MAX_TOTAL_TESTS,
   type ValidationReport,
 } from "../types";
 import {
-  formatValidationForHealer,
+  formatValidationForEvolver,
   parsePlanScenarios,
   validateSuite,
 } from "../validator/validate";
@@ -25,12 +27,12 @@ import type { HealingPrecedent, Playbook } from "../knowledge/types";
 import {
   type AuthCredentials,
   authEnvFor,
-  buildGeneratorAuthPreamble,
-  buildHealerAuthPreamble,
-  buildPlannerAuthPreamble,
+  buildDesignerAuthPreamble,
+  buildEvolverAuthPreamble,
+  buildDiscovererAuthPreamble,
 } from "../auth/credentials";
 
-/** Max precedents injected into the Healer prompt (token budget, C5/D8). */
+/** Max precedents injected into the Evolver prompt (token budget, C5/D8). */
 const MAX_HEAL_PRECEDENTS = 5;
 
 /** Max playbooks injected into any agent prompt (token budget, C5/D8). */
@@ -50,7 +52,7 @@ export function formatPlaybooks(playbooks: Playbook[] = []): string {
 }
 
 /** Render prior fixes as a compact, budgeted prompt block (R7). Empty → "". */
-export function formatPrecedentsForHealer(
+export function formatPrecedentsForEvolver(
   precedents: HealingPrecedent[],
 ): string {
   if (precedents.length === 0) return "";
@@ -77,7 +79,7 @@ export interface StageDeps {
   loadAgentFn?: typeof loadAgent;
   /** Forwarded to the agent runtime so a stopped run kills the agent subprocess. */
   abortController?: AbortController;
-  /** Knowledge Layer — injects history into the Planner/Generator prompts (R8/R10). */
+  /** Knowledge Layer — injects history into the Discoverer/Designer prompts (R8/R10). */
   knowledge?: KnowledgeService;
 }
 
@@ -92,26 +94,34 @@ export interface PlanOptions {
   crawlMode?: CrawlMode;
   /** Maximum number of unique pages to visit. Default: 10. */
   maxPages?: number;
-  /** Form-login credentials; when set, the Planner logs in before exploring. */
+  /** Form-login credentials; when set, the Discoverer logs in before exploring. */
   auth?: AuthCredentials;
   /** Free-text focus directive scoping the plan to one in-page flow/platform. */
   focus?: string;
+  /** Per-page test rate; overrides the per-mode default rate when set. */
+  testsPerPage?: number;
 }
 
 /**
  * Build the mode-specific crawl-scope instruction block injected into the
- * planner prompt.  Each mode gets an unambiguous, concrete directive so the LLM
+ * discoverer prompt.  Each mode gets an unambiguous, concrete directive so the LLM
  * cannot "interpret" it loosely.
  */
-function buildPlannerConstraints(
+function buildDiscovererConstraints(
   crawlMode: CrawlMode,
   maxPages: number,
   url: string,
+  testsPerPage?: number,
 ): string[] {
   const depth = CRAWL_MODE_DEPTH[crawlMode];
-  const scenariosPerPage = CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode];
   const pageBudget = effectivePageBudget(crawlMode, maxPages);
-  const maxScenarios = pageBudget * scenariosPerPage;
+  const rate =
+    testsPerPage && testsPerPage > 0
+      ? testsPerPage
+      : CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode];
+  const maxScenarios = effectiveScenarioCap(crawlMode, maxPages, testsPerPage);
+  // True when the page×rate product was clamped down to the global ceiling.
+  const clamped = maxScenarios < Math.round(pageBudget * rate);
 
   const lines: string[] = [
     "IMPORTANT — hard crawl-scope constraints (you MUST respect these exactly):",
@@ -147,8 +157,10 @@ function buildPlannerConstraints(
   }
 
   lines.push(
-    `SCENARIO CAP: Your plan MUST contain at most ${maxScenarios} test scenarios in total (${pageBudget} page(s) × ${scenariosPerPage} scenarios/page).`,
-    "Do not exceed this cap under any circumstances — trim lower-priority scenarios if needed.",
+    `SCENARIO CAP: Your plan MUST contain at most ${maxScenarios} test scenarios in total ` +
+      `(${pageBudget} page(s) × ${rate} tests/page` +
+      (clamped ? `, capped at the ${MAX_TOTAL_TESTS}-test ceiling).` : ").") +
+      " Do not exceed this cap under any circumstances — trim lower-priority scenarios if needed.",
   );
 
   return lines;
@@ -178,8 +190,8 @@ export function buildFocusBlock(focus: string | undefined): string {
   ].join("\n");
 }
 
-/** T6: run the Planner → it explores the live app and saves a Markdown plan. */
-export async function planTests(
+/** T6: run the Discoverer → it explores the live app and saves a Markdown plan. */
+export async function discoverTests(
   ws: Workspace,
   url: string,
   onEvent?: (e: AgentEvent) => void,
@@ -188,12 +200,17 @@ export async function planTests(
 ): Promise<PlanResult> {
   const load = deps.loadAgentFn ?? loadAgent;
   const run = deps.runner ?? runAgent;
-  const agent = await load("playwright-test-planner");
+  const agent = await load("playwright-test-discoverer");
 
   const crawlMode: CrawlMode = options.crawlMode ?? "standard";
   const maxPages = options.maxPages ?? 10;
 
-  const constraintLines = buildPlannerConstraints(crawlMode, maxPages, url);
+  const constraintLines = buildDiscovererConstraints(
+    crawlMode,
+    maxPages,
+    url,
+    options.testsPerPage,
+  );
 
   // Code-enforced crawl scope: the gate hard-denies out-of-scope navigation at
   // the tool boundary, so the depth/page limits hold even if the agent ignores
@@ -203,7 +220,7 @@ export async function planTests(
     maxPages,
     entryUrl: url,
     workspaceRoot: ws.root,
-    stageName: "1-planner",
+    stageName: "1-discoverer",
     onDeny: (reason) =>
       onEvent?.({ kind: "text", text: `🛑 Crawl limit enforced: ${reason}` }),
   });
@@ -215,9 +232,9 @@ export async function planTests(
       onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
   });
 
-  // The Planner crawls the target URL independently and writes the plan from what
+  // The Discoverer crawls the target URL independently and writes the plan from what
   // it observes. It carries NO coverage/reuse knowledge — de-duplication against
-  // prior runs is the Generator's job alone (one decision layer, see ADR-0003).
+  // prior runs is the Designer's job alone (one decision layer, see ADR-0003).
   // It IS given the previous plan for this URL as reference "memory" (best-effort,
   // guarded): an accelerator only — it must still crawl, revise, and add new flows.
   const PLAN_MEMORY_BUDGET_CHARS = 16_000; // ~4k tokens
@@ -257,15 +274,15 @@ export async function planTests(
     playbookLines = [];
   }
 
-  // When the app is behind a login screen, the Planner must authenticate (and
+  // When the app is behind a login screen, the Discoverer must authenticate (and
   // save the session for the rest of the pipeline) before it can see anything.
   const authPreamble = options.auth
-    ? buildPlannerAuthPreamble(options.auth, url, ws.authStatePath) + "\n\n"
+    ? buildDiscovererAuthPreamble(options.auth, url, ws.authStatePath) + "\n\n"
     : "";
 
   // A user-supplied focus narrows the run to one in-page flow/platform that the
   // URL/depth crawl scope cannot isolate. Placed before the breadth instructions
-  // (and crawl constraints) so it dominates how the Planner explores.
+  // (and crawl constraints) so it dominates how the Discoverer explores.
   const focusBlock = options.focus
     ? buildFocusBlock(options.focus) + "\n\n"
     : "";
@@ -293,7 +310,7 @@ export async function planTests(
     hooks: mergeHooks(guard.hooks, gate.hooks),
     // Inject credentials as env vars so the agent references "$TARGET_PASSWORD"
     // instead of typing a shell-mangle-prone literal (keeps the secret out of
-    // the prompt/traces too). Only the Planner logs in; later stages state-load.
+    // the prompt/traces too). Only the Discoverer logs in; later stages state-load.
     ...(options.auth ? { env: authEnvFor(options.auth) } : {}),
   });
   const planMarkdown = await readPlan(ws);
@@ -321,12 +338,14 @@ export interface GenerateOptions {
   crawlMode?: CrawlMode;
   /** Maximum pages — used to compute the scenario ceiling. Default: 10. */
   maxPages?: number;
-  /** Entry URL — used to scope knowledge retrieval for the Generator (R10). */
+  /** Entry URL — used to scope knowledge retrieval for the Designer (R10). */
   url?: string;
-  /** Form-login credentials; when set, the Generator loads the saved session. */
+  /** Form-login credentials; when set, the Designer loads the saved session. */
   auth?: AuthCredentials;
-  /** Free-text focus directive; mirrors the Planner so generation stays scoped. */
+  /** Free-text focus directive; mirrors the Discoverer so generation stays scoped. */
   focus?: string;
+  /** Per-page test rate; overrides the per-mode default rate when set. */
+  testsPerPage?: number;
 }
 
 /**
@@ -356,13 +375,13 @@ export function trimPlan(
 }
 
 /**
- * T15: shape the Generator with the app's existing coverage. Copies each
+ * T15: shape the Designer with the app's existing coverage. Copies each
  * confidently-matched (`reuse`) spec into the workspace (tagged) so the suite
  * stays runnable without regenerating it (D4), and returns prompt lines telling
- * the generator to skip ONLY the specs actually copied and build everything else.
+ * the designer to skip ONLY the specs actually copied and build everything else.
  * Best-effort: returns [] when there is no knowledge service, url, plan, or KB.
  */
-async function applyGeneratorKnowledge(
+async function applyDesignerKnowledge(
   ws: Workspace,
   rawPlan: string | null,
   deps: StageDeps,
@@ -381,7 +400,7 @@ async function applyGeneratorKnowledge(
   let playbookBlock = "";
   try {
     const pack = await deps.knowledge.assembleContext(options.url, scenarios);
-    gen = pack.generator;
+    gen = pack.designer;
     playbookBlock = formatPlaybooks(pack.playbooks); // R12, budgeted
   } catch {
     return [];
@@ -442,8 +461,8 @@ async function applyGeneratorKnowledge(
   return lines;
 }
 
-/** T7: run the Generator → turn each plan scenario into a Playwright spec file. */
-export async function generateTests(
+/** T7: run the Designer → turn each plan scenario into a Playwright spec file. */
+export async function designTests(
   ws: Workspace,
   onEvent?: (e: AgentEvent) => void,
   deps: StageDeps = {},
@@ -451,22 +470,26 @@ export async function generateTests(
 ): Promise<GenerateResult> {
   const load = deps.loadAgentFn ?? loadAgent;
   const run = deps.runner ?? runAgent;
-  const agent = await load("playwright-test-generator");
+  const agent = await load("playwright-test-designer");
 
   const crawlMode: CrawlMode = options.crawlMode ?? "standard";
   const maxPages = options.maxPages ?? 10;
-  const scenariosPerPage = CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode];
   const pageBudget = effectivePageBudget(crawlMode, maxPages);
-  const maxScenarios = pageBudget * scenariosPerPage;
+  // Honor a user-selected test budget (maxTests) when present; otherwise derive
+  // from page count × per-page rate. Same source of truth as the Discoverer cap.
+  const maxScenarios = effectiveScenarioCap(
+    crawlMode,
+    maxPages,
+    options.testsPerPage,
+  );
 
-  // Read and (if necessary) trim the plan before the generator sees it.
+  // Read and (if necessary) trim the plan before the designer sees it.
   const rawPlan = await readPlan(ws);
   let scenarioCount = 0;
   let trimmedCount = 0;
 
   if (rawPlan) {
-    const { trimmed, total, removed } = trimPlan(rawPlan, maxScenarios);
-    scenarioCount = Math.min(total, maxScenarios);
+    const { trimmed, removed } = trimPlan(rawPlan, maxScenarios);
     trimmedCount = removed;
 
     if (removed > 0) {
@@ -474,18 +497,31 @@ export async function generateTests(
         kind: "text",
         text: `⚠️  Plan trimmed: ${removed} scenario(s) removed (budget: ${maxScenarios} max for ${crawlMode} mode with ${pageBudget} page(s)).`,
       });
-      // Write the trimmed plan back so the generator reads it from the workspace.
+      // Write the trimmed plan back so the designer reads it from the workspace.
       await ws.writePlan(trimmed);
     }
+
+    // Count scenarios with the format-robust parser. trimPlan only recognises
+    // the "#### N.M" heading form, but the Discoverer also emits "### Scenario N:";
+    // counting via trimPlan alone silently yields 0 and pins maxTurns to its
+    // floor — the bug behind under-generation. parsePlanScenarios handles both.
+    const planForCount = removed > 0 ? trimmed : rawPlan;
+    scenarioCount = Math.min(
+      parsePlanScenarios(planForCount).length,
+      maxScenarios,
+    );
   }
 
-  // Scale maxTurns proportionally: ~10 turns/scenario, minimum 80.
-  const maxTurns = Math.max(80, scenarioCount * 10);
+  // Scale maxTurns with the scenario count, over a generous floor so a deep
+  // single-workflow run has enough turns to BOTH explore the live DOM and write
+  // every spec. At the old floor of 80, exploration-heavy runs exhausted the
+  // budget before writing more than one spec (leaving most scenarios untested).
+  const maxTurns = Math.max(120, scenarioCount * 18);
 
   // T15: coverage-aware generation. Decide reuse|new per scenario; copy each
   // reused spec into the workspace so the suite stays runnable (D4); tell the
-  // generator to skip the copied ones. Best-effort — empty when cold or KB down.
-  const knowledgeLines = await applyGeneratorKnowledge(
+  // designer to skip the copied ones. Best-effort — empty when cold or KB down.
+  const knowledgeLines = await applyDesignerKnowledge(
     ws,
     rawPlan,
     deps,
@@ -495,21 +531,26 @@ export async function generateTests(
 
   const authLines =
     options.auth && options.url
-      ? [buildGeneratorAuthPreamble(options.url, ws.authStatePath)]
+      ? [buildDesignerAuthPreamble(options.url, ws.authStatePath)]
       : [];
 
   // Carry the same focus into generation: the plan is already scoped, but this
   // guards against generating a spec for any stray out-of-focus scenario and
-  // reminds the Generator to perform the platform selection before each flow.
+  // reminds the Designer to perform the platform selection before each flow.
   const focusLines = options.focus ? [buildFocusBlock(options.focus)] : [];
 
   const prompt = [
     ...focusLines,
     `Read the Markdown test plan at ${ws.specsDir}/plan.md.`,
-    "Write each test scenario (#### N.M <Scenario Title>) into its own separate spec file.",
-    "Do NOT group multiple scenarios into a single file.",
-    "For each scenario, open the page using playwright-cli and execute its steps using the CLI commands via Bash.",
-    "After a scenario has been explored, use the Write tool to save it to an absolute path under",
+    "Generate a spec for EVERY scenario in the plan — do not stop early or skip any.",
+    "Work through the scenarios ONE AT A TIME, in order. For each scenario:",
+    "(1) explore it with playwright-cli via Bash, then",
+    "(2) IMMEDIATELY use the Write tool to save its spec before moving to the next scenario.",
+    "Do NOT do all the exploration first and defer every Write to the end — interleave",
+    "explore-then-write per scenario, so that if you run low on turns the scenarios you have",
+    "already finished are safely saved to disk rather than lost.",
+    "Write each scenario into its own separate spec file; do NOT group multiple scenarios into one file.",
+    "Save each spec to an absolute path under",
     `${ws.testsDir}/ named <fs-friendly-scenario-title>.spec.ts`,
     `(e.g. 'Add Valid Todo' → ${ws.testsDir}/add-valid-todo.spec.ts).`,
     "Write spec files there and nowhere else (do NOT write to the repository's own tests/ directory).",
@@ -523,7 +564,7 @@ export async function generateTests(
     maxPages: 999,
     entryUrl: "",
     workspaceRoot: ws.root,
-    stageName: "2-generator",
+    stageName: "2-designer",
   });
 
   const guard = createCliGuard({
@@ -553,10 +594,87 @@ export async function generateTests(
 }
 
 /**
+ * Completeness gate: re-run the Designer for ONLY the planned scenarios the
+ * validator found unwritten. The first pass can exhaust its turn budget on live
+ * exploration and leave most scenarios untested; this targeted second pass fills
+ * the gaps without touching specs that already exist. Best-effort — a failed or
+ * partial retry leaves the existing suite intact (callers re-validate after).
+ */
+export async function regenerateMissingScenarios(
+  ws: Workspace,
+  missingScenarios: string[],
+  onEvent?: (e: AgentEvent) => void,
+  deps: StageDeps = {},
+  options: GenerateOptions = {},
+): Promise<GenerateResult> {
+  const load = deps.loadAgentFn ?? loadAgent;
+  const run = deps.runner ?? runAgent;
+  const agent = await load("playwright-test-designer");
+
+  const focusLines = options.focus ? [buildFocusBlock(options.focus)] : [];
+  const authLines =
+    options.auth && options.url
+      ? [buildDesignerAuthPreamble(options.url, ws.authStatePath)]
+      : [];
+  const missingList = missingScenarios.map((s) => `  - ${s}`).join("\n");
+
+  const prompt = [
+    ...focusLines,
+    `Read the Markdown test plan at ${ws.specsDir}/plan.md.`,
+    "Some scenarios from the plan were NOT yet turned into spec files. Generate spec files for",
+    "ONLY these missing scenarios (match them to the plan by title):",
+    missingList,
+    `Do NOT regenerate, overwrite, or modify any spec that already exists under ${ws.testsDir}/ —`,
+    "generate ONLY the missing scenarios listed above.",
+    "Work through them ONE AT A TIME: explore a scenario with playwright-cli via Bash, then",
+    "IMMEDIATELY use the Write tool to save its spec before moving to the next — never defer",
+    "every Write to the end.",
+    "Write each scenario into its own separate spec file under",
+    `${ws.testsDir}/ named <fs-friendly-scenario-title>.spec.ts.`,
+    `Use the seed at ${ws.seedPath} as the starting template.`,
+    ...authLines,
+  ].join(" ");
+
+  // Generous budget for the stragglers — these are exactly the scenarios the
+  // first pass ran out of turns on, so do not start from the low floor.
+  const maxTurns = Math.max(120, missingScenarios.length * 18);
+
+  const gate = createCrawlGate({
+    mode: "aggressive",
+    maxPages: 999,
+    entryUrl: "",
+    workspaceRoot: ws.root,
+    stageName: "2-designer-retry",
+  });
+  const guard = createCliGuard({
+    onDeny: (reason) =>
+      onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
+  });
+
+  const res = await run({
+    agent,
+    prompt,
+    cwd: ws.root,
+    onEvent,
+    abortController: deps.abortController,
+    maxTurns,
+    hooks: mergeHooks(guard.hooks, gate.hooks),
+  });
+  const specs = await readGeneratedSpecs(ws);
+  return {
+    specs,
+    toolCalls: res.toolCalls,
+    isError: specs.length === 0,
+    scenarioCount: missingScenarios.length,
+    trimmedCount: 0,
+  };
+}
+
+/**
  * Validation stage: statically inspect the generated specs (no browser, no LLM)
  * for structure/assertion/robustness/relevance issues, scored against the plan.
  * Pure read of workspace files — its findings are surfaced in the report and fed
- * to the Healer so flagged anti-patterns get fixed alongside runtime failures.
+ * to the Evolver so flagged anti-patterns get fixed alongside runtime failures.
  */
 export async function validateTests(ws: Workspace): Promise<ValidationReport> {
   const [specs, plan] = await Promise.all([
@@ -571,8 +689,8 @@ export interface HealResult {
   isError: boolean;
 }
 
-/** T8: run the Healer → execute the suite, repair failures, quarantine the unfixable. */
-export async function healTests(
+/** T8: run the Evolver → execute the suite, repair failures, quarantine the unfixable. */
+export async function evolveTests(
   ws: Workspace,
   onEvent?: (e: AgentEvent) => void,
   deps: StageDeps = {},
@@ -583,16 +701,16 @@ export async function healTests(
 ): Promise<HealResult> {
   const load = deps.loadAgentFn ?? loadAgent;
   const run = deps.runner ?? runAgent;
-  const agent = await load("playwright-test-healer");
+  const agent = await load("playwright-test-evolver");
 
   const validationBlock = validation
-    ? formatValidationForHealer(validation)
+    ? formatValidationForEvolver(validation)
     : "";
-  const authBlock = auth ? buildHealerAuthPreamble(ws.authStatePath) : "";
+  const authBlock = auth ? buildEvolverAuthPreamble(ws.authStatePath) : "";
   // Phase 3: surface prior successful fixes for similar failures (R7) and trusted
   // principles (R12). Best-effort and token-budgeted; with none, the prompt is
   // identical to Phase 2 (N2).
-  const precedentBlock = formatPrecedentsForHealer(precedents);
+  const precedentBlock = formatPrecedentsForEvolver(precedents);
   const playbookBlock = formatPlaybooks(playbooks);
   const prompt = [
     "Run the generated test suite by executing npx playwright test via Bash. For each failing test, debug it by",
@@ -610,7 +728,7 @@ export async function healTests(
     maxPages: 999,
     entryUrl: "",
     workspaceRoot: ws.root,
-    stageName: "3-healer",
+    stageName: "3-evolver",
   });
 
   const guard = createCliGuard({

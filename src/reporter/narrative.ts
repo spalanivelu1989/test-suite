@@ -44,7 +44,9 @@ export function buildNarrativePrompt(
   // Success rate matches computeSuccessRate(): passed + healed over total.
   const successPct =
     total === 0 ? 0 : Math.round(((passed + healedCount) / total) * 100);
-  const targetHost = url ? url.replace(/https?:\/\//, "").replace(/\/$/, "") : "unknown";
+  const targetHost = url
+    ? url.replace(/https?:\/\//, "").replace(/\/$/, "")
+    : "unknown";
   const lines = [
     `Target URL name: ${targetHost}`,
     "",
@@ -224,10 +226,43 @@ export function parseNarrative(text: string): Narrative {
     issues: strArr(raw.issues),
     recommendations: strArr(raw.recommendations),
     better: typeof raw.better === "string" ? raw.better : "",
-    recommendationsText: typeof raw.recommendationsText === "string" ? raw.recommendationsText : "",
+    recommendationsText:
+      typeof raw.recommendationsText === "string"
+        ? raw.recommendationsText
+        : "",
     summary: strArr(raw.summary),
     testSummary: typeof raw.testSummary === "string" ? raw.testSummary : "",
   };
+}
+
+/** The shape `generateNarrative` returns when it has nothing (or fails) to say. */
+const EMPTY_NARRATIVE: Narrative = {
+  fixPrompts: [],
+  issues: [],
+  recommendations: [],
+  better: "",
+  recommendationsText: "",
+  summary: [],
+  testSummary: "",
+};
+
+/**
+ * Output-token budget for the narrative call. The `summary` array carries one
+ * detailed sentence PER test, so the response grows with the suite; a fixed cap
+ * truncates the JSON for larger runs, which then fails to parse and silently
+ * yields an empty narrative. Scale with the test count, with headroom and a
+ * sane ceiling.
+ */
+export function narrativeMaxTokens(testCount: number): number {
+  return Math.min(16000, 4096 + testCount * 600);
+}
+
+export interface GenerateNarrativeOptions {
+  /**
+   * Surface retry/failure notices to the run log (e.g. the reporting stage),
+   * so a missing "what was tested" summary is observable instead of silent.
+   */
+  onEvent?: (message: string) => void;
 }
 
 /** T13: ask Claude for fix prompts, issues, and recommendations (R16). */
@@ -236,22 +271,52 @@ export async function generateNarrative(
   specs: { file: string; code: string }[],
   claude: ClaudeClient,
   url?: string,
+  options: GenerateNarrativeOptions = {},
 ): Promise<Narrative> {
   // No failures and nothing to review → skip the call.
-  if (results.length === 0)
-    return {
-      fixPrompts: [],
-      issues: [],
-      recommendations: [],
-      better: "",
-      recommendationsText: "",
-      summary: [],
-      testSummary: "",
-    };
-  const text = await claude.complete({
-    purpose: "report-narrative",
-    system: SYSTEM,
-    prompt: buildNarrativePrompt(results, specs, url),
-  });
-  return parseNarrative(text);
+  if (results.length === 0) return EMPTY_NARRATIVE;
+
+  const prompt = buildNarrativePrompt(results, specs, url);
+  const maxTokens = narrativeMaxTokens(results.length);
+
+  // A single transient bad/truncated response would otherwise wipe the entire
+  // narrative — parseNarrative degrades to EMPTY_NARRATIVE on unparseable JSON,
+  // and the caller swallows that as "no summary". Retry once before giving up,
+  // and emit an event either way so the failure is recorded in the run log.
+  const MAX_ATTEMPTS = 2;
+  let last: Narrative = EMPTY_NARRATIVE;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let text = "";
+    try {
+      text = await claude.complete({
+        purpose: "report-narrative",
+        system: SYSTEM,
+        prompt,
+        maxTokens,
+      });
+    } catch (err) {
+      options.onEvent?.(
+        `⚠️  Narrative generation call failed (attempt ${attempt}/${MAX_ATTEMPTS}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      continue;
+    }
+
+    const narrative = parseNarrative(text);
+    // A non-empty testSummary is the signal the model returned usable JSON.
+    if (narrative.testSummary.trim()) return narrative;
+
+    last = narrative;
+    if (attempt < MAX_ATTEMPTS) {
+      options.onEvent?.(
+        `⚠️  Narrative response was empty or unparseable (attempt ${attempt}/${MAX_ATTEMPTS}); retrying.`,
+      );
+    }
+  }
+
+  options.onEvent?.(
+    `⚠️  Narrative generation produced no summary after ${MAX_ATTEMPTS} attempt(s); the report will omit the plain-English "what was tested" summary.`,
+  );
+  return last;
 }

@@ -150,6 +150,20 @@ Assemble → Forge → Test).
 
 ## Key decisions
 
+- **2026-06-13 (Maintenance — agent rename, Spec v0.3.1):** Renamed the three
+  agents **Planner→Discoverer, Generator→Designer, Healer→Evolver** across code,
+  the agent definition files (`.claude/agents/playwright-test-{discoverer,designer,evolver}.md`,
+  git-mv'd), function names (`discoverTests`/`designTests`/`evolveTests`),
+  display labels, Langfuse `agent:*` spans, Spec R12, and `CONTEXT.md`.
+  **Deliberately NOT renamed:** the knowledge-base "healing" data vocabulary
+  (`healing_events`, `HealingEvent`, heal precedents — shipped on `main`, would
+  need a schema migration) and the persisted `RunStage` string values
+  (`planning`/`generating`/`healing`). Accepted split: the agent is "Evolver" but
+  its memory layer is still "healing". tsc clean; 89 non-DB tests green.
+  Historical artifacts (LEARNINGS, implementation-notes, phase-2/3 specs,
+  plan.md/tasks.md, workflow.md) left under the old names — they record what was
+  built at the time; their links to the old agent filenames are now stale.
+
 - **2026-06-05 (Record gate, v0.3.0):** Added a **deterministic Validation
   stage** between Generator and Healer (R18–R21). **Deterministic rules only** —
   no LLM/semantic judging (C8, A1). Validation is **advisory and fed to the

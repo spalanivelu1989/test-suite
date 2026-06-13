@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { FOCUS_MAX_CHARS, parseRunRequest } from "./validation";
+import {
+  FOCUS_MAX_CHARS,
+  MAX_TESTS_PER_PAGE,
+  parseRunRequest,
+} from "./validation";
 
 test("accepts a valid https url with crawlMode and maxPages", () => {
   const r = parseRunRequest({
@@ -85,4 +89,38 @@ test("rejects a focus over the length cap", () => {
   });
   assert.equal(r.ok, false);
   if (!r.ok) assert.ok(r.error.includes("focus"));
+});
+
+test("accepts a positive integer testsPerPage", () => {
+  const r = parseRunRequest({ url: "https://x.com", testsPerPage: 20 });
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.config.testsPerPage, 20);
+});
+
+test("omits testsPerPage when not provided", () => {
+  const r = parseRunRequest({ url: "https://x.com" });
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.config.testsPerPage, undefined);
+});
+
+test("rejects a non-integer or non-positive testsPerPage", () => {
+  const invalid: unknown[] = [0, -5, 3.5, "8", true];
+  for (const testsPerPage of invalid) {
+    const r = parseRunRequest({ url: "https://x.com", testsPerPage });
+    assert.equal(
+      r.ok,
+      false,
+      `should reject testsPerPage=${String(testsPerPage)}`,
+    );
+    if (!r.ok) assert.ok(r.error.includes("testsPerPage"));
+  }
+});
+
+test("rejects testsPerPage over the per-page limit", () => {
+  const r = parseRunRequest({
+    url: "https://x.com",
+    testsPerPage: MAX_TESTS_PER_PAGE + 1,
+  });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.ok(r.error.includes("testsPerPage"));
 });

@@ -16,10 +16,10 @@ import type { PlaywrightJsonReport } from "../results/parse";
 
 /** The Playwright JSON reporter's output file — written by CONFIG, read by runSuite. */
 const RESULTS_FILE = "results.json";
-/** The Markdown plan filename the Generator reads (the Planner saves a plan here). */
+/** The Markdown plan filename the Designer reads (the Discoverer saves a plan here). */
 const PLAN_FILE = "plan.md";
 /**
- * Where the authenticated session is saved (Planner `state-save`s here) and
+ * Where the authenticated session is saved (Discoverer `state-save`s here) and
  * reused (playwright.config.ts loads it as `use.storageState`). Relative to the
  * workspace root so the config and the `npx playwright test` cwd agree on it.
  */
@@ -32,14 +32,14 @@ export interface Workspace {
   seedPath: string;
   configPath: string;
   /**
-   * Absolute path to the saved storage-state file. The Planner saves the
+   * Absolute path to the saved storage-state file. The Discoverer saves the
    * authenticated session here; the suite config loads it. Always defined; only
    * actually written/loaded when a run has auth enabled.
    */
   authStatePath: string;
   /** Run the generated suite in this workspace and return Playwright's raw JSON report. */
   runSuite(): Promise<PlaywrightJsonReport>;
-  /** Write (or overwrite) the Markdown plan the Generator will read. */
+  /** Write (or overwrite) the Markdown plan the Designer will read. */
   writePlan(markdown: string): Promise<void>;
 }
 
@@ -47,7 +47,7 @@ export interface WorkspaceOptions {
   /**
    * When true, the suite config loads the saved storage state so every test runs
    * authenticated, and a placeholder state file is pre-created so `npx playwright
-   * test` never errors with "storageState file not found" before the Planner
+   * test` never errors with "storageState file not found" before the Discoverer
    * saves the real one.
    */
   authEnabled?: boolean;
@@ -83,7 +83,7 @@ export default defineConfig({
 }
 
 /** An empty-but-valid storage state, written as a placeholder when auth is
- * enabled so the suite config can reference the file before the Planner logs in
+ * enabled so the suite config can reference the file before the Discoverer logs in
  * and overwrites it with the real authenticated session. */
 const EMPTY_AUTH_STATE = JSON.stringify({ cookies: [], origins: [] });
 
@@ -130,7 +130,7 @@ export async function createWorkspace(
   await writeFile(seedPath, SEED, "utf8");
   await writeFile(configPath, buildConfig(!!options.authEnabled), "utf8");
   // Pre-create a placeholder auth state so the suite config can load it even if
-  // the Planner has not yet logged in (avoids a confusing "file not found").
+  // the Discoverer has not yet logged in (avoids a confusing "file not found").
   if (options.authEnabled) {
     await mkdir(join(root, ".auth"), { recursive: true });
     await writeFile(authStatePath, EMPTY_AUTH_STATE, "utf8");
@@ -148,7 +148,7 @@ export async function createWorkspace(
   };
 }
 
-/** Read the Markdown test plan the Planner saved (first .md under specs/). */
+/** Read the Markdown test plan the Discoverer saved (first .md under specs/). */
 export async function readPlan(ws: Workspace): Promise<string | null> {
   try {
     const files = await readdir(ws.specsDir);

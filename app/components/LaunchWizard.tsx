@@ -23,6 +23,12 @@ import {
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors, AWS_COLORS, SIDEBAR_GRADIENT } from "@/app/theme/aws";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  CRAWL_MODE_SCENARIOS_PER_PAGE,
+  effectiveScenarioCap,
+  MAX_TOTAL_TESTS,
+  type CrawlMode,
+} from "@/src/types";
 
 const MotionBox = motion.create(Box);
 
@@ -39,36 +45,38 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
   const [focus, setFocus] = useState("");
   const [crawlMode, setCrawlMode] = useState("direct");
   const [maxPages, setMaxPages] = useState("1");
+  // "auto" = derive from crawl mode × pages; a number = explicit total cap.
+  const [testsPerPage, setTestsPerPage] = useState("auto");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Custom Dropdown states
   const [isDepthOpen, setIsDepthOpen] = useState(false);
   const [isPagesOpen, setIsPagesOpen] = useState(false);
+  const [isTestsOpen, setIsTestsOpen] = useState(false);
 
+  // Total tests = effectivePages × tests-per-page, clamped to the ceiling — the
+  // SAME source of truth the backend uses (src/types), so the displayed total
+  // always matches what actually runs. "auto" → the per-mode default rate.
+  const perPageNum =
+    testsPerPage === "auto" ? undefined : parseInt(testsPerPage);
   const getExpectedTests = (pagesVal: string) => {
     const pages = parseInt(pagesVal);
-    const budget = crawlMode === "direct" ? (pages === 2 ? 1.5 : 1) : pages;
-    const rate =
-      crawlMode === "direct"
-        ? 8
-        : crawlMode === "standard"
-          ? 5
-          : crawlMode === "deep"
-            ? 4
-            : 3;
-    return budget * rate;
+    return effectiveScenarioCap(crawlMode as CrawlMode, pages, perPageNum);
   };
 
-  const getPagesFullLabel = (value: string, defaultText: string) => {
-    if (crawlMode === "direct") {
-      return value === "2"
-        ? "1 page (Entry page only — Max 12 tests)"
-        : "1 page (Entry page only — Max 8 tests)";
-    }
-    const expected = getExpectedTests(value);
-    return `${defaultText} (Max ${expected} tests)`;
-  };
+  // Pieces of the total-tests formula, for the summary recap (pages × rate).
+  const perPageRate =
+    perPageNum ?? CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode as CrawlMode];
+  const effectivePages = crawlMode === "direct" ? 1 : parseInt(maxPages);
+  const rawTotalTests = effectivePages * perPageRate;
+  const totalTests = getExpectedTests(maxPages);
+  const totalClamped = totalTests < rawTotalTests;
+
+  // The Pages control describes crawl breadth only. Test counts live solely in
+  // the "Number of Tests" control, so the two no longer say the same thing.
+  const getPagesFullLabel = (_value: string, defaultText: string) =>
+    defaultText;
 
   const getDepthHelperText = () => {
     switch (crawlMode) {
@@ -86,30 +94,25 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
   };
 
   const getPagesHelperText = () => {
-    const expected = getExpectedTests(maxPages);
-    if (crawlMode === "direct") {
-      return maxPages === "2"
-        ? "Runs 12 tests on the landing page. Best for pages with multiple interactive features like signup forms, search bars, or buttons."
-        : "Runs 8 tests on the landing page. Best for simple pages with mostly text, images, and links.";
-    }
     switch (maxPages) {
       case "5":
-        return `Visits up to 5 pages, running a total of ${expected} test cases. Best for fast checks during active development.`;
+        return "How much of the site to explore — 5 pages, for fast checks during development.";
       case "10":
-        return `Visits up to 10 pages, running a total of ${expected} test cases. This is the recommended choice for standard testing.`;
+        return "How much of the site to explore — 10 pages, the recommended scope for standard testing.";
       case "20":
-        return `Visits up to 20 pages, running a total of ${expected} test cases. Best for verifying medium-sized websites before a release.`;
+        return "How much of the site to explore — 20 pages, good for medium sites before a release.";
       case "50":
-        return `Visits up to 50 pages, running a total of ${expected} test cases. Best for full pre-release audits.`;
+        return "How much of the site to explore — 50 pages, for full pre-release audits.";
       case "100":
-        return `Visits up to 100 pages, running a total of ${expected} test cases. Best for running thorough enterprise audits overnight.`;
+        return "How much of the site to explore — 100 pages, for thorough enterprise audits.";
       default:
-        return `Visits up to ${maxPages} pages, running a total of ${expected} test cases.`;
+        return `How much of the site to explore — up to ${maxPages} pages.`;
     }
   };
 
   const depthRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
+  const testsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -124,6 +127,12 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
         !pagesRef.current.contains(event.target as Node)
       ) {
         setIsPagesOpen(false);
+      }
+      if (
+        testsRef.current &&
+        !testsRef.current.contains(event.target as Node)
+      ) {
+        setIsTestsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -154,6 +163,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
           crawlMode,
           maxPages: parseInt(maxPages),
           ...(focus.trim() ? { focus: focus.trim() } : {}),
+          ...(perPageNum ? { testsPerPage: perPageNum } : {}),
         }),
       });
       const data = (await res.json()) as { runId?: string; error?: string };
@@ -389,11 +399,17 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                             key={opt.value}
                             onClick={() => {
                               setCrawlMode(opt.value);
-                              if (opt.value === "direct") {
-                                setMaxPages("1");
-                              } else if (maxPages === "1" || maxPages === "2") {
-                                setMaxPages("10");
-                              }
+                              // Default page scope grows with depth, so deeper
+                              // modes yield more total tests out of the box.
+                              setMaxPages(
+                                opt.value === "direct"
+                                  ? "1"
+                                  : opt.value === "standard"
+                                    ? "10"
+                                    : opt.value === "deep"
+                                      ? "20"
+                                      : "50",
+                              );
                               setIsDepthOpen(false);
                             }}
                             px={3}
@@ -450,22 +466,184 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                 </Text>
               </VStack>
 
+              {crawlMode !== "direct" && (
+                <VStack
+                  align="stretch"
+                  gap={1.5}
+                  flex={1}
+                  minW="150px"
+                  position="relative"
+                  ref={pagesRef}
+                >
+                  <Text
+                    fontSize="12px"
+                    fontWeight="bold"
+                    color={colors.subtext}
+                  >
+                    Pages to Crawl
+                  </Text>
+                  {/* Trigger Button */}
+                  <Box
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setIsPagesOpen(!isPagesOpen)}
+                    w="full"
+                    h="36px"
+                    px={3}
+                    bg={isDark ? "#232634" : "#ffffff"}
+                    border="1px solid"
+                    borderColor={colors.border}
+                    borderRadius="md"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    cursor="pointer"
+                    opacity={1}
+                    fontSize="13px"
+                    color={colors.text}
+                    _hover={{
+                      borderColor: isDark
+                        ? "rgba(133, 193, 220, 0.5)"
+                        : "rgba(59, 130, 246, 0.5)",
+                    }}
+                    _focus={{ borderColor: isDark ? "#85c1dc" : "#3b82f6" }}
+                    transition="all 0.15s ease"
+                  >
+                    <Text truncate>
+                      {maxPages === "5"
+                        ? "5 pages (Quick test)"
+                        : maxPages === "10"
+                          ? "10 pages (recommended)"
+                          : maxPages === "20"
+                            ? "20 pages"
+                            : maxPages === "50"
+                              ? "50 pages (Thorough)"
+                              : "100 pages (Large suite)"}
+                    </Text>
+                    <ChevronDown
+                      size={14}
+                      style={{
+                        opacity: 0.7,
+                        transform: isPagesOpen ? "rotate(180deg)" : "none",
+                        transition: "transform 0.2s ease",
+                        flexShrink: 0,
+                      }}
+                    />
+                  </Box>
+
+                  {/* Options List Menu */}
+                  <AnimatePresence>
+                    {isPagesOpen && (
+                      <MotionBox
+                        position="absolute"
+                        top="58px"
+                        left={0}
+                        right={0}
+                        zIndex={50}
+                        bg={isDark ? "#292c3c" : "#ffffff"}
+                        border="1px solid"
+                        borderColor={colors.border}
+                        borderRadius="md"
+                        boxShadow="md"
+                        maxH="150px"
+                        overflowY="auto"
+                        py={1}
+                        className="glass-scroll-area"
+                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                        transition={{ duration: 0.12, ease: "easeOut" }}
+                        style={{ transformOrigin: "top" }}
+                      >
+                        {[
+                          { value: "5", label: "5 pages (Quick test)" },
+                          { value: "10", label: "10 pages (recommended)" },
+                          { value: "20", label: "20 pages" },
+                          { value: "50", label: "50 pages (Thorough)" },
+                          { value: "100", label: "100 pages (Large suite)" },
+                        ].map((opt) => {
+                          const isSelected = maxPages === opt.value;
+                          return (
+                            <Box
+                              key={opt.value}
+                              onClick={() => {
+                                setMaxPages(opt.value);
+                                setIsPagesOpen(false);
+                              }}
+                              px={3}
+                              py={2}
+                              fontSize="13px"
+                              cursor="pointer"
+                              bg={
+                                isSelected
+                                  ? isDark
+                                    ? "rgba(133, 193, 220, 0.15)"
+                                    : "rgba(59, 130, 246, 0.08)"
+                                  : "transparent"
+                              }
+                              color={
+                                isSelected
+                                  ? isDark
+                                    ? "#99d1db"
+                                    : "#2563eb"
+                                  : colors.text
+                              }
+                              fontWeight={isSelected ? "semibold" : "normal"}
+                              display="flex"
+                              alignItems="center"
+                              justifyContent="space-between"
+                              _hover={{
+                                bg: isDark
+                                  ? "rgba(255, 255, 255, 0.05)"
+                                  : "rgba(0, 0, 0, 0.03)",
+                              }}
+                              transition="background-color 0.12s ease"
+                            >
+                              <Text truncate>
+                                {getPagesFullLabel(opt.value, opt.label)}
+                              </Text>
+                              {isSelected && (
+                                <Check
+                                  size={12}
+                                  style={{
+                                    color: isDark ? "#99d1db" : "#2563eb",
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </MotionBox>
+                    )}
+                  </AnimatePresence>
+                  <Text
+                    fontSize="11px"
+                    color={colors.subtext}
+                    mt={1.5}
+                    lineHeight="short"
+                  >
+                    {getPagesHelperText()}
+                  </Text>
+                </VStack>
+              )}
+
+              {/* Number of Tests dropdown — total scenario budget for the run */}
               <VStack
                 align="stretch"
                 gap={1.5}
-                flex={1}
+                flex="1"
                 minW="150px"
                 position="relative"
-                ref={pagesRef}
+                ref={testsRef}
               >
                 <Text fontSize="12px" fontWeight="bold" color={colors.subtext}>
-                  Maximum Crawl Pages
+                  Tests per Page
                 </Text>
                 {/* Trigger Button */}
                 <Box
                   role="button"
                   tabIndex={0}
-                  onClick={() => setIsPagesOpen(!isPagesOpen)}
+                  onClick={() => setIsTestsOpen(!isTestsOpen)}
                   w="full"
                   h="36px"
                   px={3}
@@ -477,7 +655,6 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   alignItems="center"
                   justifyContent="space-between"
                   cursor="pointer"
-                  opacity={1}
                   fontSize="13px"
                   color={colors.text}
                   _hover={{
@@ -489,26 +666,15 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   transition="all 0.15s ease"
                 >
                   <Text truncate>
-                    {crawlMode === "direct"
-                      ? getPagesFullLabel(maxPages, "")
-                      : getPagesFullLabel(
-                          maxPages,
-                          maxPages === "5"
-                            ? "5 pages (Quick test)"
-                            : maxPages === "10"
-                              ? "10 pages (Standard)"
-                              : maxPages === "20"
-                                ? "20 pages"
-                                : maxPages === "50"
-                                  ? "50 pages (Thorough)"
-                                  : "100 pages (Large suite)",
-                        )}
+                    {testsPerPage === "auto"
+                      ? `Auto (${CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode as CrawlMode]} / page)`
+                      : `${testsPerPage} / page`}
                   </Text>
                   <ChevronDown
                     size={14}
                     style={{
                       opacity: 0.7,
-                      transform: isPagesOpen ? "rotate(180deg)" : "none",
+                      transform: isTestsOpen ? "rotate(180deg)" : "none",
                       transition: "transform 0.2s ease",
                       flexShrink: 0,
                     }}
@@ -517,7 +683,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
 
                 {/* Options List Menu */}
                 <AnimatePresence>
-                  {isPagesOpen && (
+                  {isTestsOpen && (
                     <MotionBox
                       position="absolute"
                       top="58px"
@@ -529,7 +695,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                       borderColor={colors.border}
                       borderRadius="md"
                       boxShadow="md"
-                      maxH="150px"
+                      maxH="180px"
                       overflowY="auto"
                       py={1}
                       className="glass-scroll-area"
@@ -539,32 +705,23 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                       transition={{ duration: 0.12, ease: "easeOut" }}
                       style={{ transformOrigin: "top" }}
                     >
-                      {(crawlMode === "direct"
-                        ? [
-                            {
-                              value: "1",
-                              label: "1 page (Entry page only — Max 8 tests)",
-                            },
-                            {
-                              value: "2",
-                              label: "1 page (Entry page only — Max 12 tests)",
-                            },
-                          ]
-                        : [
-                            { value: "5", label: "5 pages (Quick test)" },
-                            { value: "10", label: "10 pages (Standard)" },
-                            { value: "20", label: "20 pages" },
-                            { value: "50", label: "50 pages (Thorough)" },
-                            { value: "100", label: "100 pages (Large suite)" },
-                          ]
-                      ).map((opt) => {
-                        const isSelected = maxPages === opt.value;
+                      {[
+                        {
+                          value: "auto",
+                          label: `Auto — ${CRAWL_MODE_SCENARIOS_PER_PAGE[crawlMode as CrawlMode]} / page (recommended)`,
+                        },
+                        { value: "8", label: "8 / page (quick)" },
+                        { value: "12", label: "12 / page" },
+                        { value: "20", label: "20 / page" },
+                        { value: "30", label: "30 / page (exhaustive)" },
+                      ].map((opt) => {
+                        const isSelected = testsPerPage === opt.value;
                         return (
                           <Box
                             key={opt.value}
                             onClick={() => {
-                              setMaxPages(opt.value);
-                              setIsPagesOpen(false);
+                              setTestsPerPage(opt.value);
+                              setIsTestsOpen(false);
                             }}
                             px={3}
                             py={2}
@@ -595,9 +752,7 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                             }}
                             transition="background-color 0.12s ease"
                           >
-                            <Text truncate>
-                              {getPagesFullLabel(opt.value, opt.label)}
-                            </Text>
+                            <Text truncate>{opt.label}</Text>
                             {isSelected && (
                               <Check
                                 size={12}
@@ -618,7 +773,9 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                   mt={1.5}
                   lineHeight="short"
                 >
-                  {getPagesHelperText()}
+                  {testsPerPage === "auto"
+                    ? "Scenarios generated per page crawled. Auto uses a sensible rate for this mode."
+                    : `Generates up to ${testsPerPage} scenarios for each page crawled.`}
                 </Text>
               </VStack>
             </HStack>
@@ -660,6 +817,24 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               </Text>
             </Box>
 
+            {focus.trim() && (
+              <Box borderTop="1px solid" borderColor={colors.border} pt={2}>
+                <Text fontWeight="bold" color={colors.text} mb={1}>
+                  Focus
+                </Text>
+                <Text
+                  color={colors.subtext}
+                  whiteSpace="pre-wrap"
+                  wordBreak="break-word"
+                  maxH="120px"
+                  overflowY="auto"
+                  className="glass-scroll-area"
+                >
+                  {focus.trim()}
+                </Text>
+              </Box>
+            )}
+
             <Box borderTop="1px solid" borderColor={colors.border} pt={2}>
               <Text fontWeight="bold" color={colors.text} mb={1}>
                 Crawl & Agent Settings
@@ -672,14 +847,33 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
                     ? "Standard depth"
                     : crawlMode === "deep"
                       ? "Deep crawl"
-                      : "Aggressive crawl"}{" "}
-                (
-                {crawlMode === "direct"
-                  ? maxPages === "2"
-                    ? "entry page only — Max 12 tests"
-                    : "entry page only — Max 8 tests"
-                  : `${maxPages} pages max — Max ${getExpectedTests(maxPages)} tests`}
-                )
+                      : "Aggressive crawl"}
+              </Text>
+              {crawlMode !== "direct" && (
+                <Text color={colors.subtext}>
+                  Pages to crawl: up to {maxPages}
+                </Text>
+              )}
+              <Text color={colors.subtext}>
+                Tests per page: {perPageRate}
+                {testsPerPage === "auto" ? " (auto)" : ""}
+              </Text>
+              <Text
+                color={colors.text}
+                fontWeight="bold"
+                mt={1}
+                pt={1.5}
+                borderTop="1px dashed"
+                borderColor={colors.border}
+              >
+                Total tests to run: up to {totalTests}
+              </Text>
+              <Text fontSize="11px" color={colors.subtext}>
+                {effectivePages} {effectivePages === 1 ? "page" : "pages"} ×{" "}
+                {perPageRate}/page
+                {totalClamped
+                  ? ` = ${rawTotalTests}, capped at ${MAX_TOTAL_TESTS}`
+                  : ""}
               </Text>
             </Box>
           </VStack>

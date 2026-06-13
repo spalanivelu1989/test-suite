@@ -10,24 +10,25 @@ import type {
 } from "../agents/runtime";
 import { createWorkspace } from "../agents/workspace";
 import {
-  generateTests,
-  healTests,
-  planTests,
+  designTests,
+  evolveTests,
+  discoverTests,
+  regenerateMissingScenarios,
   trimPlan,
   validateTests,
 } from "./stages";
 
 const fakeAgent: AgentDef = {
-  name: "playwright-test-planner",
+  name: "playwright-test-discoverer",
   description: "",
   tools: [],
   systemPrompt: "plan",
 };
 
-test("planTests returns the saved plan markdown on success", async () => {
+test("discoverTests returns the saved plan markdown on success", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
-    // Simulate the planner agent calling planner_save_plan by writing the file.
+    // Simulate the discoverer agent calling discoverer_save_plan by writing the file.
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
       await writeFile(
         join(ws.specsDir, "plan.md"),
@@ -44,7 +45,7 @@ test("planTests returns the saved plan markdown on success", async () => {
         isError: false,
       };
     };
-    const res = await planTests(ws, "https://x.com", undefined, {
+    const res = await discoverTests(ws, "https://x.com", undefined, {
       runner,
       loadAgentFn: async () => fakeAgent,
     });
@@ -55,7 +56,7 @@ test("planTests returns the saved plan markdown on success", async () => {
   }
 });
 
-test("planTests flags an error when no plan was saved", async () => {
+test("discoverTests flags an error when no plan was saved", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     const runner = async (): Promise<RunAgentResult> => ({
@@ -63,7 +64,7 @@ test("planTests flags an error when no plan was saved", async () => {
       toolCalls: [],
       isError: false,
     });
-    const res = await planTests(ws, "https://x.com", undefined, {
+    const res = await discoverTests(ws, "https://x.com", undefined, {
       runner,
       loadAgentFn: async () => fakeAgent,
     });
@@ -74,7 +75,7 @@ test("planTests flags an error when no plan was saved", async () => {
   }
 });
 
-test("generateTests reads back one spec per scenario the agent wrote", async () => {
+test("designTests reads back one spec per scenario the agent wrote", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
@@ -98,7 +99,7 @@ test("generateTests reads back one spec per scenario the agent wrote", async () 
         isError: false,
       };
     };
-    const res = await generateTests(ws, undefined, {
+    const res = await designTests(ws, undefined, {
       runner,
       loadAgentFn: async () => fakeAgent,
     });
@@ -110,7 +111,7 @@ test("generateTests reads back one spec per scenario the agent wrote", async () 
   }
 });
 
-test("generateTests proceeds when the agent hit its turn cap but wrote specs", async () => {
+test("designTests proceeds when the agent hit its turn cap but wrote specs", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     const runner = async (): Promise<RunAgentResult> => {
@@ -121,7 +122,7 @@ test("generateTests proceeds when the agent hit its turn cap but wrote specs", a
       );
       return { resultText: "max turns", toolCalls: [], isError: true }; // agent errored…
     };
-    const res = await generateTests(ws, undefined, {
+    const res = await designTests(ws, undefined, {
       runner,
       loadAgentFn: async () => fakeAgent,
     });
@@ -132,7 +133,7 @@ test("generateTests proceeds when the agent hit its turn cap but wrote specs", a
   }
 });
 
-test("generateTests flags an error when no specs were written", async () => {
+test("designTests flags an error when no specs were written", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     const runner = async (): Promise<RunAgentResult> => ({
@@ -140,7 +141,7 @@ test("generateTests flags an error when no specs were written", async () => {
       toolCalls: [],
       isError: false,
     });
-    const res = await generateTests(ws, undefined, {
+    const res = await designTests(ws, undefined, {
       runner,
       loadAgentFn: async () => fakeAgent,
     });
@@ -151,7 +152,7 @@ test("generateTests flags an error when no specs were written", async () => {
   }
 });
 
-test("healTests runs the healer agent and reports tool usage", async () => {
+test("evolveTests runs the evolver agent and reports tool usage", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
@@ -167,7 +168,7 @@ test("healTests runs the healer agent and reports tool usage", async () => {
         isError: false,
       };
     };
-    const res = await healTests(ws, undefined, {
+    const res = await evolveTests(ws, undefined, {
       runner,
       loadAgentFn: async () => fakeAgent,
     });
@@ -178,7 +179,7 @@ test("healTests runs the healer agent and reports tool usage", async () => {
   }
 });
 
-// ── validateTests + healer prompt augmentation ───────────────────────────────
+// ── validateTests + evolver prompt augmentation ───────────────────────────────
 
 test("validateTests scores the generated specs against the plan", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
@@ -218,7 +219,7 @@ test('Unplanned thing', async ({ page }) => { await page.goto('/'); });`,
   }
 });
 
-test("healTests appends validation findings to the healer prompt", async () => {
+test("evolveTests appends validation findings to the evolver prompt", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let capturedPrompt = "";
@@ -250,7 +251,7 @@ test("healTests appends validation findings to the healer prompt", async () => {
       warningCount: 1,
       score: 70,
     };
-    await healTests(
+    await evolveTests(
       ws,
       undefined,
       { runner, loadAgentFn: async () => fakeAgent },
@@ -264,9 +265,9 @@ test("healTests appends validation findings to the healer prompt", async () => {
   }
 });
 
-// ── planTests crawl-mode constraint injection ─────────────────────────────────
+// ── discoverTests crawl-mode constraint injection ─────────────────────────────────
 
-test("planTests injects direct-mode constraint (no other pages)", async () => {
+test("discoverTests injects direct-mode constraint (no other pages)", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let capturedPrompt = "";
@@ -275,7 +276,7 @@ test("planTests injects direct-mode constraint (no other pages)", async () => {
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
       return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
-    await planTests(
+    await discoverTests(
       ws,
       "https://example.com",
       undefined,
@@ -300,7 +301,7 @@ test("planTests injects direct-mode constraint (no other pages)", async () => {
   }
 });
 
-test("planTests injects the focus directive when set", async () => {
+test("discoverTests injects the focus directive when set", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let capturedPrompt = "";
@@ -309,7 +310,7 @@ test("planTests injects the focus directive when set", async () => {
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
       return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
-    await planTests(
+    await discoverTests(
       ws,
       "https://example.com",
       undefined,
@@ -331,7 +332,7 @@ test("planTests injects the focus directive when set", async () => {
   }
 });
 
-test("planTests omits the focus block when no focus is given", async () => {
+test("discoverTests omits the focus block when no focus is given", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let capturedPrompt = "";
@@ -340,7 +341,7 @@ test("planTests omits the focus block when no focus is given", async () => {
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
       return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
-    await planTests(
+    await discoverTests(
       ws,
       "https://example.com",
       undefined,
@@ -354,7 +355,7 @@ test("planTests omits the focus block when no focus is given", async () => {
   }
 });
 
-test("planTests injects standard-mode depth-1 constraint", async () => {
+test("discoverTests injects standard-mode depth-1 constraint", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let capturedPrompt = "";
@@ -363,7 +364,7 @@ test("planTests injects standard-mode depth-1 constraint", async () => {
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
       return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
-    await planTests(
+    await discoverTests(
       ws,
       "https://example.com",
       undefined,
@@ -375,17 +376,17 @@ test("planTests injects standard-mode depth-1 constraint", async () => {
     );
 
     assert.ok(capturedPrompt.includes("depth = 1"), `got: ${capturedPrompt}`);
-    // maxScenarios = 5 pages × 5 scenarios/page = 25
+    // maxScenarios = 5 pages × 13 scenarios/page = 65
     assert.ok(
-      capturedPrompt.includes("25"),
-      `prompt should mention 25 max scenarios, got: ${capturedPrompt}`,
+      capturedPrompt.includes("65"),
+      `prompt should mention 65 max scenarios, got: ${capturedPrompt}`,
     );
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
 });
 
-test("planTests injects deep-mode constraint with correct depth and page cap", async () => {
+test("discoverTests injects deep-mode constraint with correct depth and page cap", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let capturedPrompt = "";
@@ -394,7 +395,7 @@ test("planTests injects deep-mode constraint with correct depth and page cap", a
       await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
       return { resultText: "saved", toolCalls: ["Write"], isError: false };
     };
-    await planTests(
+    await discoverTests(
       ws,
       "https://example.com",
       undefined,
@@ -406,10 +407,10 @@ test("planTests injects deep-mode constraint with correct depth and page cap", a
     );
 
     assert.ok(capturedPrompt.includes("depth ≤ 2"), `got: ${capturedPrompt}`);
-    // maxScenarios = 10 pages × 4 scenarios/page = 40
+    // maxScenarios = 10 pages × 10 scenarios/page = 100
     assert.ok(
-      capturedPrompt.includes("40"),
-      `prompt should mention 40 max scenarios, got: ${capturedPrompt}`,
+      capturedPrompt.includes("100"),
+      `prompt should mention 100 max scenarios, got: ${capturedPrompt}`,
     );
   } finally {
     await rm(ws.root, { recursive: true, force: true });
@@ -448,12 +449,12 @@ test("trimPlan trims scenarios exceeding the ceiling", () => {
   assert.ok(trimmed.includes("trimmed"), "should include trim notice");
 });
 
-// ── generateTests maxTurns scaling ───────────────────────────────────────────
+// ── designTests maxTurns scaling ───────────────────────────────────────────
 
-test("generateTests scales maxTurns from scenario count in plan", async () => {
+test("designTests scales maxTurns from scenario count in plan", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
-    // Build a plan with 4 scenarios so maxTurns = max(80, 4*10) = 80
+    // Build a plan with 4 scenarios so maxTurns = max(120, 4*18=72) = 120
     const scenarios = Array.from(
       { length: 4 },
       (_, i) => `#### 1.${i + 1} S${i + 1}\nsteps\n`,
@@ -474,24 +475,28 @@ test("generateTests scales maxTurns from scenario count in plan", async () => {
       );
       return { resultText: "done", toolCalls: [], isError: false };
     };
-    await generateTests(
+    await designTests(
       ws,
       undefined,
       { runner, loadAgentFn: async () => fakeAgent },
       { crawlMode: "standard", maxPages: 10 },
     );
 
-    // 4 scenarios × 10 turns = 40 → clamped to minimum 80
-    assert.equal(capturedMaxTurns, 80, `expected 80, got ${capturedMaxTurns}`);
+    // 4 scenarios × 18 turns = 72 → clamped to minimum floor of 120
+    assert.equal(
+      capturedMaxTurns,
+      120,
+      `expected 120, got ${capturedMaxTurns}`,
+    );
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
 });
 
-test("generateTests scales maxTurns above minimum for large plans", async () => {
+test("designTests scales maxTurns above minimum for large plans", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
-    // Build a plan with 20 scenarios → maxTurns = 20*10 = 200
+    // Build a plan with 20 scenarios → maxTurns = max(120, 20*18) = 360
     const scenarios = Array.from(
       { length: 20 },
       (_, i) => `#### 1.${i + 1} S${i + 1}\nsteps\n`,
@@ -512,8 +517,8 @@ test("generateTests scales maxTurns above minimum for large plans", async () => 
       );
       return { resultText: "done", toolCalls: [], isError: false };
     };
-    // ceiling = 20 pages × 5 = 100 → plan has 20 within budget, so no trim
-    await generateTests(
+    // ceiling = 20 pages × 13 = 260 → plan has 20 within budget, so no trim
+    await designTests(
       ws,
       undefined,
       { runner, loadAgentFn: async () => fakeAgent },
@@ -522,8 +527,223 @@ test("generateTests scales maxTurns above minimum for large plans", async () => 
 
     assert.equal(
       capturedMaxTurns,
-      200,
-      `expected 200, got ${capturedMaxTurns}`,
+      360,
+      `expected 360, got ${capturedMaxTurns}`,
+    );
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("designTests counts '### Scenario N:' headings for maxTurns (not just '#### N.M')", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    // The Discoverer emits this 3-hash format in practice. Before the fix, the
+    // scenario count silently read 0 here and maxTurns pinned to the floor.
+    const scenarios = Array.from(
+      { length: 8 },
+      (_, i) => `### Scenario ${i + 1}: Title ${i + 1}\nsteps\n`,
+    );
+    await writeFile(
+      join(ws.specsDir, "plan.md"),
+      "# Plan\n\n" + scenarios.join(""),
+      "utf8",
+    );
+
+    let capturedMaxTurns: number | undefined;
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      capturedMaxTurns = opts.maxTurns;
+      await writeFile(
+        join(ws.testsDir, "a.spec.ts"),
+        "import {test} from '@playwright/test';",
+        "utf8",
+      );
+      return { resultText: "done", toolCalls: [], isError: false };
+    };
+    // direct mode: ceiling = 1 page × 20 = 20 → all 8 scenarios counted.
+    await designTests(
+      ws,
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      { crawlMode: "direct", maxPages: 1 },
+    );
+
+    // 8 scenarios × 18 = 144 (above the 120 floor). Pre-fix this was 80.
+    assert.equal(
+      capturedMaxTurns,
+      144,
+      `expected 144, got ${capturedMaxTurns}`,
+    );
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("regenerateMissingScenarios generates only the listed scenarios with a generous budget", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    await writeFile(
+      join(ws.specsDir, "plan.md"),
+      "# Plan\n\n### Scenario 1: A\nsteps\n### Scenario 2: B\nsteps\n",
+      "utf8",
+    );
+    // Pretend scenario 1 already has a spec; only 2 is missing.
+    await writeFile(
+      join(ws.testsDir, "a.spec.ts"),
+      "import {test} from '@playwright/test';",
+      "utf8",
+    );
+
+    let capturedMaxTurns: number | undefined;
+    let capturedPrompt = "";
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      capturedMaxTurns = opts.maxTurns;
+      capturedPrompt = opts.prompt;
+      await writeFile(
+        join(ws.testsDir, "b.spec.ts"),
+        "import {test} from '@playwright/test';",
+        "utf8",
+      );
+      return { resultText: "done", toolCalls: [], isError: false };
+    };
+
+    const res = await regenerateMissingScenarios(
+      ws,
+      ["B"],
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      { crawlMode: "direct", maxPages: 1 },
+    );
+
+    assert.equal(res.isError, false);
+    assert.equal(res.scenarioCount, 1);
+    // The missing scenario name is named in the prompt; the retry is scoped.
+    assert.ok(
+      capturedPrompt.includes("- B"),
+      `prompt should list missing scenario B, got:\n${capturedPrompt}`,
+    );
+    assert.ok(
+      capturedPrompt.includes("ONLY these missing scenarios"),
+      "prompt should scope to only the missing scenarios",
+    );
+    // Generous floor even for a single straggler.
+    assert.equal(
+      capturedMaxTurns,
+      120,
+      `expected 120, got ${capturedMaxTurns}`,
+    );
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+// ── testsPerPage override (per-page rate) ────────────────────────────────────
+
+test("discoverTests cap = pages × testsPerPage (per-page formula, under the ceiling)", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    let capturedPrompt = "";
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      capturedPrompt = opts.prompt;
+      await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
+      return { resultText: "saved", toolCalls: ["Write"], isError: false };
+    };
+    // standard + 10 pages × 8/page = 80 (below the 200 ceiling).
+    await discoverTests(
+      ws,
+      "https://example.com",
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      { crawlMode: "standard", maxPages: 10, testsPerPage: 8 },
+    );
+
+    assert.ok(
+      capturedPrompt.includes("at most 80 test scenarios"),
+      `cap should be 80, got: ${capturedPrompt}`,
+    );
+    assert.ok(
+      capturedPrompt.includes("10 page(s) × 8 tests/page"),
+      "cap message should show the per-page formula",
+    );
+    assert.ok(
+      !capturedPrompt.includes("ceiling"),
+      "80 is under the ceiling — no clamp note expected",
+    );
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("discoverTests cap clamps to the 200-test ceiling for big crawls", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    let capturedPrompt = "";
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      capturedPrompt = opts.prompt;
+      await writeFile(join(ws.specsDir, "plan.md"), "# Plan\n", "utf8");
+      return { resultText: "saved", toolCalls: ["Write"], isError: false };
+    };
+    // standard + 50 pages × 8/page = 400 → clamped to 200.
+    await discoverTests(
+      ws,
+      "https://example.com",
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      { crawlMode: "standard", maxPages: 50, testsPerPage: 8 },
+    );
+
+    assert.ok(
+      capturedPrompt.includes("at most 200 test scenarios"),
+      `cap should clamp to 200, got: ${capturedPrompt}`,
+    );
+    assert.ok(
+      capturedPrompt.includes("capped at the 200-test ceiling"),
+      "cap message should note the ceiling clamp",
+    );
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("designTests honors testsPerPage for the budget (trims + scales turns)", async () => {
+  const ws = await createWorkspace(`test-${randomUUID()}`);
+  try {
+    // Plan has 12 scenarios; direct + 1 page × 8/page = 8 cap → trim to 8.
+    const scenarios = Array.from(
+      { length: 12 },
+      (_, i) => `#### 1.${i + 1} S${i + 1}\nsteps\n`,
+    );
+    await writeFile(
+      join(ws.specsDir, "plan.md"),
+      "# Plan\n\n" + scenarios.join(""),
+      "utf8",
+    );
+
+    let capturedMaxTurns: number | undefined;
+    const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
+      capturedMaxTurns = opts.maxTurns;
+      await writeFile(
+        join(ws.testsDir, "a.spec.ts"),
+        "import {test} from '@playwright/test';",
+        "utf8",
+      );
+      return { resultText: "done", toolCalls: [], isError: false };
+    };
+    const res = await designTests(
+      ws,
+      undefined,
+      { runner, loadAgentFn: async () => fakeAgent },
+      { crawlMode: "direct", maxPages: 1, testsPerPage: 8 },
+    );
+
+    // 12 planned − 8 cap = 4 trimmed; scenarioCount clamps to 8.
+    assert.equal(res.trimmedCount, 4, "should trim 12→8");
+    assert.equal(res.scenarioCount, 8);
+    // maxTurns = max(120, 8×18=144) = 144.
+    assert.equal(
+      capturedMaxTurns,
+      144,
+      `expected 144, got ${capturedMaxTurns}`,
     );
   } finally {
     await rm(ws.root, { recursive: true, force: true });

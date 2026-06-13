@@ -72,7 +72,7 @@ export function selectPrecedents(
 }
 
 /**
- * Derive resilient-locator hints for the Generator (R8) from an app's successful
+ * Derive resilient-locator hints for the Designer (R8) from an app's successful
  * heals: surface the repair strategies seen for a flow so new specs avoid the
  * known-brittle pattern. Deterministic, dedup'd, most-common first.
  */

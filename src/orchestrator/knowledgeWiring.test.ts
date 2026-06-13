@@ -10,7 +10,7 @@ import type {
   RunAgentResult,
 } from "../agents/runtime";
 import type { KnowledgeService } from "../knowledge";
-import { generateTests, planTests } from "./stages";
+import { designTests, discoverTests } from "./stages";
 
 const fakeAgent: AgentDef = {
   name: "x",
@@ -47,16 +47,16 @@ const planRunner =
     return { resultText: "", toolCalls: [], isError: false };
   };
 
-test("T14/T20: with no prior plan, the Planner prompt is KB-independent (no coverage knowledge)", async () => {
+test("T14/T20: with no prior plan, the Discoverer prompt is KB-independent (no coverage knowledge)", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let withPrompt = "";
     let withoutPrompt = "";
-    // A KB present, but it has no prior plan and the planner pulls no coverage
+    // A KB present, but it has no prior plan and the discoverer pulls no coverage
     // knowledge — so its prompt must be identical to the no-KB case.
     const knowledge = fakeKnowledge({});
 
-    await planTests(ws, "https://x.com", undefined, {
+    await discoverTests(ws, "https://x.com", undefined, {
       runner: planRunner(ws, (p) => (withPrompt = p)) as never,
       loadAgentFn: async () => fakeAgent,
       knowledge,
@@ -64,7 +64,7 @@ test("T14/T20: with no prior plan, the Planner prompt is KB-independent (no cove
     assert.doesNotMatch(withPrompt, /KNOWLEDGE/i);
     assert.doesNotMatch(withPrompt, /MEMORY/);
 
-    await planTests(ws, "https://x.com", undefined, {
+    await discoverTests(ws, "https://x.com", undefined, {
       runner: planRunner(ws, (p) => (withoutPrompt = p)) as never,
       loadAgentFn: async () => fakeAgent,
     });
@@ -74,7 +74,7 @@ test("T14/T20: with no prior plan, the Planner prompt is KB-independent (no cove
   }
 });
 
-test("Planner receives the previous plan as reference 'memory', with an independent-crawl instruction", async () => {
+test("Discoverer receives the previous plan as reference 'memory', with an independent-crawl instruction", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let prompt = "";
@@ -83,7 +83,7 @@ test("Planner receives the previous plan as reference 'memory', with an independ
         "# Plan\n## Scenario 1 — Hero CTA opens the contact form\n",
     });
 
-    await planTests(ws, "https://x.com", undefined, {
+    await discoverTests(ws, "https://x.com", undefined, {
       runner: planRunner(ws, (p) => (prompt = p)) as never,
       loadAgentFn: async () => fakeAgent,
       knowledge,
@@ -120,7 +120,7 @@ test("T15: a reuse decision skips regeneration and copies the prior spec (D4)", 
     };
     const knowledge = fakeKnowledge({
       assembleContext: async () => ({
-        generator: {
+        designer: {
           decisions: [
             {
               scenario: "Hero CTA",
@@ -145,7 +145,7 @@ test("T15: a reuse decision skips regeneration and copies the prior spec (D4)", 
       }),
     });
 
-    const res = await generateTests(
+    const res = await designTests(
       ws,
       undefined,
       {
@@ -189,14 +189,14 @@ test("T19: a throwing KnowledgeService never fails the stage (N3)", async () => 
     };
 
     await assert.doesNotReject(() =>
-      planTests(ws, "https://x.com", undefined, {
+      discoverTests(ws, "https://x.com", undefined, {
         runner: planRunner as never,
         loadAgentFn: async () => fakeAgent,
         knowledge: throwing,
       }),
     );
     await assert.doesNotReject(() =>
-      generateTests(
+      designTests(
         ws,
         undefined,
         {

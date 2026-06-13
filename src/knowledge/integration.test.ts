@@ -123,7 +123,7 @@ test(
     const url = uniqueUrl();
     // No prior run yet → null.
     assert.equal(await k.getLastPlan(url), null);
-    // After a run, the stored planMarkdown is returned verbatim (Planner memory).
+    // After a run, the stored planMarkdown is returned verbatim (Discoverer memory).
     await k.ingestRun(report("p-" + randomUUID(), url));
     const plan = await k.getLastPlan(url);
     assert.match(plan ?? "", /## Scenario 1 — Hero CTA/);

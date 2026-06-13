@@ -10,7 +10,7 @@ import type { CoverageAction, CoverageDecision, ScenarioInput } from "../types";
 // TIGHTEN-THEN-COPY (2-way): a planned scenario is either a CONFIDENT match to a
 // previously passing spec — copied forward verbatim (`reuse`, fast, no LLM) — or
 // it is regenerated from scratch (`new`). There is no middle "extend" tier: that
-// tier carried no source for the generator to work from and was skipped, leaving
+// tier carried no source for the designer to work from and was skipped, leaving
 // planned flows with no test at all. Now every scenario ends with a test —
 // copied when we are confident it is the same flow, freshly built otherwise.
 //

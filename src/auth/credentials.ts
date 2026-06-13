@@ -4,11 +4,11 @@
 //
 //   1. Credentials are read from the environment (never persisted to RunConfig,
 //      run.json, or the report — they stay out of stored state).
-//   2. The Planner logs in once via `playwright-cli`, then `state-save`s the
+//   2. The Discoverer logs in once via `playwright-cli`, then `state-save`s the
 //      authenticated storage state to the workspace's auth file.
 //   3. `playwright.config.ts` loads that file as `use.storageState`, so every
 //      generated test starts already authenticated — no per-test login code.
-//   4. The Generator/Healer `state-load` the same file when they drive the CLI,
+//   4. The Designer/Evolver `state-load` the same file when they drive the CLI,
 //      so their manual exploration sees the authenticated app too.
 //
 // When the env vars are unset, every helper returns "no auth" and the pipeline
@@ -40,13 +40,13 @@ export function loadAuthFromEnv(
   return { username, password, loginUrl };
 }
 
-/** Env-var names the credentials are exposed under in the Planner's shell. */
+/** Env-var names the credentials are exposed under in the Discoverer's shell. */
 export const AUTH_USERNAME_ENV = "TARGET_USERNAME";
 export const AUTH_PASSWORD_ENV = "TARGET_PASSWORD";
 
 /**
- * Planner preamble: log in FIRST, confirm it worked, then `state-save` the
- * session so the generated suite (and the Generator/Healer) can reuse it.
+ * Discoverer preamble: log in FIRST, confirm it worked, then `state-save` the
+ * session so the generated suite (and the Designer/Evolver) can reuse it.
  * `entryUrl` is the run's target URL; `authStatePath` is the absolute path the
  * workspace expects the saved state at (and that playwright.config.ts loads).
  *
@@ -64,7 +64,7 @@ export const AUTH_PASSWORD_ENV = "TARGET_PASSWORD";
  * corrupt before it ever reaches here. Users must escape `$` as `\$` in
  * .env.local (see .env.example); quotes do not help there.
  */
-export function buildPlannerAuthPreamble(
+export function buildDiscovererAuthPreamble(
   auth: AuthCredentials,
   entryUrl: string,
   authStatePath: string,
@@ -106,7 +106,7 @@ export function buildPlannerAuthPreamble(
 }
 
 /**
- * The credential env vars to inject into the Planner agent's shell so it can
+ * The credential env vars to inject into the Discoverer agent's shell so it can
  * reference "$TARGET_USERNAME"/"$TARGET_PASSWORD" without the literals ever
  * entering the prompt. Returned as a plain map the runtime merges over the
  * inherited process env.
@@ -119,10 +119,10 @@ export function authEnvFor(auth: AuthCredentials): Record<string, string> {
 }
 
 /**
- * Generator preamble: tests run pre-authenticated via storageState, so specs
+ * Designer preamble: tests run pre-authenticated via storageState, so specs
  * must NOT perform login; while exploring with the CLI, load the saved state.
  */
-export function buildGeneratorAuthPreamble(
+export function buildDesignerAuthPreamble(
   entryUrl: string,
   authStatePath: string,
 ): string {
@@ -137,9 +137,9 @@ export function buildGeneratorAuthPreamble(
 }
 
 /**
- * Healer preamble: keep specs login-free; load saved state for manual CLI checks.
+ * Evolver preamble: keep specs login-free; load saved state for manual CLI checks.
  */
-export function buildHealerAuthPreamble(authStatePath: string): string {
+export function buildEvolverAuthPreamble(authStatePath: string): string {
   return [
     "\n\n🔐 This app requires login; the suite runs authenticated via use.storageState in playwright.config.ts.",
     "Do NOT add login steps or credentials to any spec. When inspecting a page manually with playwright-cli, run",

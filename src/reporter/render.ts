@@ -984,7 +984,7 @@ export function renderHtml(report: RunReport): string {
               <div style="font-size: 40px; margin-bottom: 16px;">📷</div>
               <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 8px;">No screenshots found</h3>
               <p style="color: gray; font-size: 13px; max-width: 400px; margin: 0 auto;">
-                This run does not contain any visual logs. Interactive explorer screenshots are saved when running Planner or Generator agents.
+                This run does not contain any visual logs. Interactive explorer screenshots are saved when running Discoverer or Designer agents.
               </p>
             </div>
           `

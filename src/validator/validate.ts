@@ -15,7 +15,7 @@ import type {
 // Rules are line/regex heuristics in the spirit of coverage.ts/trimPlan, kept
 // intentionally light so the whole module stays unit-testable and dependency-free.
 
-/** A scenario heading parsed out of the Planner's Markdown plan. */
+/** A scenario heading parsed out of the Discoverer's Markdown plan. */
 export interface PlanScenario {
   /** Ordinal id like "1.1" when present, else the heading text. */
   id: string;
@@ -76,9 +76,9 @@ const KNOWN_MATCHERS = new Set([
 
 /**
  * Parse scenario headings out of a plan's Markdown. Handles both formats the
- * Planner emits in practice:
- *   • `## Scenario 2 — Hero Section CTA`   (current Planner output)
- *   • `#### 1.1 Hero Section CTA`          (generator-doc / numbered form)
+ * Discoverer emits in practice:
+ *   • `## Scenario 2 — Hero Section CTA`   (current Discoverer output)
+ *   • `#### 1.1 Hero Section CTA`          (designer-doc / numbered form)
  * Section sub-headings (Purpose/Steps/Expected Outcome/…) are ignored.
  */
 export function parsePlanScenarios(plan: string | null): PlanScenario[] {
@@ -211,7 +211,7 @@ export function validateSpec(
       "multiple-tests",
       "correctness",
       "warning",
-      `${testCount} test() blocks in one file — generator rule is one scenario per file.`,
+      `${testCount} test() blocks in one file — designer rule is one scenario per file.`,
     );
   }
 
@@ -353,12 +353,12 @@ export function validateSuite(
 }
 
 /**
- * Render the fixable findings (everything except relevance, which the Healer
- * can't act on) as an instruction block to append to the Healer's prompt, so it
+ * Render the fixable findings (everything except relevance, which the Evolver
+ * can't act on) as an instruction block to append to the Evolver's prompt, so it
  * repairs static anti-patterns alongside real runtime failures. Returns "" when
  * there is nothing actionable.
  */
-export function formatValidationForHealer(report: ValidationReport): string {
+export function formatValidationForEvolver(report: ValidationReport): string {
   const fixable = report.specs
     .map((s) => ({
       file: s.file,

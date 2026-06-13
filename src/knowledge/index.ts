@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { normalizeOrigin } from "./appId";
-import { buildGeneratorPack } from "./assemble/contextPack";
+import { buildDesignerPack } from "./assemble/contextPack";
 import { type Embedder, LocalEmbedder } from "./embeddings/embed";
 import { ingestRun as doIngest } from "./ingest/ingestRun";
 import { signatureTokens } from "./heal/signature";
@@ -181,7 +181,11 @@ class PgKnowledgeService implements KnowledgeService {
         return decideForSpecs(withEmb, specs);
       },
       newDecisions(scenarios),
-      { onError: this.onError },
+      {
+        onError: this.onError,
+        input: { appId, scenarios: scenarios.length },
+        summarize: (decisions) => tally(decisions),
+      },
     );
   }
 
@@ -189,8 +193,8 @@ class PgKnowledgeService implements KnowledgeService {
     url: string,
     scenarios?: ScenarioInput[],
   ): Promise<ContextPack> {
-    // Generator-only: the Planner is KB-agnostic, so the sole context pack the
-    // Knowledge Layer assembles is the Generator's coverage decision.
+    // Designer-only: the Discoverer is KB-agnostic, so the sole context pack the
+    // Knowledge Layer assembles is the Designer's coverage decision.
     // Embed scenarios at query time, then hybrid-decide. Degrades
     // to lexical when the embedder is off/failing (withEmbeddings → null embs):
     //
@@ -199,7 +203,7 @@ class PgKnowledgeService implements KnowledgeService {
     //                       ▼                                                       ▼
     //   readSpecsForApp(appId)  ─►  decideForSpecs(scenarios+emb, specs)  ─► (sem=0 ⇒ Phase-1 lexical)
     //                       ▼
-    //   buildGeneratorPack(decisions, full reused-spec source)  ─►  copy-forward
+    //   buildDesignerPack(decisions, full reused-spec source)  ─►  copy-forward
     return withKb<ContextPack>(
       "assembleContext.generating",
       async () => {
@@ -212,16 +216,27 @@ class PgKnowledgeService implements KnowledgeService {
         // Phase 3: resilient-locator hints from this app's past heals (R8).
         const heals = await readSuccessfulHealingEvents(this.pool, appId, null);
         const locatorHints = deriveLocatorHints(heals);
-        const pack = buildGeneratorPack(decisions, specs);
+        const pack = buildDesignerPack(decisions, specs);
         // Phase 3: trusted distilled principles, global + app-scoped (R12).
         const playbooks = await this.trustedPlaybooks(appId);
         return {
-          generator: locatorHints.length ? { ...pack, locatorHints } : pack,
+          designer: locatorHints.length ? { ...pack, locatorHints } : pack,
           ...(playbooks.length ? { playbooks } : {}),
         };
       },
       {},
-      { onError: this.onError },
+      {
+        onError: this.onError,
+        input: {
+          appId: normalizeOrigin(url),
+          scenarios: scenarios?.length ?? 0,
+        },
+        summarize: (pack) => ({
+          ...tally(pack.designer?.decisions ?? []),
+          locatorHints: pack.designer?.locatorHints?.length ?? 0,
+          playbooks: pack.playbooks?.length ?? 0,
+        }),
+      },
     );
   }
 
@@ -262,7 +277,11 @@ class PgKnowledgeService implements KnowledgeService {
         return findNearestSpecs(this.pool, appId, emb, k);
       },
       [],
-      { onError: this.onError },
+      {
+        onError: this.onError,
+        input: { appId, queryChars: query.length, k },
+        summarize: (matches) => ({ matches: matches.length }),
+      },
     );
   }
 
@@ -294,7 +313,11 @@ class PgKnowledgeService implements KnowledgeService {
         return precedents;
       },
       [],
-      { onError: this.onError },
+      {
+        onError: this.onError,
+        input: { appId: failure.appId, k },
+        summarize: (precedents) => ({ precedents: precedents.length }),
+      },
     );
   }
 
@@ -303,7 +326,11 @@ class PgKnowledgeService implements KnowledgeService {
       "getPlaybooks",
       () => readTrustedPlaybooks(this.pool, scope),
       [],
-      { onError: this.onError },
+      {
+        onError: this.onError,
+        input: { scope: `${scope.kind}:${scope.key}` },
+        summarize: (playbooks) => ({ playbooks: playbooks.length }),
+      },
     );
   }
 

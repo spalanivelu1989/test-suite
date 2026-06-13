@@ -13,7 +13,7 @@ import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 
-// Code-enforced crawl scope (R2). The planner agent drives the browser by
+// Code-enforced crawl scope (R2). The discoverer agent drives the browser by
 // shelling out to `npx playwright-cli` over the Bash tool, so the only place we
 // can *enforce* (not merely request) the user's depth/page limits is at the tool
 // boundary. This module builds a stateful gate wired as a PreToolUse hook: it
@@ -248,7 +248,7 @@ async function hideHighlight(cwd: string, session: string | undefined): Promise<
 }
 
 /**
- * Build a crawl gate for one planner run. The returned `hooks` enforce the
+ * Build a crawl gate for one discoverer run. The returned `hooks` enforce the
  * configured crawl scope at the tool boundary.
  */
 export function createCrawlGate(cfg: CrawlGateConfig): CrawlGate {

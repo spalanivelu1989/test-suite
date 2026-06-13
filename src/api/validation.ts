@@ -10,6 +10,9 @@ const VALID_CRAWL_MODES: CrawlMode[] = [
 /** Upper bound on the free-text focus directive (keeps prompts bounded). */
 export const FOCUS_MAX_CHARS = 1000;
 
+/** Upper bound on the per-page test rate (the total is separately clamped by MAX_TOTAL_TESTS). */
+export const MAX_TESTS_PER_PAGE = 50;
+
 export type ParseResult =
   | { ok: true; config: RunConfig }
   | { ok: false; error: string };
@@ -62,6 +65,22 @@ export function parseRunRequest(body: unknown): ParseResult {
     // Empty/whitespace-only focus is treated as "no focus" (unscoped), so the
     // field stays omitted from the config rather than injecting a blank directive.
     if (focus.length > 0) config.focus = focus;
+  }
+  if (b.testsPerPage !== undefined && b.testsPerPage !== null) {
+    if (
+      typeof b.testsPerPage !== "number" ||
+      !Number.isInteger(b.testsPerPage) ||
+      b.testsPerPage < 1
+    ) {
+      return { ok: false, error: "testsPerPage must be a positive integer" };
+    }
+    if (b.testsPerPage > MAX_TESTS_PER_PAGE) {
+      return {
+        ok: false,
+        error: `testsPerPage must be at most ${MAX_TESTS_PER_PAGE}`,
+      };
+    }
+    config.testsPerPage = b.testsPerPage;
   }
   return { ok: true, config };
 }

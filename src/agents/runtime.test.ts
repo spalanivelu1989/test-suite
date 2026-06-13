@@ -3,20 +3,20 @@ import { test } from "node:test";
 import { type AgentEvent, parseAgentFile, runAgent } from "./runtime";
 
 const SAMPLE = `---
-name: playwright-test-planner
+name: playwright-test-discoverer
 description: Plans tests
 tools: Read, Bash, Write
 model: sonnet
 ---
 
-You are a planner. Explore and save a plan.`;
+You are a discoverer. Explore and save a plan.`;
 
 test("parseAgentFile splits frontmatter and body", () => {
   const def = parseAgentFile(SAMPLE);
-  assert.equal(def.name, "playwright-test-planner");
+  assert.equal(def.name, "playwright-test-discoverer");
   assert.equal(def.model, "sonnet");
   assert.deepEqual(def.tools, ["Read", "Bash", "Write"]);
-  assert.match(def.systemPrompt, /You are a planner/);
+  assert.match(def.systemPrompt, /You are a discoverer/);
 });
 
 test("parseAgentFile throws without frontmatter", () => {
@@ -114,7 +114,7 @@ test("runAgent flags an error result", async () => {
   assert.equal(out.isError, true);
 });
 
-// Regression for run 928c24b7…: the Healer finished its work but the SDK stream
+// Regression for run 928c24b7…: the Evolver finished its work but the SDK stream
 // never delivered a terminal `result` and never closed (a lingering browser
 // child held stdio open), so `for await` blocked forever. The idle guard must
 // abort and return instead of hanging.

@@ -40,7 +40,7 @@ export async function runToReport(
   const crawlMode = config.crawlMode ?? "standard";
 
   // Root Langfuse trace for the whole run. `sessionId` = runId groups every
-  // observation (planner/generator/healer agents + the Reporter narrative) under
+  // observation (discoverer/designer/evolver agents + the Reporter narrative) under
   // one trace in the Sessions view. When tracing is disabled (no LANGFUSE_* keys)
   // these helpers are non-recording no-ops and the pipeline runs unchanged.
   return propagateAttributes(

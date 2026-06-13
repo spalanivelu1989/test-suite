@@ -2,7 +2,7 @@ import type { Workspace } from "../agents/workspace";
 import { detectFlakes } from "../flake/flake";
 import type { TestResult } from "../types";
 
-// Authoritative results capture (T9): after the Healer has edited the specs, we
+// Authoritative results capture (T9): after the Evolver has edited the specs, we
 // run the suite ourselves and parse the Playwright JSON so results don't depend
 // on what the agent reported.
 

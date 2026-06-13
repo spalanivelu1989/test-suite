@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   authEnvFor,
-  buildGeneratorAuthPreamble,
-  buildPlannerAuthPreamble,
+  buildDesignerAuthPreamble,
+  buildDiscovererAuthPreamble,
   loadAuthFromEnv,
 } from "./credentials";
 
@@ -36,8 +36,8 @@ test("loadAuthFromEnv leaves loginUrl undefined when unset", () => {
   assert.equal(auth?.loginUrl, undefined);
 });
 
-test("planner preamble references env vars and the state-save path", () => {
-  const preamble = buildPlannerAuthPreamble(
+test("discoverer preamble references env vars and the state-save path", () => {
+  const preamble = buildDiscovererAuthPreamble(
     { username: "u", password: "p", loginUrl: "https://app.test/login" },
     "https://app.test/home",
     "/runs/abc/.auth/storageState.json",
@@ -51,11 +51,11 @@ test("planner preamble references env vars and the state-save path", () => {
   assert.match(preamble, /https:\/\/app\.test\/login/);
 });
 
-test("planner preamble never inlines the literal password (no shell-mangle, no trace leak)", () => {
+test("discoverer preamble never inlines the literal password (no shell-mangle, no trace leak)", () => {
   // The exact failure shape from the failing runs: a `$` in the password. The
   // value must NOT appear in the prompt at all — it travels via the env var.
   const secret = "abcdeF$789";
-  const preamble = buildPlannerAuthPreamble(
+  const preamble = buildDiscovererAuthPreamble(
     { username: "user@x.com", password: secret },
     "https://app.test",
     "/s.json",
@@ -76,8 +76,8 @@ test("authEnvFor maps credentials onto the documented env-var names", () => {
   );
 });
 
-test("planner preamble falls back to the entry url when no login url is given", () => {
-  const preamble = buildPlannerAuthPreamble(
+test("discoverer preamble falls back to the entry url when no login url is given", () => {
+  const preamble = buildDiscovererAuthPreamble(
     { username: "u", password: "p" },
     "https://app.test/home",
     "/s.json",
@@ -85,8 +85,8 @@ test("planner preamble falls back to the entry url when no login url is given", 
   assert.match(preamble, /https:\/\/app\.test\/home/);
 });
 
-test("generator preamble tells specs to assume logged-in and load saved state", () => {
-  const preamble = buildGeneratorAuthPreamble(
+test("designer preamble tells specs to assume logged-in and load saved state", () => {
+  const preamble = buildDesignerAuthPreamble(
     "https://app.test/home",
     "/s.json",
   );

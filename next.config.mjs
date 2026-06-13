@@ -10,6 +10,11 @@ const nextConfig = {
     "@opentelemetry/sdk-node",
     "@langfuse/otel",
     "@arizeai/openinference-instrumentation-anthropic",
+    // pg + its OTel instrumentation must stay external: the instrumentation
+    // patches `pg` via require-in-the-middle, which only works if neither is
+    // bundled (a bundled `pg` is renamed and the hook never fires).
+    "@opentelemetry/instrumentation-pg",
+    "pg",
   ],
 };
 

@@ -71,9 +71,9 @@ const OUTCOME_COLOR: Record<TestOutcome, string> = {
 };
 
 const PIPELINE_STAGES = [
-  { id: "planning", label: "Planner", colorKey: "mauve" },
-  { id: "generating", label: "Generator", colorKey: "sky" },
-  { id: "healing", label: "Healer", colorKey: "yellow" },
+  { id: "planning", label: "Discoverer", colorKey: "mauve" },
+  { id: "generating", label: "Designer", colorKey: "sky" },
+  { id: "healing", label: "Evolver", colorKey: "yellow" },
   { id: "reporting", label: "Reporter", colorKey: "green" },
 ] as const;
 
@@ -582,7 +582,7 @@ const LOG_LEVEL_ORDER: LogLevel[] = [
 
 interface ParsedLogLine {
   level: LogLevel;
-  /** Agent label parsed from a "[planner] …" prefix, if any. */
+  /** Agent label parsed from a "[discoverer] …" prefix, if any. */
   agent?: string;
   /** Message with the "[label]" prefix stripped. */
   text: string;
@@ -611,9 +611,9 @@ function classifyLogLine(stage: RunStage, raw: string, text: string): LogLevel {
   }
 
   if (stage === "error" || stage === "cancelled") return "error";
-  // Stage-intro lines ("Healer: repairing failures…") stay neutral.
+  // Stage-intro lines ("Evolver: repairing failures…") stay neutral.
   if (
-    /^(planner|generator|validator|healer|reporter|running generated|re-running)/i.test(
+    /^(discoverer|designer|validator|evolver|reporter|running generated|re-running)/i.test(
       t,
     )
   )
@@ -647,8 +647,8 @@ function parseLogEvent(ev: ProgressEvent): ParsedLogLine {
 
 /** Maps pipeline stages into the ordered, user-facing timeline groups. */
 const TIMELINE_GROUPS: { id: string; label: string; stages: RunStage[] }[] = [
-  { id: "plan", label: "Planner", stages: ["planning"] },
-  { id: "generate", label: "Generator", stages: ["generating"] },
+  { id: "plan", label: "Discoverer", stages: ["planning"] },
+  { id: "generate", label: "Designer", stages: ["generating"] },
   { id: "validate", label: "Validator", stages: ["validating"] },
   {
     id: "execute",

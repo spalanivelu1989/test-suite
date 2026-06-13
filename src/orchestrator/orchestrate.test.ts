@@ -34,18 +34,18 @@ test("runPipeline runs the four stages in order and builds a rich report", async
   const stages: string[] = [];
   const events: string[] = [];
 
-  // Stub agents: planner writes a plan, generator writes a spec, healer is a no-op.
+  // Stub agents: discoverer writes a plan, designer writes a spec, evolver is a no-op.
   const runner = async (opts: {
     agent: { name: string };
   }): Promise<RunAgentResult> => {
     stages.push(opts.agent.name);
-    if (opts.agent.name === "planner") {
+    if (opts.agent.name === "discoverer") {
       await writeFile(
         join(ws.specsDir, "plan.md"),
         "# Plan\n## 1. Home",
         "utf8",
       );
-    } else if (opts.agent.name === "generator") {
+    } else if (opts.agent.name === "designer") {
       await writeFile(
         join(ws.testsDir, "home.spec.ts"),
         "import {test} from '@playwright/test';",
@@ -95,7 +95,7 @@ test("runPipeline runs the four stages in order and builds a rich report", async
       },
     );
 
-    assert.deepEqual(stages, ["planner", "generator", "healer"]);
+    assert.deepEqual(stages, ["discoverer", "designer", "evolver"]);
     assert.equal(report.successRate.total, 1);
     assert.equal(report.successRate.passed, 1);
     assert.equal(report.coverage.percent, 100);
@@ -135,7 +135,7 @@ test("runPipeline runs the four stages in order and builds a rich report", async
   }
 });
 
-test("runPipeline throws when the planner produces no plan", async () => {
+test("runPipeline throws when the discoverer produces no plan", async () => {
   const runId = `test-${randomUUID()}`;
   const ws = await createWorkspace(runId);
   const stageDeps = {
@@ -145,7 +145,7 @@ test("runPipeline throws when the planner produces no plan", async () => {
       isError: false,
     })) as never,
     loadAgentFn: (async () => ({
-      name: "planner",
+      name: "discoverer",
       description: "",
       tools: [],
       systemPrompt: "x",

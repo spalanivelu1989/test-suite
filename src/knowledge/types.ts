@@ -3,7 +3,7 @@ import type { RunReport } from "../types";
 // Public contracts for the Knowledge Layer (Plan I1, I4, I6). The execution
 // pipeline depends ONLY on these shapes — never on SQL, `pg`, or the schema.
 
-/** A planned scenario the Generator is about to turn into a spec. */
+/** A planned scenario the Designer is about to turn into a spec. */
 export interface ScenarioInput {
   /** Ordinal id like "1.1" when the plan has one; else absent. */
   id?: string;
@@ -26,7 +26,7 @@ export type CoverageAction = "reuse" | "new";
 
 // ─── Phase 3: Healing memory (ADR-0004) ──────────────────────────────────────
 
-/** How the Healer repaired a failing locator/assertion — a closed set (R2). */
+/** How the Evolver repaired a failing locator/assertion — a closed set (R2). */
 export type HealStrategy =
   | "role-locator" // brittle selector → getByRole/getByLabel/getByText
   | "regex-text" // exact text → regex/partial match for dynamic content
@@ -36,7 +36,7 @@ export type HealStrategy =
   | "other"; // a real change that fits none of the above
 
 /**
- * One repair the Healer made in a run, reconstructed deterministically by
+ * One repair the Evolver made in a run, reconstructed deterministically by
  * diffing the pre-heal vs post-heal spec file (ADR-0004). Append-only evidence.
  */
 export interface HealingEvent {
@@ -58,7 +58,7 @@ export interface HealingEvent {
   embedding?: number[] | null;
 }
 
-/** A prior successful heal surfaced to the Healer/Generator for reuse (R6). */
+/** A prior successful heal surfaced to the Evolver/Designer for reuse (R6). */
 export interface HealingPrecedent {
   runId: string;
   file: string;
@@ -159,25 +159,25 @@ export interface CoverageMap {
   uncovered: string[];
 }
 
-/** Generator-facing half of a context pack. */
-export interface GeneratorPack {
+/** Designer-facing half of a context pack. */
+export interface DesignerPack {
   decisions: CoverageDecision[];
   specs: SpecRef[];
   /** Phase 3: resilient-locator hints derived from past heals (R8). */
   locatorHints?: string[];
 }
 
-/** Healer-facing half of a context pack — precedents for the run's failures (R7). */
-export interface HealerPack {
+/** Evolver-facing half of a context pack — precedents for the run's failures (R7). */
+export interface EvolverPack {
   precedents: HealingPrecedent[];
 }
 
 /** Token-bounded knowledge injected into an agent prompt (I4). */
 export interface ContextPack {
-  /** Decisions + existing specs for the Generator. */
-  generator?: GeneratorPack;
-  /** Phase 3: healing precedents for the Healer (R7). */
-  healer?: HealerPack;
+  /** Decisions + existing specs for the Designer. */
+  designer?: DesignerPack;
+  /** Phase 3: healing precedents for the Evolver (R7). */
+  evolver?: EvolverPack;
   /** Phase 3: trusted distilled principles for any stage (R12). */
   playbooks?: Playbook[];
 }
@@ -207,8 +207,8 @@ export interface KnowledgeService {
   getAppProfile(url: string): Promise<AppProfile | null>;
   /**
    * The most recent prior run's plan markdown for this app — passed to the
-   * Planner as reference "memory", or null if none/disabled. NOT a coverage
-   * decision: reuse remains the Generator's job; this only speeds re-planning.
+   * Discoverer as reference "memory", or null if none/disabled. NOT a coverage
+   * decision: reuse remains the Designer's job; this only speeds re-planning.
    */
   getLastPlan(url: string): Promise<string | null>;
   /** Covered vs uncovered known flows, or null if nothing/disabled. */
@@ -218,7 +218,7 @@ export interface KnowledgeService {
     scenarios: ScenarioInput[],
     appId: string,
   ): Promise<CoverageDecision[]>;
-  /** Build the Generator's coverage-decision context pack (empty if disabled). */
+  /** Build the Designer's coverage-decision context pack (empty if disabled). */
   assembleContext(
     url: string,
     scenarios?: ScenarioInput[],

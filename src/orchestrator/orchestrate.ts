@@ -22,9 +22,10 @@ import type {
   TestResult,
 } from "../types";
 import {
-  generateTests,
-  healTests,
-  planTests,
+  designTests,
+  evolveTests,
+  discoverTests,
+  regenerateMissingScenarios,
   validateTests,
   type StageDeps,
 } from "./stages";
@@ -65,7 +66,7 @@ export class CancelledError extends Error {
 /**
  * Phase 3: gather prior successful heals for this run's failures, deduped by
  * failure signature (R7). Best-effort — the KnowledgeService never throws, so a
- * cold/disabled KB just yields no precedents and the Healer runs as before.
+ * cold/disabled KB just yields no precedents and the Evolver runs as before.
  */
 async function collectHealingPrecedents(
   knowledge: KnowledgeService,
@@ -93,7 +94,7 @@ async function collectHealingPrecedents(
 }
 
 /**
- * T17: run the four-agent pipeline (Planner → Generator → Healer → Reporter) for
+ * T17: run the four-agent pipeline (Discoverer → Designer → Evolver → Reporter) for
  * one URL, emitting per-stage progress, and produce the rich RunReport (R12).
  */
 export async function runPipeline(
@@ -159,31 +160,32 @@ export async function runPipeline(
   };
   let agentRuns = 0;
 
-  // 1. Planner → Markdown plan
+  // 1. Discoverer → Markdown plan
   checkCancelled();
-  emit("planning", "Planner: exploring the app and writing a test plan");
-  const plan = await planTests(
+  emit("planning", "Discoverer: exploring the app and writing a test plan");
+  const plan = await discoverTests(
     ws,
     config.url,
-    onAgent("planning", "planner"),
+    onAgent("planning", "discoverer"),
     stageDeps,
     {
       crawlMode: config.crawlMode,
       maxPages: config.maxPages,
       auth: auth ?? undefined,
       focus: config.focus,
+      testsPerPage: config.testsPerPage,
     },
   );
   agentRuns++;
   checkCancelled();
   if (plan.isError)
-    throw new StageError("Planner failed to produce a test plan");
+    throw new StageError("Discoverer failed to produce a test plan");
 
-  // 2. Generator → Playwright specs
-  emit("generating", "Generator: writing Playwright tests from the plan");
-  const gen = await generateTests(
+  // 2. Designer → Playwright specs
+  emit("generating", "Designer: writing Playwright tests from the plan");
+  const gen = await designTests(
     ws,
-    onAgent("generating", "generator"),
+    onAgent("generating", "designer"),
     stageDeps,
     {
       crawlMode: config.crawlMode,
@@ -191,6 +193,7 @@ export async function runPipeline(
       url: config.url,
       auth: auth ?? undefined,
       focus: config.focus,
+      testsPerPage: config.testsPerPage,
     },
   );
   if (gen.trimmedCount > 0) {
@@ -201,7 +204,7 @@ export async function runPipeline(
   }
   agentRuns++;
   checkCancelled();
-  if (gen.isError) throw new StageError("Generator produced no tests");
+  if (gen.isError) throw new StageError("Designer produced no tests");
 
   // 2b. Validation: statically inspect the generated specs (correctness,
   // meaningful assertions, robustness, relevance) before we run/heal them.
@@ -209,7 +212,7 @@ export async function runPipeline(
     "validating",
     "Validator: checking generated specs for correctness and relevance",
   );
-  const validation = await validateTests(ws);
+  let validation = await validateTests(ws);
   emit(
     "validating",
     `Validation score ${validation.score}/100 — ${validation.errorCount} error(s), ${validation.warningCount} warning(s)` +
@@ -225,23 +228,64 @@ export async function runPipeline(
   );
   checkCancelled();
 
-  // 3. Initial run (pre-heal), then Healer, then re-run for flake + heal reconciliation
+  // 2c. Completeness gate: if the Designer ran out of turns and left planned
+  // scenarios unwritten, re-run it for ONLY those before we test/heal. A single
+  // targeted pass — the goal is to stop "8 planned → 2 generated" from shipping
+  // silently, not to loop indefinitely.
+  if (validation.missingFlows.length > 0) {
+    emit(
+      "generating",
+      `↻ ${validation.missingFlows.length} planned scenario(s) have no spec — regenerating just those`,
+    );
+    await regenerateMissingScenarios(
+      ws,
+      validation.missingFlows,
+      onAgent("generating", "designer"),
+      stageDeps,
+      {
+        crawlMode: config.crawlMode,
+        maxPages: config.maxPages,
+        url: config.url,
+        auth: auth ?? undefined,
+        focus: config.focus,
+      },
+    );
+    agentRuns++;
+    checkCancelled();
+
+    // Re-validate so the report and Evolver see the post-retry coverage.
+    validation = await validateTests(ws);
+    emit(
+      "validating",
+      `Re-validation after completeness retry: score ${validation.score}/100` +
+        (validation.missingFlows.length
+          ? ` — ${validation.missingFlows.length} flow(s) still without a test`
+          : " — all planned scenarios now have a spec"),
+      {
+        score: validation.score,
+        missingFlows: validation.missingFlows.length,
+      },
+    );
+    checkCancelled();
+  }
+
+  // 3. Initial run (pre-heal), then Evolver, then re-run for flake + heal reconciliation
   emit("running", "Running generated tests");
   const initial = await captureResults(ws);
   checkCancelled();
 
-  // Snapshot specs BEFORE healing so we can diff what the Healer changed (ADR-0004).
+  // Snapshot specs BEFORE healing so we can diff what the Evolver changed (ADR-0004).
   const preHealSpecs = await readGeneratedSpecs(ws);
 
-  // Feed validation findings to the Healer so it fixes flagged anti-patterns too.
+  // Feed validation findings to the Evolver so it fixes flagged anti-patterns too.
   // Healing precedents (prior fixes for similar failures) are injected best-effort.
-  emit("healing", "Healer: repairing failures and quarantining the unfixable");
+  emit("healing", "Evolver: repairing failures and quarantining the unfixable");
   const precedents = await collectHealingPrecedents(
     knowledge,
     config.url,
     initial,
   );
-  // Trusted distilled principles (global heal lessons + this app's) for the Healer.
+  // Trusted distilled principles (global heal lessons + this app's) for the Evolver.
   const healPlaybooks = await knowledge.getPlaybooks({
     kind: "global",
     key: "all",
@@ -255,9 +299,9 @@ export async function runPipeline(
     );
   if (healPlaybooks.length)
     emit("healing", `🧠 ${healPlaybooks.length} learned principle(s) applied`);
-  await healTests(
+  await evolveTests(
     ws,
-    onAgent("healing", "healer"),
+    onAgent("healing", "evolver"),
     stageDeps,
     validation,
     precedents,
@@ -276,7 +320,7 @@ export async function runPipeline(
   emit("reporting", "Reporter: aggregating results and recommendations");
   const specs = await readGeneratedSpecs(ws);
 
-  // Reconstruct what the Healer fixed by diffing pre/post-heal specs (ADR-0004).
+  // Reconstruct what the Evolver fixed by diffing pre/post-heal specs (ADR-0004).
   // `initial` carries the pre-heal failures + reasons (the signature source);
   // `results` carries the post-heal outcome (healed/fixme).
   const healingEvents = captureHealDeltas(
@@ -297,6 +341,7 @@ export async function runPipeline(
     specs,
     deps.claude,
     config.url,
+    { onEvent: (message) => emit("reporting", message) },
   );
 
   let screenshots: { filename: string; base64: string }[] = [];

@@ -350,7 +350,7 @@ export async function readSpecCode(
   return spec?.code ?? null;
 }
 
-/** The most recent prior run's plan markdown for an app — Planner "memory". */
+/** The most recent prior run's plan markdown for an app — Discoverer "memory". */
 export async function readLastPlan(
   pool: Pool,
   appId: string,

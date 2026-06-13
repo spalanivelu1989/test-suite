@@ -1,5 +1,5 @@
 // Shared domain model for the AI UI testing pipeline. Anchored here so every
-// module (crawler, flows, generator, runner, reporter, store, API, UI) agrees on
+// module (crawler, flows, designer, runner, reporter, store, API, UI) agrees on
 // one vocabulary (CONTEXT.md). Builders implement the producers in later tasks.
 
 // Type-only import (erased at compile — no runtime cycle with knowledge/types).
@@ -11,14 +11,14 @@ import type { HealingEvent } from "./knowledge/types";
  *
  * | Mode        | Max depth | Scenarios / page |
  * |-------------|-----------|-----------------|
- * | direct      | 0         | 8               |
- * | standard    | 1         | 5               |
- * | deep        | 2         | 4               |
- * | aggressive  | 10 (unlimited) | 3           |
+ * | direct      | 0         | 20              |
+ * | standard    | 1         | 13              |
+ * | deep        | 2         | 10              |
+ * | aggressive  | 10 (unlimited) | 8          |
  */
 export type CrawlMode = "direct" | "standard" | "deep" | "aggressive";
 
-/** Numeric depth limit per crawl mode. Used in the Planner prompt. */
+/** Numeric depth limit per crawl mode. Used in the Discoverer prompt. */
 export const CRAWL_MODE_DEPTH: Record<CrawlMode, number> = {
   direct: 0,
   standard: 1,
@@ -28,13 +28,13 @@ export const CRAWL_MODE_DEPTH: Record<CrawlMode, number> = {
 
 /**
  * Expected number of test scenarios per page per crawl mode.
- * Used by the Generator to compute the scenario ceiling and scale maxTurns.
+ * Used by the Designer to compute the scenario ceiling and scale maxTurns.
  */
 export const CRAWL_MODE_SCENARIOS_PER_PAGE: Record<CrawlMode, number> = {
-  direct: 8,
-  standard: 5,
-  deep: 4,
-  aggressive: 3,
+  direct: 20,
+  standard: 13,
+  deep: 10,
+  aggressive: 8,
 };
 
 /**
@@ -49,6 +49,35 @@ export function effectivePageBudget(mode: CrawlMode, maxPages: number): number {
     return maxPages === 2 ? 1.5 : 1;
   }
   return maxPages;
+}
+
+/**
+ * Hard ceiling on the total scenarios for any single run. Keeps a deep/aggressive
+ * crawl over many pages from exploding into thousands of tests (and multi-hour runs).
+ */
+export const MAX_TOTAL_TESTS = 200;
+
+/**
+ * Total scenario budget for a run:
+ *
+ *     total = effectivePageBudget(mode, maxPages) × testsPerPage,  capped at MAX_TOTAL_TESTS
+ *
+ * `testsPerPage` (> 0) overrides the per-mode default rate
+ * (`CRAWL_MODE_SCENARIOS_PER_PAGE`); the page budget comes from crawl mode + page
+ * count (direct = 1 page). This is the single source of truth — Discoverer, Designer,
+ * and the launch UI all call it so the displayed and enforced totals never diverge.
+ */
+export function effectiveScenarioCap(
+  mode: CrawlMode,
+  maxPages: number,
+  testsPerPage?: number,
+): number {
+  const rate =
+    testsPerPage && testsPerPage > 0
+      ? testsPerPage
+      : CRAWL_MODE_SCENARIOS_PER_PAGE[mode];
+  const total = Math.round(effectivePageBudget(mode, maxPages) * rate);
+  return Math.min(total, MAX_TOTAL_TESTS);
 }
 
 /** Human-readable label for each crawl mode, displayed in the UI. */
@@ -68,13 +97,21 @@ export interface RunConfig {
   maxPages?: number;
   /**
    * Optional free-text focus instruction. When set, it is injected as a
-   * high-priority directive into the Planner and Generator prompts so the run
+   * high-priority directive into the Discoverer and Designer prompts so the run
    * targets one specific in-page flow/platform that URL/depth scoping (crawlMode,
    * maxPages, the crawl gate) cannot isolate — e.g. "select the Logistics
    * platform from the selector, fill its inputs, and complete only that
    * workflow; ignore all other platforms." Empty/unset → unscoped, as before.
    */
   focus?: string;
+  /**
+   * Optional override for the number of test scenarios generated PER PAGE. When
+   * set (> 0), it replaces the per-mode default rate; the run total is then
+   * `effectivePageBudget(mode, maxPages) × testsPerPage` (capped at
+   * `MAX_TOTAL_TESTS`). When unset, the per-mode default rate is used. See
+   * `effectiveScenarioCap`.
+   */
+  testsPerPage?: number;
 }
 
 /** Pipeline stages, in order. Drives progress events (R8) and SSE (T17). */
@@ -107,7 +144,7 @@ export interface ProgressEvent {
   data?: Record<string, unknown>;
 }
 
-/** A primary user flow (kept for report metadata; produced by the Planner). */
+/** A primary user flow (kept for report metadata; produced by the Discoverer). */
 export interface Flow {
   id: string;
   name: string;

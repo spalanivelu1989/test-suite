@@ -32,7 +32,7 @@ test("parsePlanScenarios extracts #### headings and strips ordinals", () => {
   assert.deepEqual(scenarios[2], { id: "2.1", name: "Footer Social Links" });
 });
 
-test("parsePlanScenarios handles the '## Scenario N — Title' Planner format", () => {
+test("parsePlanScenarios handles the '## Scenario N — Title' Discoverer format", () => {
   const plan = `# Plan
 ## Overview
 some prose
