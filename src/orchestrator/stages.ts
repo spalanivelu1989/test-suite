@@ -23,6 +23,7 @@ import {
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { REUSE_MARKER, type KnowledgeService } from "../knowledge";
+import type { BusinessContextService } from "../knowledge/business/types";
 import type { HealingPrecedent, Playbook } from "../knowledge/types";
 import {
   type AuthCredentials,
@@ -81,6 +82,8 @@ export interface StageDeps {
   abortController?: AbortController;
   /** Knowledge Layer — injects history into the Discoverer/Designer prompts (R8/R10). */
   knowledge?: KnowledgeService;
+  /** Authored OKF business context — primes the Discoverer/Designer with domain knowledge. */
+  businessContext?: BusinessContextService;
 }
 
 export interface PlanResult {
@@ -274,6 +277,26 @@ export async function discoverTests(
     playbookLines = [];
   }
 
+  // Authored OKF business context: the app's purpose + workflow/screen map, so the
+  // Discoverer crawls toward real business flows instead of blindly by link. Best-
+  // effort and budgeted; no matching bundle → prompt unchanged (runs cold).
+  let businessLines: string[] = [];
+  try {
+    const overview = await deps.businessContext?.getBusinessOverview(url);
+    if (overview) {
+      businessLines = ["\n\n" + overview.block];
+      const plus = overview.platforms.length
+        ? ` (+ ${overview.platforms.join(", ")})`
+        : "";
+      onEvent?.({
+        kind: "text",
+        text: `📘 Loaded business context: ${overview.appTitle}${plus}`,
+      });
+    }
+  } catch {
+    businessLines = [];
+  }
+
   // When the app is behind a login screen, the Discoverer must authenticate (and
   // save the session for the rest of the pipeline) before it can see anything.
   const authPreamble = options.auth
@@ -297,6 +320,7 @@ export async function discoverTests(
       `with the Write tool to exactly this absolute path: ${ws.specsDir}/plan.md`,
       "— write it there and nowhere else (do NOT write to the repository's own specs/ directory or any other path).",
       ...constraintLines,
+      ...businessLines,
       ...memoryLines,
       ...playbookLines,
     ].join(" ");
@@ -381,6 +405,37 @@ export function trimPlan(
  * the designer to skip ONLY the specs actually copied and build everything else.
  * Best-effort: returns [] when there is no knowledge service, url, plan, or KB.
  */
+/**
+ * Build the Designer's authored business-context block: the rules/screens relevant to
+ * the plan's scenarios, telling the Designer to assert against intended behaviour.
+ * Independent of the knowledge service. Best-effort: [] when there is no business
+ * service, url, plan, or matching bundle.
+ */
+async function applyBusinessContext(
+  rawPlan: string | null,
+  deps: StageDeps,
+  options: GenerateOptions,
+  onEvent?: (e: AgentEvent) => void,
+): Promise<string[]> {
+  if (!deps.businessContext || !options.url || !rawPlan) return [];
+  const scenarios = parsePlanScenarios(rawPlan).map((s) => s.name);
+  if (scenarios.length === 0) return [];
+  try {
+    const ctx = await deps.businessContext.getBusinessContext(
+      options.url,
+      scenarios,
+    );
+    if (!ctx) return [];
+    onEvent?.({
+      kind: "text",
+      text: `📘 Business rules in context: ${ctx.concepts.length} concept(s)`,
+    });
+    return ["\n\n" + ctx.block];
+  } catch {
+    return [];
+  }
+}
+
 async function applyDesignerKnowledge(
   ws: Workspace,
   rawPlan: string | null,
@@ -529,6 +584,16 @@ export async function designTests(
     onEvent,
   );
 
+  // Authored OKF business rules for the scenarios being generated, so the Designer
+  // asserts against intended behaviour. Independent of the knowledge service (it can
+  // fire even when the KB is cold); best-effort — empty when no bundle matches.
+  const businessLines = await applyBusinessContext(
+    rawPlan,
+    deps,
+    options,
+    onEvent,
+  );
+
   const authLines =
     options.auth && options.url
       ? [buildDesignerAuthPreamble(options.url, ws.authStatePath)]
@@ -555,6 +620,7 @@ export async function designTests(
     `(e.g. 'Add Valid Todo' → ${ws.testsDir}/add-valid-todo.spec.ts).`,
     "Write spec files there and nowhere else (do NOT write to the repository's own tests/ directory).",
     `Use the seed at ${ws.seedPath} as the starting template.`,
+    ...businessLines,
     ...knowledgeLines,
     ...authLines,
   ].join(" ");

@@ -862,18 +862,25 @@ export function TestRunDetailsPane({
 
   return (
     <Box
-      h={isMaximized ? "100%" : "480px"}
-      flex={isMaximized ? 1 : "0 0 auto"}
+      position={isMaximized ? "absolute" : "relative"}
+      inset={isMaximized ? "12px" : undefined}
+      h={isMaximized ? "auto" : "480px"}
+      flex={isMaximized ? undefined : "0 0 auto"}
       minH={0}
       transition="height 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
       bg={colors.cardBg}
-      borderTop="1px solid"
+      border="1px solid"
       borderColor={colors.border}
-      boxShadow="0 -4px 20px rgba(0,0,0,0.15)"
+      borderRadius="xl"
+      boxShadow={
+        isMaximized
+          ? "0 8px 40px rgba(0,0,0,0.28)"
+          : "0 -4px 20px rgba(0,0,0,0.15)"
+      }
       display="flex"
       flexDirection="column"
       overflow="hidden"
-      zIndex={50}
+      zIndex={isMaximized ? 1000 : 50}
     >
       {/* 1. Header with Run Name & State */}
       <Flex
@@ -894,16 +901,6 @@ export function TestRunDetailsPane({
           >
             {shortId} ({run.config.url})
           </Text>
-          <Badge
-            variant="subtle"
-            fontSize="10px"
-            bg={statusStyle.bg}
-            color={isDark ? statusStyle.darkColor : statusStyle.color}
-            px={2}
-            borderRadius="md"
-          >
-            {statusStyle.label}
-          </Badge>
         </HStack>
 
         <HStack gap={1.5}>

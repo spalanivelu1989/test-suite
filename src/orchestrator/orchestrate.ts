@@ -30,6 +30,7 @@ import {
   type StageDeps,
 } from "./stages";
 import { createKnowledgeService, type KnowledgeService } from "../knowledge";
+import { createBusinessContextService } from "../knowledge/business/service";
 import { loadAuthFromEnv } from "../auth/credentials";
 import { captureHealDeltas } from "../knowledge/heal/captureHeal";
 import { normalizeFailure } from "../knowledge/heal/signature";
@@ -153,10 +154,15 @@ export async function runPipeline(
           emit("done", `Knowledge: ingested run (${e.flows} flow(s))`);
       },
     });
+  // Authored OKF business context (read from `business-context/`); cold when the dir
+  // is absent. Primes the Discoverer/Designer prompts with domain knowledge.
+  const businessContext =
+    deps.stageDeps?.businessContext ?? createBusinessContextService();
   const stageDeps: StageDeps = {
     ...deps.stageDeps,
     abortController: deps.abortController,
     knowledge: deps.stageDeps?.knowledge ?? knowledge,
+    businessContext,
   };
   let agentRuns = 0;
 

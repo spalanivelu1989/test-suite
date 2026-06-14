@@ -274,6 +274,7 @@ export function ConsoleLayout({
         flex={1}
         overflow="hidden"
         h="100vh"
+        position="relative"
       >
         {/* Breadcrumb Bar */}
         <Flex

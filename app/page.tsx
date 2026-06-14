@@ -310,195 +310,64 @@ export default function HomePage() {
     >
       {/* ==================== DASHBOARD TAB ==================== */}
       <Box display={activeTab === "dashboard" ? "block" : "none"} width="100%">
-        <VStack align="stretch" gap={6}>
+        <VStack align="stretch" gap={4}>
           {/* Resources Overview Grid */}
-          <Box
-            bg={colors.cardBg}
-            border="1px solid"
-            borderColor={colors.border}
-            borderRadius="xl"
-            p={5}
-            shadow="xl"
+          <Grid
+            templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
+            gap={3.5}
           >
-            <HStack justify="space-between" align="center" mb={4}>
-              <HStack gap={2}>
-                <Box
-                  w="6px"
-                  h="6px"
-                  borderRadius="full"
-                  bg={runningCount > 0 ? "#a6d189" : "#737994"}
-                  boxShadow={runningCount > 0 ? "0 0 8px #a6d189" : "none"}
-                />
-                <Text
-                  fontSize="11px"
-                  fontWeight="extrabold"
-                  color={colors.text}
-                  letterSpacing="0.08em"
-                  fontFamily="mono"
-                >
-                  OVERVIEW
-                </Text>
-              </HStack>
-            </HStack>
-
-            <Grid
-              templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
-              gap={5}
+            {/* Active Runs Card */}
+            <Box
+              position="relative"
+              p={3.5}
+              bg={
+                isDark
+                  ? "linear-gradient(135deg, rgba(133, 193, 220, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
+                  : "linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
+              }
+              border="1px solid"
+              borderColor={
+                runningCount > 0 ? "rgba(133, 193, 220, 0.45)" : colors.border
+              }
+              borderRadius="xl"
+              cursor="pointer"
+              onClick={() => setActiveTab("test-runs")}
+              overflow="hidden"
+              transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+              _hover={{
+                borderColor: isDark
+                  ? "rgba(153, 209, 219, 0.5)"
+                  : "rgba(59, 130, 246, 0.4)",
+                bg: isDark
+                  ? "linear-gradient(135deg, rgba(133, 193, 220, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
+                  : "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
+                transform: "translateY(-1px)",
+                shadow: "md",
+              }}
             >
-              {/* Active Runs Card */}
-              <Box
-                position="relative"
-                p={5}
-                bg={
-                  isDark
-                    ? "linear-gradient(135deg, rgba(133, 193, 220, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
-                    : "linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
-                }
-                border="1px solid"
-                borderColor={
-                  runningCount > 0 ? "rgba(133, 193, 220, 0.45)" : colors.border
-                }
-                borderRadius="xl"
-                cursor="pointer"
-                onClick={() => setActiveTab("test-runs")}
-                overflow="hidden"
-                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
-                _hover={{
-                  borderColor: isDark
-                    ? "rgba(153, 209, 219, 0.5)"
-                    : "rgba(59, 130, 246, 0.4)",
-                  bg: isDark
-                    ? "linear-gradient(135deg, rgba(133, 193, 220, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
-                    : "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
-                  transform: "translateY(-1px)",
-                  shadow: "md",
-                }}
-              >
-                <Flex justify="space-between" align="start">
-                  <VStack align="start" gap={1}>
+              <Flex justify="space-between" align="start">
+                <VStack align="start" gap={1}>
+                  <Text
+                    fontSize="11px"
+                    fontWeight="bold"
+                    color={colors.subtext}
+                    letterSpacing="0.05em"
+                    textTransform="uppercase"
+                  >
+                    Active Runs
+                  </Text>
+                  <HStack align="baseline" gap={2}>
                     <Text
-                      fontSize="11px"
-                      fontWeight="bold"
-                      color={colors.subtext}
-                      letterSpacing="0.05em"
-                      textTransform="uppercase"
-                    >
-                      Active Runs
-                    </Text>
-                    <HStack align="baseline" gap={2}>
-                      <Text
-                        fontSize="36px"
-                        fontWeight="normal"
-                        lineHeight="1"
-                        color="transparent"
-                        letterSpacing="-0.5px"
-                        style={{
-                          // Use `backgroundImage` (not the `background` shorthand,
-                          // which resets background-clip to border-box) and set
-                          // BOTH the standard + prefixed clip, or Chrome renders
-                          // the gradient as a solid block over the number.
-                          backgroundImage: isDark
-                            ? "linear-gradient(to right, #99d1db, #8caaee)"
-                            : "linear-gradient(to right, #0f2d59, #1d4ed8)",
-                          backgroundClip: "text",
-                          WebkitBackgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                        }}
-                      >
-                        {runningCount}
-                      </Text>
-                      {runningCount > 0 && (
-                        <Badge
-                          variant="subtle"
-                          bg="rgba(166, 209, 137, 0.12)"
-                          color="#a6d189"
-                          borderColor="rgba(166, 209, 137, 0.25)"
-                          borderWidth="1px"
-                          borderRadius="full"
-                          fontSize="9px"
-                          fontWeight="bold"
-                          px={2}
-                          py={0.5}
-                          display="inline-flex"
-                          alignItems="center"
-                          gap={1}
-                        >
-                          <Box
-                            w="5px"
-                            h="5px"
-                            borderRadius="full"
-                            bg="#a6d189"
-                            style={{
-                              animation: "pulse-glow-run 1.2s infinite",
-                            }}
-                          />
-                          LIVE
-                        </Badge>
-                      )}
-                    </HStack>
-                  </VStack>
-                </Flex>
-
-                <Text
-                  fontSize="11.5px"
-                  color={colors.subtext}
-                  mt={3}
-                  fontWeight="medium"
-                >
-                  {runningCount > 0
-                    ? `${runningCount} test run${runningCount > 1 ? "s" : ""} actively running now`
-                    : "No test executions currently active"}
-                </Text>
-              </Box>
-
-              {/* Total Runs Card */}
-              <Box
-                position="relative"
-                p={5}
-                bg={
-                  isDark
-                    ? "linear-gradient(135deg, rgba(166, 209, 137, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
-                    : "linear-gradient(135deg, rgba(22, 163, 74, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
-                }
-                border="1px solid"
-                borderColor={colors.border}
-                borderRadius="xl"
-                cursor="pointer"
-                onClick={() => setActiveTab("test-runs")}
-                overflow="hidden"
-                transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
-                _hover={{
-                  borderColor: isDark
-                    ? "rgba(166, 209, 137, 0.5)"
-                    : "rgba(22, 163, 74, 0.4)",
-                  bg: isDark
-                    ? "linear-gradient(135deg, rgba(166, 209, 137, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
-                    : "linear-gradient(135deg, rgba(22, 163, 74, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
-                  transform: "translateY(-1px)",
-                  shadow: "md",
-                }}
-              >
-                <Flex justify="space-between" align="start">
-                  <VStack align="start" gap={1}>
-                    <Text
-                      fontSize="11px"
-                      fontWeight="bold"
-                      color={colors.subtext}
-                      letterSpacing="0.05em"
-                      textTransform="uppercase"
-                    >
-                      Total Runs
-                    </Text>
-                    <Text
-                      fontSize="36px"
+                      fontSize="26px"
                       fontWeight="normal"
                       lineHeight="1"
                       color="transparent"
                       letterSpacing="-0.5px"
                       style={{
-                        // backgroundImage (not the `background` shorthand) + both
-                        // standard & prefixed background-clip, so Chrome clips the
-                        // gradient to the glyphs instead of painting a solid block.
+                        // Use `backgroundImage` (not the `background` shorthand,
+                        // which resets background-clip to border-box) and set
+                        // BOTH the standard + prefixed clip, or Chrome renders
+                        // the gradient as a solid block over the number.
                         backgroundImage: isDark
                           ? "linear-gradient(to right, #99d1db, #8caaee)"
                           : "linear-gradient(to right, #0f2d59, #1d4ed8)",
@@ -507,44 +376,128 @@ export default function HomePage() {
                         WebkitTextFillColor: "transparent",
                       }}
                     >
-                      {totalCount}
+                      {runningCount}
                     </Text>
-                  </VStack>
-                </Flex>
+                    {runningCount > 0 && (
+                      <Badge
+                        variant="subtle"
+                        bg="rgba(166, 209, 137, 0.12)"
+                        color="#a6d189"
+                        borderColor="rgba(166, 209, 137, 0.25)"
+                        borderWidth="1px"
+                        borderRadius="full"
+                        fontSize="9px"
+                        fontWeight="bold"
+                        px={2}
+                        py={0.5}
+                        display="inline-flex"
+                        alignItems="center"
+                        gap={1}
+                      >
+                        <Box
+                          w="5px"
+                          h="5px"
+                          borderRadius="full"
+                          bg="#a6d189"
+                          style={{
+                            animation: "pulse-glow-run 1.2s infinite",
+                          }}
+                        />
+                        LIVE
+                      </Badge>
+                    )}
+                  </HStack>
+                </VStack>
+              </Flex>
 
-                <Text
-                  fontSize="11.5px"
-                  color={colors.subtext}
-                  mt={3}
-                  fontWeight="medium"
-                >
-                  {totalCount > 0
-                    ? `${totalCount} suite execution${totalCount > 1 ? "s" : ""} recorded in history`
-                    : "Ready to launch your first test suite run"}
-                </Text>
-              </Box>
-            </Grid>
-          </Box>
+              <Text
+                fontSize="11.5px"
+                color={colors.subtext}
+                mt={2}
+                fontWeight="medium"
+              >
+                {runningCount > 0
+                  ? `${runningCount} test run${runningCount > 1 ? "s" : ""} actively running now`
+                  : "No test executions currently active"}
+              </Text>
+            </Box>
+
+            {/* Total Runs Card */}
+            <Box
+              position="relative"
+              p={3.5}
+              bg={
+                isDark
+                  ? "linear-gradient(135deg, rgba(166, 209, 137, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
+                  : "linear-gradient(135deg, rgba(22, 163, 74, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
+              }
+              border="1px solid"
+              borderColor={colors.border}
+              borderRadius="xl"
+              cursor="pointer"
+              onClick={() => setActiveTab("test-runs")}
+              overflow="hidden"
+              transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+              _hover={{
+                borderColor: isDark
+                  ? "rgba(166, 209, 137, 0.5)"
+                  : "rgba(22, 163, 74, 0.4)",
+                bg: isDark
+                  ? "linear-gradient(135deg, rgba(166, 209, 137, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
+                  : "linear-gradient(135deg, rgba(22, 163, 74, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
+                transform: "translateY(-1px)",
+                shadow: "md",
+              }}
+            >
+              <Flex justify="space-between" align="start">
+                <VStack align="start" gap={1}>
+                  <Text
+                    fontSize="11px"
+                    fontWeight="bold"
+                    color={colors.subtext}
+                    letterSpacing="0.05em"
+                    textTransform="uppercase"
+                  >
+                    Total Runs
+                  </Text>
+                  <Text
+                    fontSize="36px"
+                    fontWeight="normal"
+                    lineHeight="1"
+                    color="transparent"
+                    letterSpacing="-0.5px"
+                    style={{
+                      // backgroundImage (not the `background` shorthand) + both
+                      // standard & prefixed background-clip, so Chrome clips the
+                      // gradient to the glyphs instead of painting a solid block.
+                      backgroundImage: isDark
+                        ? "linear-gradient(to right, #99d1db, #8caaee)"
+                        : "linear-gradient(to right, #0f2d59, #1d4ed8)",
+                      backgroundClip: "text",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                    }}
+                  >
+                    {totalCount}
+                  </Text>
+                </VStack>
+              </Flex>
+
+              <Text
+                fontSize="11.5px"
+                color={colors.subtext}
+                mt={2}
+                fontWeight="medium"
+              >
+                {totalCount > 0
+                  ? `${totalCount} suite execution${totalCount > 1 ? "s" : ""} recorded in history`
+                  : "Ready to launch your first test suite run"}
+              </Text>
+            </Box>
+          </Grid>
 
           {/* Launch Wizard Form Panel */}
-          <Box
-            bg={colors.cardBg}
-            border="1px solid"
-            borderColor={colors.border}
-            borderRadius="xl"
-            p={5}
-            shadow="xl"
-          >
-            <Heading
-              size="sm"
-              color={colors.text}
-              mb={4}
-              fontWeight="extrabold"
-              letterSpacing="0.02em"
-            >
-              Launch Test
-            </Heading>
-
+          <Box mt={4}>
             <LaunchWizard onLaunchSuccess={handleLaunchSuccess} />
           </Box>
         </VStack>
@@ -558,12 +511,6 @@ export default function HomePage() {
         h="100%"
         width="100%"
       >
-        {!isDetailsMaximized && (
-          <Heading size="sm" color={colors.text} fontWeight="extrabold">
-            Test Runs
-          </Heading>
-        )}
-
         {!isDetailsMaximized && (
           <Box flex={1} overflow="hidden">
             <TestRunsTable

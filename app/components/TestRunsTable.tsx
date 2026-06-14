@@ -38,13 +38,13 @@ function formatDuration(createdAt: string, updatedAt: string): string {
   const start = new Date(createdAt).getTime();
   const end = new Date(updatedAt).getTime();
   const durationMs = Math.max(0, end - start);
-  
+
   if (durationMs < 1000) return "< 1s";
-  
+
   const totalSecs = Math.floor(durationMs / 1000);
   const mins = Math.floor(totalSecs / 60);
   const secs = totalSecs % 60;
-  
+
   if (mins > 0) {
     return `${mins}m ${secs}s`;
   }
@@ -82,8 +82,11 @@ export function TestRunsTable({
 
   const selectedRun = runs.find((r) => r.id === selectedRunId);
   const isSelectedRunning = selectedRun?.status === "running";
-  const isCurrentlyCancelling = selectedRunId ? (cancellingMap?.[selectedRunId] ?? false) : false;
-  const isStopEnabled = !!selectedRunId && isSelectedRunning && !isCurrentlyCancelling;
+  const isCurrentlyCancelling = selectedRunId
+    ? (cancellingMap?.[selectedRunId] ?? false)
+    : false;
+  const isStopEnabled =
+    !!selectedRunId && isSelectedRunning && !isCurrentlyCancelling;
 
   const [terminateTarget, setTerminateTarget] = useState<Run | null>(null);
   const [isTerminating, setIsTerminating] = useState(false);
@@ -112,6 +115,10 @@ export function TestRunsTable({
       borderRadius="xl"
       overflow="hidden"
       shadow="md"
+      h="100%"
+      display="flex"
+      flexDirection="column"
+      minH={0}
     >
       {/* Table Actions Header */}
       <Flex
@@ -215,7 +222,11 @@ export function TestRunsTable({
           >
             {isCurrentlyCancelling ? (
               <>
-                <RefreshCw size={11} className="animate-spin" style={{ marginRight: "4px" }} />
+                <RefreshCw
+                  size={11}
+                  className="animate-spin"
+                  style={{ marginRight: "4px" }}
+                />
                 Stopping...
               </>
             ) : (
@@ -264,7 +275,7 @@ export function TestRunsTable({
       </Flex>
 
       {/* Test Runs Grid Table */}
-      <Box overflowX="auto">
+      <Box flex={1} minH={0} overflowX="auto" overflowY="auto">
         <Table.Root size="sm" variant="outline" border="none">
           <Table.Header bg={isDark ? "white/5" : "gray.50"}>
             <Table.Row borderColor={colors.border}>
@@ -522,8 +533,12 @@ export function TestRunsTable({
           }
         }
         @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
         .animate-spin {
           animation: spin 1s linear infinite;
@@ -570,7 +585,9 @@ function TerminateRunDialog({
   const steps = [
     { text: "Processing termination request..." },
     { text: "Stopping active processes and closing browser sessions..." },
-    { text: "Permanently deleting log files, workspace files, and run history..." },
+    {
+      text: "Permanently deleting log files, workspace files, and run history...",
+    },
   ];
 
   React.useEffect(() => {
@@ -618,7 +635,14 @@ function TerminateRunDialog({
               <Box py={10} px={6} textAlign="center" bg={colors.cardBg}>
                 <VStack gap={5} align="center">
                   {/* Glowing spinner graphic */}
-                  <Box position="relative" w="72px" h="72px" display="flex" alignItems="center" justifyContent="center">
+                  <Box
+                    position="relative"
+                    w="72px"
+                    h="72px"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
                     {/* Ring 1: outer fast spinner */}
                     <MotionBox
                       position="absolute"
@@ -629,7 +653,11 @@ function TerminateRunDialog({
                       borderColor="red.500"
                       opacity={0.6}
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
+                      transition={{
+                        duration: 2.2,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
                     />
                     {/* Ring 2: middle slow reverse spinner */}
                     <MotionBox
@@ -641,7 +669,11 @@ function TerminateRunDialog({
                       borderColor="orange.400"
                       opacity={0.4}
                       animate={{ rotate: -360 }}
-                      transition={{ duration: 3.5, repeat: Infinity, ease: "linear" }}
+                      transition={{
+                        duration: 3.5,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
                     />
                     {/* Ring 3: inner pulsing glow */}
                     <MotionBox
@@ -650,13 +682,24 @@ function TerminateRunDialog({
                       h="44px"
                       borderRadius="full"
                       bg="red.500/10"
-                      animate={{ scale: [0.92, 1.08, 0.92], opacity: [0.25, 0.6, 0.25] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      animate={{
+                        scale: [0.92, 1.08, 0.92],
+                        opacity: [0.25, 0.6, 0.25],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     />
                     {/* Danger Trash Icon */}
                     <MotionBox
                       animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     >
                       <Trash2 size={20} color="#e78284" />
                     </MotionBox>
@@ -664,11 +707,25 @@ function TerminateRunDialog({
 
                   {/* Processing Narrative text with slide up transitions */}
                   <VStack gap={1} minH="54px" justify="center">
-                    <Text fontSize="13px" fontWeight="black" letterSpacing="0.05em" textTransform="uppercase" color="red.400">
+                    <Text
+                      fontSize="13px"
+                      fontWeight="black"
+                      letterSpacing="0.05em"
+                      textTransform="uppercase"
+                      color="red.400"
+                    >
                       Terminating Run
                     </Text>
-                    
-                    <Box h="36px" overflow="hidden" position="relative" w="100%" display="flex" justifyContent="center" alignItems="center">
+
+                    <Box
+                      h="36px"
+                      overflow="hidden"
+                      position="relative"
+                      w="100%"
+                      display="flex"
+                      justifyContent="center"
+                      alignItems="center"
+                    >
                       <AnimatePresence mode="wait">
                         <MotionBox
                           key={termStep}
@@ -696,9 +753,18 @@ function TerminateRunDialog({
                         w="5px"
                         h="5px"
                         borderRadius="full"
-                        bg={idx === termStep ? "red.400" : (isDark ? "slate.700" : "slate.300")}
+                        bg={
+                          idx === termStep
+                            ? "red.400"
+                            : isDark
+                              ? "slate.700"
+                              : "slate.300"
+                        }
                         animate={idx === termStep ? { scale: [1, 1.3, 1] } : {}}
-                        transition={{ duration: 1, repeat: idx === termStep ? Infinity : 0 }}
+                        transition={{
+                          duration: 1,
+                          repeat: idx === termStep ? Infinity : 0,
+                        }}
                       />
                     ))}
                   </HStack>
@@ -768,8 +834,8 @@ function TerminateRunDialog({
                     mb={3}
                     lineHeight="1.55"
                   >
-                    Once a test run is terminated, all logs, generated specs, and
-                    workspace files are{" "}
+                    Once a test run is terminated, all logs, generated specs,
+                    and workspace files are{" "}
                     <Box as="span" fontWeight="bold">
                       permanently deleted
                     </Box>
@@ -812,7 +878,11 @@ function TerminateRunDialog({
 
                     {target && (
                       <VStack align="stretch" gap={0} fontSize="11.5px">
-                        <DialogRow label="Run ID" isDark={isDark} colors={colors}>
+                        <DialogRow
+                          label="Run ID"
+                          isDark={isDark}
+                          colors={colors}
+                        >
                           <Text
                             fontFamily="mono"
                             color="var(--aws-orange-main)"
@@ -854,7 +924,9 @@ function TerminateRunDialog({
                               py={0.5}
                               bg={statusStyle.bg}
                               color={
-                                isDark ? statusStyle.darkColor : statusStyle.color
+                                isDark
+                                  ? statusStyle.darkColor
+                                  : statusStyle.color
                               }
                               borderColor={statusStyle.border}
                               borderWidth="1px"
@@ -916,7 +988,11 @@ function TerminateRunDialog({
                     borderRadius="md"
                   >
                     {isTerminating ? (
-                      <RefreshCw size={11} className="animate-spin" style={{ marginRight: "6px" }} />
+                      <RefreshCw
+                        size={11}
+                        className="animate-spin"
+                        style={{ marginRight: "6px" }}
+                      />
                     ) : (
                       <Trash2 size={11} style={{ marginRight: "6px" }} />
                     )}
