@@ -1438,12 +1438,22 @@ export function TestRunDetailsPane({
           </Box>
 
           {/* TAB: NARRATIVE (NON-TECH AUDIENCE) */}
-          <Box display={activeDetailsTab === "narrative" ? "block" : "none"}>
+          <Box
+            display={activeDetailsTab === "narrative" ? "flex" : "none"}
+            flexDirection="column"
+            h="100%"
+          >
             {report ? (
-              <VStack align="stretch" gap={4}>
+              <VStack align="stretch" gap={4} h="100%" flex={1} minH={0}>
                 {/* 2. Tested Flows & Spec Files Paired */}
                 {report.generatedSpecs && report.generatedSpecs.length > 0 ? (
-                  <Box position="relative">
+                  <Box
+                    position="relative"
+                    flex={1}
+                    minH={0}
+                    display="flex"
+                    flexDirection="column"
+                  >
                     <Flex justify="space-between" align="center" mb={4}>
                       <Heading
                         size="xs"
@@ -1475,7 +1485,8 @@ export function TestRunDetailsPane({
                     <Grid
                       templateColumns={{ base: "1fr", md: "280px 1fr" }}
                       gap={4}
-                      h={isMaximized ? "calc(100vh - 380px)" : "320px"}
+                      flex={1}
+                      minH={0}
                     >
                       {/* Left Navigation: Premium File Explorer */}
                       <Flex
@@ -2243,92 +2254,6 @@ export function TestRunDetailsPane({
                     </Box>
                   )
                 )}
-
-                {/* 3. Observations & Recommendations */}
-                <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
-                  <Box
-                    bg={isDark ? "white/5" : "gray.50"}
-                    p={4}
-                    borderRadius="md"
-                    border="1px solid"
-                    borderColor={colors.border}
-                  >
-                    <Heading
-                      size="xs"
-                      color={isDark ? "red.400" : "red.600"}
-                      mb={3}
-                      display="flex"
-                      alignItems="center"
-                      gap={2}
-                    >
-                      Observations
-                    </Heading>
-                    {report.issues && report.issues.length > 0 ? (
-                      <VStack align="stretch" gap={2} pl={2}>
-                        {report.issues.map((issue, idx) => (
-                          <Text
-                            key={idx}
-                            fontSize="13px"
-                            color={colors.text}
-                            lineHeight={1.5}
-                          >
-                            • {issue}
-                          </Text>
-                        ))}
-                      </VStack>
-                    ) : (
-                      <Text
-                        fontSize="13px"
-                        color={colors.subtext}
-                        fontStyle="italic"
-                      >
-                        No issues detected.
-                      </Text>
-                    )}
-                  </Box>
-
-                  <Box
-                    bg={isDark ? "white/5" : "gray.50"}
-                    p={4}
-                    borderRadius="md"
-                    border="1px solid"
-                    borderColor={colors.border}
-                  >
-                    <Heading
-                      size="xs"
-                      color={isDark ? "#e5c890" : "#805e02"}
-                      mb={3}
-                      display="flex"
-                      alignItems="center"
-                      gap={2}
-                    >
-                      Recommendations
-                    </Heading>
-                    {report.recommendations &&
-                    report.recommendations.length > 0 ? (
-                      <VStack align="stretch" gap={2} pl={2}>
-                        {report.recommendations.map((rec, idx) => (
-                          <Text
-                            key={idx}
-                            fontSize="13px"
-                            color={colors.text}
-                            lineHeight={1.5}
-                          >
-                            • {rec}
-                          </Text>
-                        ))}
-                      </VStack>
-                    ) : (
-                      <Text
-                        fontSize="13px"
-                        color={colors.subtext}
-                        fontStyle="italic"
-                      >
-                        No recommendations at this time.
-                      </Text>
-                    )}
-                  </Box>
-                </Grid>
               </VStack>
             ) : (
               <Flex
@@ -2415,7 +2340,11 @@ export function TestRunDetailsPane({
           </Box>
 
           {/* TAB 4: CONSOLE LOGS */}
-          <Box display={activeDetailsTab === "logs" ? "block" : "none"}>
+          <Box
+            display={activeDetailsTab === "logs" ? "flex" : "none"}
+            flexDirection="column"
+            h="100%"
+          >
             {(() => {
               const timeline = buildTimeline(events, run.status, run.updatedAt);
               const search = logSearch.trim().toLowerCase();
@@ -2452,7 +2381,7 @@ export function TestRunDetailsPane({
               };
 
               return (
-                <VStack align="stretch" gap={4}>
+                <VStack align="stretch" gap={4} h="100%" flex={1} minH={0}>
                   {/* Toolbar */}
                   <Flex
                     direction={{ base: "column", lg: "row" }}
@@ -2636,8 +2565,8 @@ export function TestRunDetailsPane({
                     borderRadius="md"
                     fontFamily="mono"
                     fontSize="12.5px"
-                    minH="240px"
-                    maxH={isMaximized ? "calc(100vh - 320px)" : "560px"}
+                    flex={1}
+                    minH={0}
                     overflowY="auto"
                     border="1px solid"
                     borderColor={isDark ? "#313244" : "#45475a"}
