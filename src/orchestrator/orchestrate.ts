@@ -33,6 +33,7 @@ import { createKnowledgeService, type KnowledgeService } from "../knowledge";
 import { createBusinessContextService } from "../knowledge/business/service";
 import { loadAuthFromEnv } from "../auth/credentials";
 import { captureHealDeltas } from "../knowledge/heal/captureHeal";
+import { computeHealProvenance } from "../knowledge/heal/provenance";
 import { normalizeFailure } from "../knowledge/heal/signature";
 import type { HealingPrecedent } from "../knowledge/types";
 import { readdir, readFile } from "node:fs/promises";
@@ -340,6 +341,17 @@ export async function runPipeline(
     },
   );
 
+  // Split this run's heals by repair pathway: template-directed (a precedent was
+  // on hand — HDR) vs blind (the Evolver fixed it cold — NHEJ). Surfaced so the
+  // knowledge layer's payoff is visible per run, not only in the DB.
+  const healProvenance = computeHealProvenance(healingEvents, precedents);
+  if (healProvenance.healed > 0)
+    emit(
+      "healing",
+      `🧬 Heal provenance — HDR ${Math.round(healProvenance.hdrRate * 100)}% ` +
+        `(${healProvenance.templateDirected} template-directed · ${healProvenance.blind} blind)`,
+    );
+
   const planMarkdown = await readPlan(ws);
   const coverage = coverageFromResults(deps.curatedFlows, results);
   const narrative = await generateNarrative(
@@ -391,6 +403,7 @@ export async function runPipeline(
   });
   // Phase 3: attach captured heals so ingestRun persists them (ADR-0004).
   report.healingEvents = healingEvents;
+  report.healProvenance = healProvenance;
 
   // T9/R11: new execution data becomes knowledge. Best-effort — ingestRun never
   // throws, so a KB hiccup cannot fail a completed run.

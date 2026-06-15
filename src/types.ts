@@ -3,7 +3,7 @@
 // one vocabulary (CONTEXT.md). Builders implement the producers in later tasks.
 
 // Type-only import (erased at compile — no runtime cycle with knowledge/types).
-import type { HealingEvent } from "./knowledge/types";
+import type { HealingEvent, HealProvenance } from "./knowledge/types";
 
 /**
  * Crawl strategy selected by the user in the Launch Wizard.
@@ -267,6 +267,8 @@ export interface RunReport {
   validation?: ValidationReport;
   /** Phase 3: heals captured by diffing pre/post-heal specs (ADR-0004). */
   healingEvents?: HealingEvent[];
+  /** Heal-pathway split for this run — template-directed (HDR) vs blind (NHEJ). */
+  healProvenance?: HealProvenance;
   /** Crawl strategy used for this run — persisted for procedural playbooks (R15). */
   crawlMode?: CrawlMode;
 }

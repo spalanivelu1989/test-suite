@@ -516,14 +516,16 @@ export function renderHtml(report: RunReport): string {
       ? `
       <ul class="prose">
         ${report.summary
-          .map(
-            (item, idx) => {
-              const testResult = report.results?.[idx];
-              const fileName = testResult?.fileName;
-              const hasSpec = report.generatedSpecs?.some(
-                (s) => s.file.split("/").pop() === fileName || (testResult && s.file.includes(testResult.flowId))
-              );
-              const linkHtml = hasSpec && fileName
+          .map((item, idx) => {
+            const testResult = report.results?.[idx];
+            const fileName = testResult?.fileName;
+            const hasSpec = report.generatedSpecs?.some(
+              (s) =>
+                s.file.split("/").pop() === fileName ||
+                (testResult && s.file.includes(testResult.flowId)),
+            );
+            const linkHtml =
+              hasSpec && fileName
                 ? `
                 <button type="button" class="code-pill-btn" onclick="viewSpecCode('${esc(fileName)}')">
                   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;margin-right:4px;">
@@ -532,7 +534,7 @@ export function renderHtml(report: RunReport): string {
                   ${esc(fileName)}
                 </button>`
                 : "";
-              return `
+            return `
               <li>
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12" />
@@ -543,8 +545,7 @@ export function renderHtml(report: RunReport): string {
                 </div>
               </li>
             `;
-            }
-          )
+          })
           .join("")}
       </ul>
     `

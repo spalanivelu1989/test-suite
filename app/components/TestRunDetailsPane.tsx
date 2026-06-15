@@ -50,6 +50,9 @@ import type {
   TestOutcome,
 } from "@/src/types";
 import { ThreeProgressBar } from "./ThreeProgressBar";
+import { HealProvenanceTrend } from "./HealProvenanceTrend";
+import { KnowledgeReuseTrend } from "./KnowledgeReuseTrend";
+import { REUSE_MARKER } from "@/src/knowledge/constants";
 
 interface TestRunDetailsPaneProps {
   run: Run;
@@ -761,6 +764,46 @@ function logsToPlainText(events: ProgressEvent[]): string {
   return events
     .map((ev) => `[${formatClock(ev.at)}] [${ev.stage}] ${ev.message}`)
     .join("\n");
+}
+
+/** One stat tile for the Monitoring board — label, big value, caption. */
+function MetricCard({
+  label,
+  value,
+  sub,
+  valueColor,
+  colors,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  valueColor: string;
+  colors: { cardBg: string; subtext: string; border: string };
+}) {
+  return (
+    <Box
+      bg={colors.cardBg}
+      border="1px solid"
+      borderColor={colors.border}
+      p={3.5}
+      borderRadius="sm"
+    >
+      <Text color={colors.subtext} fontWeight="semibold" mb={1}>
+        {label}
+      </Text>
+      <Text
+        fontSize="24px"
+        fontWeight="black"
+        color={valueColor}
+        lineHeight={1.1}
+      >
+        {value}
+      </Text>
+      <Text fontSize="12px" color={colors.subtext} mt={1}>
+        {sub}
+      </Text>
+    </Box>
+  );
 }
 
 export function TestRunDetailsPane({
@@ -2287,56 +2330,147 @@ export function TestRunDetailsPane({
 
           {/* TAB 3: MONITORING */}
           <Box display={activeDetailsTab === "monitoring" ? "block" : "none"}>
-            <Box
-              display="grid"
-              gridTemplateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
-              gap={4}
-              fontSize="13px"
-            >
-              <Box
-                bg={colors.cardBg}
-                border="1px solid"
-                borderColor={colors.border}
-                p={3.5}
-                borderRadius="sm"
-              >
-                <Text color={colors.subtext} fontWeight="semibold" mb={1}>
-                  SUCCESS RATE
-                </Text>
-                <Text
-                  fontSize="24px"
-                  fontWeight="black"
-                  color={report ? "green.500" : colors.subtext}
-                >
-                  {report
-                    ? `${Math.round(report.successRate.rate * 100)}%`
-                    : "N/A"}
-                </Text>
-                <Text fontSize="12px" color={colors.subtext} mt={1}>
-                  Passed tests / planned tests
-                </Text>
-              </Box>
+            {(() => {
+              const results = report?.results ?? [];
+              const c = (o: TestOutcome) =>
+                results.filter((x) => x.outcome === o).length;
+              const passed = c("passed");
+              const healed = c("healed");
+              const failed = c("failed");
+              const flaky = c("flaky");
+              const quarantined = c("fixme");
+              const total = results.length;
 
-              <Box
-                bg={colors.cardBg}
-                border="1px solid"
-                borderColor={colors.border}
-                p={3.5}
-                borderRadius="sm"
-              >
-                <Text color={colors.subtext} fontWeight="semibold" mb={1}>
-                  AUTO-HEAL SUCCESS
-                </Text>
-                <Text fontSize="24px" fontWeight="black" color="blue.500">
-                  {report
-                    ? `${Math.round(report.healSuccessRate * 100)}%`
-                    : "N/A"}
-                </Text>
-                <Text fontSize="12px" color={colors.subtext} mt={1}>
-                  Failed locators healed by LLM
-                </Text>
-              </Box>
-            </Box>
+              const specs = report?.generatedSpecs ?? [];
+              const reused = specs.filter((s) =>
+                (s.code ?? "").includes(REUSE_MARKER),
+              ).length;
+              const reusePct = specs.length
+                ? Math.round((reused / specs.length) * 100)
+                : 0;
+
+              const num = (v: number) => (report ? String(v) : "N/A");
+              const ratePct = (v: number | undefined) =>
+                report ? `${Math.round((v ?? 0) * 100)}%` : "N/A";
+
+              const cards = [
+                {
+                  label: "TOTAL TESTS",
+                  value: num(total),
+                  sub: "Generated test cases",
+                  color: colors.text,
+                },
+                {
+                  label: "PASSED",
+                  value: num(passed + healed),
+                  sub:
+                    healed > 0
+                      ? `${passed} clean · ${healed} auto-healed`
+                      : "Clean passes",
+                  color:
+                    report && passed + healed > 0
+                      ? "green.500"
+                      : colors.subtext,
+                },
+                {
+                  label: "FAILED",
+                  value: num(failed),
+                  sub: "Need investigation",
+                  color: report && failed > 0 ? "red.500" : colors.subtext,
+                },
+                {
+                  label: "SUCCESS RATE",
+                  value: ratePct(report?.successRate.rate),
+                  sub: "Passed / planned tests",
+                  color: report ? "green.500" : colors.subtext,
+                },
+                {
+                  label: "KNOWLEDGE REUSE",
+                  value: report ? `${reusePct}%` : "N/A",
+                  sub: specs.length
+                    ? `${reused}/${specs.length} specs reused from prior runs`
+                    : "No specs generated",
+                  color: report && reused > 0 ? "purple.400" : colors.subtext,
+                },
+                {
+                  label: "AUTO-HEAL SUCCESS",
+                  value: ratePct(report?.healSuccessRate),
+                  sub: "Failed locators healed by LLM",
+                  color: report ? "blue.500" : colors.subtext,
+                },
+                {
+                  label: "FLOW COVERAGE",
+                  value: report ? `${report.coverage.percent}%` : "N/A",
+                  sub: report
+                    ? `${report.coverage.testedCount}/${report.coverage.curatedTotal} curated flows`
+                    : "—",
+                  color: report ? "teal.400" : colors.subtext,
+                },
+                {
+                  label: "FLAKE RATE",
+                  value: ratePct(report?.flakeRate),
+                  sub: `${flaky} flaky across reruns`,
+                  color: report && flaky > 0 ? "orange.400" : colors.subtext,
+                },
+                {
+                  label: "QUARANTINED",
+                  value: num(quarantined),
+                  sub: "Marked test.fixme()",
+                  color:
+                    report && quarantined > 0 ? "orange.400" : colors.subtext,
+                },
+              ];
+
+              return (
+                <Grid
+                  templateColumns={{
+                    base: "1fr",
+                    sm: "repeat(2, 1fr)",
+                    md: "repeat(3, 1fr)",
+                  }}
+                  gap={4}
+                  fontSize="13px"
+                >
+                  {cards.map((m) => (
+                    <MetricCard
+                      key={m.label}
+                      label={m.label}
+                      value={m.value}
+                      sub={m.sub}
+                      valueColor={m.color}
+                      colors={colors}
+                    />
+                  ))}
+                </Grid>
+              );
+            })()}
+
+            {report &&
+              (() => {
+                const specs = report.generatedSpecs ?? [];
+                const reused = specs.filter((s) =>
+                  (s.code ?? "").includes(REUSE_MARKER),
+                ).length;
+                return (
+                  // Side by side when both charts render; each self-hides and the
+                  // survivor grows to full width (flex), wrapping on narrow screens.
+                  <Flex mt={4} gap={4} wrap="wrap" align="stretch">
+                    <HealProvenanceTrend
+                      runId={report.runId}
+                      generatedAt={report.generatedAt}
+                      provenance={report.healProvenance}
+                      colors={colors}
+                    />
+                    <KnowledgeReuseTrend
+                      runId={report.runId}
+                      generatedAt={report.generatedAt}
+                      reused={reused}
+                      total={specs.length}
+                      colors={colors}
+                    />
+                  </Flex>
+                );
+              })()}
           </Box>
 
           {/* TAB 4: CONSOLE LOGS */}

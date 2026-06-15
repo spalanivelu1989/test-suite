@@ -34,6 +34,8 @@ function fakeKnowledge(partial: Partial<KnowledgeService>): KnowledgeService {
     findSimilarSpecs: async () => [],
     getHealingPrecedents: async () => [],
     getPlaybooks: async () => [],
+    getHealProvenanceTrend: async () => [],
+    getKnowledgeReuseTrend: async () => [],
     close: async () => {},
     ...partial,
   };

@@ -10,7 +10,15 @@ import {
   Button,
   Spinner,
 } from "@chakra-ui/react";
-import { ChevronDown, Check, Download, ChevronLeft, ChevronRight, Code2, Copy } from "lucide-react";
+import {
+  ChevronDown,
+  Check,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  Code2,
+  Copy,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useThemeMode } from "@/app/providers";
 import "./TestReportView.css";
@@ -99,10 +107,14 @@ interface ParsedScreenshot {
 }
 
 function parseScreenshotName(filename: string): ParsedScreenshot {
-  const m = filename.match(/^(?:([a-zA-Z0-9\-]+)-)?step-(\d+)-(pre|post)-(\w+)\.png$/);
+  const m = filename.match(
+    /^(?:([a-zA-Z0-9\-]+)-)?step-(\d+)-(pre|post)-(\w+)\.png$/,
+  );
   if (m) {
     const stageRaw = m[1] ? m[1].replace(/^\d+-/, "") : "";
-    const stage = stageRaw ? stageRaw.charAt(0).toUpperCase() + stageRaw.slice(1) : "";
+    const stage = stageRaw
+      ? stageRaw.charAt(0).toUpperCase() + stageRaw.slice(1)
+      : "";
     return {
       filename,
       stepNumber: m[2],
@@ -354,8 +366,13 @@ export function TestReportView({
 }: TestReportViewProps) {
   // Tab selector state inside report
   const [activeSubTab, setActiveSubTab] = useState("dashboard");
-  const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
-  const [selectedSpec, setSelectedSpec] = useState<{ file: string; code: string } | null>(null);
+  const [selectedLightboxImage, setSelectedLightboxImage] = useState<
+    string | null
+  >(null);
+  const [selectedSpec, setSelectedSpec] = useState<{
+    file: string;
+    code: string;
+  } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -544,7 +561,10 @@ export function TestReportView({
     return report.results.filter((r) => {
       let matchesFilter = false;
       if (currentFilter === "all") matchesFilter = true;
-      else if (currentFilter === "pass" && (r.outcome === "passed" || r.outcome === "healed"))
+      else if (
+        currentFilter === "pass" &&
+        (r.outcome === "passed" || r.outcome === "healed")
+      )
         matchesFilter = true;
       else if (currentFilter === "fail" && r.outcome === "failed")
         matchesFilter = true;
@@ -627,11 +647,21 @@ export function TestReportView({
     const isCancelled = run.status === "cancelled";
     return (
       <div className={`test-report-container${darkClass}`}>
-        <div className={`page ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+        <div
+          className={`page ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}
+        >
           {/* Report Left Sidebar */}
           <aside className="sidebar">
             <div className="sidebar-header">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", width: "100%" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  width: "100%",
+                }}
+              >
                 {!isSidebarCollapsed && (
                   <h1 style={{ margin: 0 }}>
                     Test results for {run.config.url.replace(/https?:\/\//, "")}
@@ -641,9 +671,15 @@ export function TestReportView({
                   type="button"
                   className="sidebar-toggle-btn"
                   onClick={toggleSidebar}
-                  title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                  title={
+                    isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"
+                  }
                 >
-                  {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                  {isSidebarCollapsed ? (
+                    <ChevronRight size={18} />
+                  ) : (
+                    <ChevronLeft size={18} />
+                  )}
                 </button>
               </div>
             </div>
@@ -684,8 +720,18 @@ export function TestReportView({
                   transition="all 0.15s ease"
                   _hover={{ borderColor: "var(--accent)" }}
                 >
-                  <VStack align="flex-start" gap={0.5} overflow="hidden" flex={1}>
-                    <Text fontSize="11.5px" fontWeight="semibold" truncate w="full">
+                  <VStack
+                    align="flex-start"
+                    gap={0.5}
+                    overflow="hidden"
+                    flex={1}
+                  >
+                    <Text
+                      fontSize="11.5px"
+                      fontWeight="semibold"
+                      truncate
+                      w="full"
+                    >
                       {run.config.url.replace(/https?:\/\//, "")}
                     </Text>
                     <HStack gap={1.5} fontSize="10px" color="var(--text-3)">
@@ -756,7 +802,9 @@ export function TestReportView({
                             px={3.5}
                             py={2}
                             cursor="pointer"
-                            bg={isSelected ? "var(--accent-soft)" : "transparent"}
+                            bg={
+                              isSelected ? "var(--accent-soft)" : "transparent"
+                            }
                             color={
                               isSelected ? "var(--accent-text)" : "var(--text)"
                             }
@@ -800,7 +848,10 @@ export function TestReportView({
                             {isSelected && (
                               <Check
                                 size={14}
-                                style={{ color: "var(--accent)", flexShrink: 0 }}
+                                style={{
+                                  color: "var(--accent)",
+                                  flexShrink: 0,
+                                }}
                               />
                             )}
                           </Box>
@@ -880,11 +931,21 @@ export function TestReportView({
   if (run.status === "pending" || run.status === "running" || !report) {
     return (
       <div className={`test-report-container${darkClass}`}>
-        <div className={`page ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+        <div
+          className={`page ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}
+        >
           {/* Report Left Sidebar */}
           <aside className="sidebar">
             <div className="sidebar-header">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", width: "100%" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  width: "100%",
+                }}
+              >
                 {!isSidebarCollapsed && (
                   <h1 style={{ margin: 0 }}>
                     Test results for {run.config.url.replace(/https?:\/\//, "")}
@@ -894,9 +955,15 @@ export function TestReportView({
                   type="button"
                   className="sidebar-toggle-btn"
                   onClick={toggleSidebar}
-                  title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                  title={
+                    isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"
+                  }
                 >
-                  {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                  {isSidebarCollapsed ? (
+                    <ChevronRight size={18} />
+                  ) : (
+                    <ChevronLeft size={18} />
+                  )}
                 </button>
               </div>
             </div>
@@ -937,8 +1004,18 @@ export function TestReportView({
                   transition="all 0.15s ease"
                   _hover={{ borderColor: "var(--accent)" }}
                 >
-                  <VStack align="flex-start" gap={0.5} overflow="hidden" flex={1}>
-                    <Text fontSize="11.5px" fontWeight="semibold" truncate w="full">
+                  <VStack
+                    align="flex-start"
+                    gap={0.5}
+                    overflow="hidden"
+                    flex={1}
+                  >
+                    <Text
+                      fontSize="11.5px"
+                      fontWeight="semibold"
+                      truncate
+                      w="full"
+                    >
                       {run.config.url.replace(/https?:\/\//, "")}
                     </Text>
                     <HStack gap={1.5} fontSize="10px" color="var(--text-3)">
@@ -1009,7 +1086,9 @@ export function TestReportView({
                             px={3.5}
                             py={2}
                             cursor="pointer"
-                            bg={isSelected ? "var(--accent-soft)" : "transparent"}
+                            bg={
+                              isSelected ? "var(--accent-soft)" : "transparent"
+                            }
                             color={
                               isSelected ? "var(--accent-text)" : "var(--text)"
                             }
@@ -1053,7 +1132,10 @@ export function TestReportView({
                             {isSelected && (
                               <Check
                                 size={14}
-                                style={{ color: "var(--accent)", flexShrink: 0 }}
+                                style={{
+                                  color: "var(--accent)",
+                                  flexShrink: 0,
+                                }}
                               />
                             )}
                           </Box>
@@ -1131,8 +1213,8 @@ export function TestReportView({
                 <strong style={{ color: "var(--accent)" }}>
                   {run.stage.toUpperCase()}
                 </strong>
-                . The test report will automatically load here once the run reaches
-                completion.
+                . The test report will automatically load here once the run
+                reaches completion.
               </p>
             </div>
           </main>
@@ -1156,7 +1238,15 @@ export function TestReportView({
         {/* Report Left Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-header">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", width: "100%" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+                width: "100%",
+              }}
+            >
               {!isSidebarCollapsed && (
                 <h1 style={{ margin: 0 }}>
                   Test results for {report.url.replace(/https?:\/\//, "")}
@@ -1166,9 +1256,15 @@ export function TestReportView({
                 type="button"
                 className="sidebar-toggle-btn"
                 onClick={toggleSidebar}
-                title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                title={
+                  isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"
+                }
               >
-                {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                {isSidebarCollapsed ? (
+                  <ChevronRight size={18} />
+                ) : (
+                  <ChevronLeft size={18} />
+                )}
               </button>
             </div>
           </div>
@@ -1505,9 +1601,7 @@ export function TestReportView({
                   <span style={{ color: "var(--pass)" }}>
                     <CheckIcon />
                   </span>
-                  <span className="stat-num">
-                    {report.successRate.passed}
-                  </span>
+                  <span className="stat-num">{report.successRate.passed}</span>
                 </div>
                 <div className="stat-label">Passed</div>
 
@@ -1578,9 +1672,7 @@ export function TestReportView({
                   <span style={{ color: "var(--warn)" }}>
                     <AlertIcon />
                   </span>
-                  <span className="stat-num">
-                    {filterCounts.flaky}
-                  </span>
+                  <span className="stat-num">{filterCounts.flaky}</span>
                 </div>
                 <div className="stat-label">Unreliable</div>
 
@@ -1655,8 +1747,8 @@ export function TestReportView({
                       Run(s)
                     </h3>
                     <p>
-                      Some checks passed but required retries. These flows are working but should be audited for
-                      stability:
+                      Some checks passed but required retries. These flows are
+                      working but should be audited for stability:
                     </p>
                     <ul className="banner-list">
                       {b.whereToImprove.map((r, idx) => (
@@ -1855,24 +1947,38 @@ export function TestReportView({
               <div className="side-by-side-grid">
                 <div>
                   <h2 className="section-h">
-                    <span className="badge" style={{ backgroundColor: "var(--warn-bg)", color: "var(--warn)" }}>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: "var(--warn-bg)",
+                        color: "var(--warn)",
+                      }}
+                    >
                       <AlertIcon />
                     </span>
                     What could be better
                   </h2>
                   <div className="prose-card">
-                    {report.better || "No major frontend gaps or testability limitations identified."}
+                    {report.better ||
+                      "No major frontend gaps or testability limitations identified."}
                   </div>
                 </div>
                 <div>
                   <h2 className="section-h">
-                    <span className="badge" style={{ backgroundColor: "var(--heal-bg)", color: "var(--heal)" }}>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: "var(--heal-bg)",
+                        color: "var(--heal)",
+                      }}
+                    >
                       <BulbIcon />
                     </span>
                     Recommendations
                   </h2>
                   <div className="prose-card">
-                    {report.recommendationsText || "No actionable recommendations needed at this time."}
+                    {report.recommendationsText ||
+                      "No actionable recommendations needed at this time."}
                   </div>
                 </div>
               </div>
@@ -1924,13 +2030,20 @@ export function TestReportView({
                   const spec = report.generatedSpecs?.find(
                     (s) =>
                       s.file.split("/").pop() === fileName ||
-                      (testResult && s.file.includes(testResult.flowId))
+                      (testResult && s.file.includes(testResult.flowId)),
                   );
 
                   return (
                     <li key={idx}>
                       <CheckIcon />
-                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                          width: "100%",
+                        }}
+                      >
                         <span>{summaryItem}</span>
                         {spec && (
                           <button
@@ -2074,31 +2187,33 @@ export function TestReportView({
             )}
 
             {/* Recommended Fixes */}
-            {currentFilter === "fail" && report.fixPrompts && report.fixPrompts.length > 0 && (
-              <div style={{ marginTop: "var(--sp-6)" }}>
-                <h2 className="section-h">
-                  <span className="badge">
-                    <WrenchIcon />
-                  </span>
-                  Recommended Fixes
-                </h2>
-                <p className="section-desc">
-                  For each failing check, the AI has diagnosed the problem and
-                  suggested exactly what should be changed to resolve it.
-                </p>
-                {report.fixPrompts.map((fix, idx) => (
-                  <div className="fix-card" key={idx}>
-                    <div className="fix-test">🧪 {fix.test}</div>
-                    <div className="fix-row">
-                      <strong>What went wrong:</strong> {fix.problem}
+            {currentFilter === "fail" &&
+              report.fixPrompts &&
+              report.fixPrompts.length > 0 && (
+                <div style={{ marginTop: "var(--sp-6)" }}>
+                  <h2 className="section-h">
+                    <span className="badge">
+                      <WrenchIcon />
+                    </span>
+                    Recommended Fixes
+                  </h2>
+                  <p className="section-desc">
+                    For each failing check, the AI has diagnosed the problem and
+                    suggested exactly what should be changed to resolve it.
+                  </p>
+                  {report.fixPrompts.map((fix, idx) => (
+                    <div className="fix-card" key={idx}>
+                      <div className="fix-test">🧪 {fix.test}</div>
+                      <div className="fix-row">
+                        <strong>What went wrong:</strong> {fix.problem}
+                      </div>
+                      <div className="fix-row fix-action">
+                        <strong>Recommended fix:</strong> {fix.change}
+                      </div>
                     </div>
-                    <div className="fix-row fix-action">
-                      <strong>Recommended fix:</strong> {fix.change}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
           </div>
 
           {/* TAB 4: AGENT SCREENSHOTS */}
@@ -2112,8 +2227,10 @@ export function TestReportView({
               Agent Screenshots
             </h2>
             <p className="section-desc">
-              Visual logs captured automatically during the AI agent's exploration and verification phase. 
-              Pre-action screenshots highlight the target element with a orange/red border to show click/input targets.
+              Visual logs captured automatically during the AI agent's
+              exploration and verification phase. Pre-action screenshots
+              highlight the target element with a orange/red border to show
+              click/input targets.
             </p>
 
             {report.screenshots && report.screenshots.length > 0 ? (
@@ -2121,34 +2238,36 @@ export function TestReportView({
                 {report.screenshots.map((s, idx) => {
                   const parsed = parseScreenshotName(s.filename);
                   const imgUrl = `data:image/png;base64,${s.base64}`;
-                  
+
                   return (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       className="screenshot-card"
                       onClick={() => setSelectedLightboxImage(imgUrl)}
                     >
                       <div className="screenshot-img-container">
-                        <img 
-                          src={imgUrl} 
-                          alt={`Step ${parsed.stepNumber} ${parsed.action}`} 
+                        <img
+                          src={imgUrl}
+                          alt={`Step ${parsed.stepNumber} ${parsed.action}`}
                           loading="lazy"
                         />
                         <div className="screenshot-badge-overlay">
                           <span className={`screenshot-badge ${parsed.phase}`}>
-                            {parsed.phase === "pre" ? "Pre-Action Highlight" : "Post-Action State"}
+                            {parsed.phase === "pre"
+                              ? "Pre-Action Highlight"
+                              : "Post-Action State"}
                           </span>
                         </div>
                       </div>
                       <div className="screenshot-details">
                         <div className="screenshot-title">
-                          Step {parsed.stepNumber}: <span className="action-verb">{parsed.action}</span>
+                          Step {parsed.stepNumber}:{" "}
+                          <span className="action-verb">{parsed.action}</span>
                         </div>
                         <div className="screenshot-desc">
-                          {parsed.phase === "pre" 
+                          {parsed.phase === "pre"
                             ? "Visual highlight overlay applied to click target"
-                            : "Resulting page state after execution"
-                          }
+                            : "Resulting page state after execution"}
                         </div>
                       </div>
                     </div>
@@ -2156,11 +2275,31 @@ export function TestReportView({
                 })}
               </div>
             ) : (
-              <div className="empty-state-container" style={{ textAlign: "center", padding: "40px 20px" }}>
+              <div
+                className="empty-state-container"
+                style={{ textAlign: "center", padding: "40px 20px" }}
+              >
                 <div style={{ fontSize: "40px", marginBottom: "16px" }}>📷</div>
-                <h3 style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "8px" }}>No screenshots found</h3>
-                <p style={{ color: "gray", fontSize: "13px", maxWidth: "400px", margin: "0 auto" }}>
-                  This run does not contain any visual logs. Interactive explorer screenshots are saved when running Discoverer or Designer agents.
+                <h3
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "bold",
+                    marginBottom: "8px",
+                  }}
+                >
+                  No screenshots found
+                </h3>
+                <p
+                  style={{
+                    color: "gray",
+                    fontSize: "13px",
+                    maxWidth: "400px",
+                    margin: "0 auto",
+                  }}
+                >
+                  This run does not contain any visual logs. Interactive
+                  explorer screenshots are saved when running Discoverer or
+                  Designer agents.
                 </p>
               </div>
             )}
@@ -2176,9 +2315,20 @@ export function TestReportView({
 
       {/* Lightbox Modal */}
       {selectedLightboxImage && (
-        <div className="lightbox-overlay active" onClick={() => setSelectedLightboxImage(null)}>
-          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <button className="lightbox-close" onClick={() => setSelectedLightboxImage(null)}>×</button>
+        <div
+          className="lightbox-overlay active"
+          onClick={() => setSelectedLightboxImage(null)}
+        >
+          <div
+            className="lightbox-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="lightbox-close"
+              onClick={() => setSelectedLightboxImage(null)}
+            >
+              ×
+            </button>
             <img src={selectedLightboxImage} alt="Enlarged screenshot" />
           </div>
         </div>
@@ -2186,7 +2336,10 @@ export function TestReportView({
 
       {/* Code Viewer Modal */}
       {selectedSpec && (
-        <div className="lightbox-overlay active" onClick={() => setSelectedSpec(null)}>
+        <div
+          className="lightbox-overlay active"
+          onClick={() => setSelectedSpec(null)}
+        >
           <div
             className="lightbox-content"
             onClick={(e) => e.stopPropagation()}
@@ -2220,7 +2373,9 @@ export function TestReportView({
                 userSelect: "none",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
                 <Code2 size={13} style={{ color: "#81c8be" }} />
                 <span
                   style={{
@@ -2233,7 +2388,14 @@ export function TestReportView({
                   {selectedSpec.file.split("/").pop()}
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginRight: "32px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  marginRight: "32px",
+                }}
+              >
                 <span
                   style={{
                     fontSize: "10px",
@@ -2263,8 +2425,12 @@ export function TestReportView({
                     transition: "background-color 0.2s",
                   }}
                   onClick={() => handleCopyCode(selectedSpec.code)}
-                  onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#414559")}
-                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  onMouseOver={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#414559")
+                  }
+                  onMouseOut={(e) =>
+                    (e.currentTarget.style.backgroundColor = "transparent")
+                  }
                 >
                   <Copy size={11} />
                   {copiedCode ? "Copied!" : "Copy"}

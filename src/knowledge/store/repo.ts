@@ -4,7 +4,13 @@ import type { EpisodeInput } from "../distill/cluster";
 import { signatureTokens } from "../heal/signature";
 import type { ExtractedRun } from "../ingest/extract";
 import type { HealingEventRow } from "../retrieve/healingPrecedents";
-import type { HealStrategy, Playbook, PlaybookScope } from "../types";
+import type {
+  HealStrategy,
+  HealTrendPoint,
+  KnowledgeReuseTrendPoint,
+  Playbook,
+  PlaybookScope,
+} from "../types";
 
 // All SQL lives here (Plan D2). Writes are idempotent by run; every read is
 // app-scoped (N5). Callers get behavioral operations, never raw SQL.
@@ -364,6 +370,96 @@ export async function readLastPlan(
     [appId],
   );
   return res.rowCount ? res.rows[0].plan : null;
+}
+
+/**
+ * An app's heal-provenance trend, oldest → newest (HDR-rate over time). Reads the
+ * `healProvenance` block straight out of each run's stored RunReport JSON — no
+ * extra column needed (raw_reports is the source of truth, R12). Only runs that
+ * actually healed something appear, so the series tracks real repair pathways.
+ * Takes the most recent `limit` runs, then returns them chronologically.
+ */
+export async function readHealProvenanceTrend(
+  pool: Pool,
+  appId: string,
+  limit = 50,
+): Promise<HealTrendPoint[]> {
+  const res = await pool.query<{
+    run_id: string;
+    at: string;
+    hdr_rate: string | null;
+    healed: string | null;
+    template_directed: string | null;
+    blind: string | null;
+  }>(
+    `SELECT rr.run_id,
+            r.created_at::text                                    AS at,
+            rr.report->'healProvenance'->>'hdrRate'               AS hdr_rate,
+            rr.report->'healProvenance'->>'healed'                AS healed,
+            rr.report->'healProvenance'->>'templateDirected'      AS template_directed,
+            rr.report->'healProvenance'->>'blind'                 AS blind
+       FROM raw_reports rr
+       JOIN runs r ON r.run_id = rr.run_id
+      WHERE rr.app_id = $1
+        AND rr.report ? 'healProvenance'
+        AND (rr.report->'healProvenance'->>'healed')::int > 0
+      ORDER BY r.created_at DESC
+      LIMIT $2`,
+    [appId, limit],
+  );
+  // SQL took the newest N; reverse to chronological (oldest → newest) for plotting.
+  return res.rows.reverse().map((r) => ({
+    runId: r.run_id,
+    at: r.at,
+    hdrRate: Number(r.hdr_rate ?? 0),
+    healed: Number(r.healed ?? 0),
+    templateDirected: Number(r.template_directed ?? 0),
+    blind: Number(r.blind ?? 0),
+  }));
+}
+
+/**
+ * An app's knowledge-reuse trend, oldest → newest (share of generated specs that
+ * were copied forward from prior runs vs freshly generated). Reads the authoritative
+ * `specs.reused` flag — no JSON parsing. Only runs that produced at least one spec
+ * appear. Takes the most recent `limit` runs, then returns them chronologically.
+ */
+export async function readKnowledgeReuseTrend(
+  pool: Pool,
+  appId: string,
+  limit = 50,
+): Promise<KnowledgeReuseTrendPoint[]> {
+  const res = await pool.query<{
+    run_id: string;
+    at: string;
+    total: string | number;
+    reused: string | number;
+  }>(
+    `SELECT r.run_id,
+            r.created_at::text                        AS at,
+            count(s.*)::int                           AS total,
+            count(s.*) FILTER (WHERE s.reused)::int   AS reused
+       FROM runs r
+       JOIN specs s ON s.run_id = r.run_id
+      WHERE r.app_id = $1
+      GROUP BY r.run_id, r.created_at
+     HAVING count(s.*) > 0
+      ORDER BY r.created_at DESC
+      LIMIT $2`,
+    [appId, limit],
+  );
+  // SQL took the newest N; reverse to chronological (oldest → newest) for plotting.
+  return res.rows.reverse().map((row) => {
+    const total = Number(row.total);
+    const reused = Number(row.reused);
+    return {
+      runId: row.run_id,
+      at: row.at,
+      reused,
+      total,
+      reuseRate: total > 0 ? reused / total : 0,
+    };
+  });
 }
 
 /** Count rows of an entity for an app (rebuild/verification helpers, N2). */

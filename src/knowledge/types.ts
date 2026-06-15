@@ -58,6 +58,49 @@ export interface HealingEvent {
   embedding?: number[] | null;
 }
 
+/**
+ * Heal-provenance split for a run — the CRISPR "repair pathway" metric. A heal is
+ * template-directed (HDR) when a healing precedent was available for its failure
+ * signature at heal time, and blind (NHEJ) when the Evolver repaired it cold with
+ * no donor template. A rising `hdrRate` across runs means the knowledge layer's
+ * memory is actually guiding repairs rather than the Evolver re-deriving each fix.
+ */
+export interface HealProvenance {
+  /** Distinct specs the Evolver actually repaired (outcome "healed"). */
+  healed: number;
+  /** Of `healed`, those whose failure had a precedent template (HDR). */
+  templateDirected: number;
+  /** Of `healed`, those repaired with no template — cold/blind (NHEJ). */
+  blind: number;
+  /** templateDirected / healed, 0..1; 0 when `healed` is 0. */
+  hdrRate: number;
+  /** Specs quarantined as test.fixme() (outcome "fixme") — neither HDR nor NHEJ. */
+  quarantined: number;
+}
+
+/** One run's heal-provenance reading on an app's timeline (trend view). */
+export interface HealTrendPoint {
+  runId: string;
+  /** Run timestamp (ISO), oldest → newest in a trend series. */
+  at: string;
+  /** templateDirected / healed, 0..1. */
+  hdrRate: number;
+  healed: number;
+  templateDirected: number;
+  blind: number;
+}
+
+/** One run's spec-reuse reading on an app's timeline (knowledge-maturation trend). */
+export interface KnowledgeReuseTrendPoint {
+  runId: string;
+  /** Run timestamp (ISO), oldest → newest in a trend series. */
+  at: string;
+  /** reused / total specs, 0..1. */
+  reuseRate: number;
+  reused: number;
+  total: number;
+}
+
 /** A prior successful heal surfaced to the Evolver/Designer for reuse (R6). */
 export interface HealingPrecedent {
   runId: string;
@@ -242,6 +285,24 @@ export interface KnowledgeService {
    * playbooks are ever returned; empty when disabled/cold.
    */
   getPlaybooks(scope: PlaybookScope): Promise<Playbook[]>;
+  /**
+   * An app's heal-provenance trend (HDR vs NHEJ over time), oldest → newest.
+   * Only runs that actually healed something are included. Empty when
+   * disabled/cold. `limit` caps to the most recent N runs (chronological).
+   */
+  getHealProvenanceTrend(
+    url: string,
+    limit?: number,
+  ): Promise<HealTrendPoint[]>;
+  /**
+   * An app's knowledge-reuse trend (share of specs the generator reused from
+   * prior runs vs regenerated, over time), oldest → newest. Only runs that
+   * generated at least one spec are included. Empty when disabled/cold.
+   */
+  getKnowledgeReuseTrend(
+    url: string,
+    limit?: number,
+  ): Promise<KnowledgeReuseTrendPoint[]>;
   /** Release resources (pool). */
   close(): Promise<void>;
 }

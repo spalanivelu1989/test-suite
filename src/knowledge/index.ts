@@ -14,6 +14,8 @@ import { withKb } from "./safety";
 import { closePool, getPool } from "./store/db";
 import {
   findNearestSpecs,
+  readHealProvenanceTrend,
+  readKnowledgeReuseTrend,
   readLastPlan,
   readSpecCode,
   readSpecsForApp,
@@ -27,7 +29,9 @@ import type {
   CoverageMap,
   FailureKey,
   HealingPrecedent,
+  HealTrendPoint,
   KnowledgeConfig,
+  KnowledgeReuseTrendPoint,
   KnowledgeEvent,
   KnowledgeService,
   Playbook,
@@ -83,6 +87,12 @@ class DisabledKnowledgeService implements KnowledgeService {
     return [];
   }
   async getPlaybooks(): Promise<Playbook[]> {
+    return [];
+  }
+  async getHealProvenanceTrend(): Promise<HealTrendPoint[]> {
+    return [];
+  }
+  async getKnowledgeReuseTrend(): Promise<KnowledgeReuseTrendPoint[]> {
     return [];
   }
   async close() {}
@@ -330,6 +340,38 @@ class PgKnowledgeService implements KnowledgeService {
         onError: this.onError,
         input: { scope: `${scope.kind}:${scope.key}` },
         summarize: (playbooks) => ({ playbooks: playbooks.length }),
+      },
+    );
+  }
+
+  async getHealProvenanceTrend(
+    url: string,
+    limit = 50,
+  ): Promise<HealTrendPoint[]> {
+    return withKb<HealTrendPoint[]>(
+      "getHealProvenanceTrend",
+      () => readHealProvenanceTrend(this.pool, normalizeOrigin(url), limit),
+      [],
+      {
+        onError: this.onError,
+        input: { appId: normalizeOrigin(url), limit },
+        summarize: (trend) => ({ points: trend.length }),
+      },
+    );
+  }
+
+  async getKnowledgeReuseTrend(
+    url: string,
+    limit = 50,
+  ): Promise<KnowledgeReuseTrendPoint[]> {
+    return withKb<KnowledgeReuseTrendPoint[]>(
+      "getKnowledgeReuseTrend",
+      () => readKnowledgeReuseTrend(this.pool, normalizeOrigin(url), limit),
+      [],
+      {
+        onError: this.onError,
+        input: { appId: normalizeOrigin(url), limit },
+        summarize: (trend) => ({ points: trend.length }),
       },
     );
   }
