@@ -202,12 +202,35 @@ export interface CoverageMap {
   uncovered: string[];
 }
 
+/**
+ * A cross-app pattern hint (PROTOTYPE — global pattern-retrieval tier). A similar
+ * scenario that PASSED on a DIFFERENT app, surfaced to the Designer as few-shot
+ * inspiration. Advisory only: it never carries spec source and never drives a
+ * `reuse` decision — the Designer still generates a fresh spec for this app.
+ */
+export interface PatternHint {
+  /** The planned (`new`) scenario this hint is meant to inform. */
+  scenario: string;
+  /** Title of the similar passing scenario from another app — the "pattern". */
+  patternTitle: string;
+  /** Origin (app id) the pattern came from — provenance, not a reuse target. */
+  sourceApp: string;
+  flowId?: string;
+  /** Cosine similarity of the planned scenario to the pattern, 0..1. */
+  score: number;
+}
+
 /** Designer-facing half of a context pack. */
 export interface DesignerPack {
   decisions: CoverageDecision[];
   specs: SpecRef[];
   /** Phase 3: resilient-locator hints derived from past heals (R8). */
   locatorHints?: string[];
+  /**
+   * PROTOTYPE: cross-app workflow patterns for the `new` scenarios — few-shot
+   * inspiration drawn from similar passing tests on other apps. Never source.
+   */
+  patterns?: PatternHint[];
 }
 
 /** Evolver-facing half of a context pack — precedents for the run's failures (R7). */
@@ -229,6 +252,7 @@ export interface ContextPack {
 export type KnowledgeEvent =
   | { kind: "ingested"; appId: string; runId: string; flows: number }
   | { kind: "decision"; reuse: number; new: number }
+  | { kind: "patterns"; scenarios: number; hints: number }
   | { kind: "precedents"; failures: number; matched: number }
   | { kind: "playbooks"; injected: number }
   | { kind: "disabled"; reason: string }

@@ -13,8 +13,18 @@ const MIGRATIONS_DIR = join(
   "migrations",
 );
 
-/** Apply pending migrations against `url`. Returns the filenames applied. */
-export async function migrate(url: string): Promise<string[]> {
+/**
+ * Apply pending migrations against `url`. Returns the filenames applied.
+ *
+ * `migrationsDir` defaults to the folder next to this module (correct under tsx /
+ * the CLI scripts). Callers running inside a bundler — e.g. the Next.js startup
+ * hook, where `import.meta.url` points into `.next/server` and the .sql files are
+ * NOT colocated — must pass an explicit path (e.g. `cwd/src/knowledge/store/migrations`).
+ */
+export async function migrate(
+  url: string,
+  migrationsDir: string = MIGRATIONS_DIR,
+): Promise<string[]> {
   const pool = getPool(url);
   await pool.query(
     `CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -27,14 +37,14 @@ export async function migrate(url: string): Promise<string[]> {
       await pool.query<{ name: string }>("SELECT name FROM schema_migrations")
     ).rows.map((r) => r.name),
   );
-  const files = (await readdir(MIGRATIONS_DIR))
+  const files = (await readdir(migrationsDir))
     .filter((f) => f.endsWith(".sql"))
     .sort();
 
   const ran: string[] = [];
   for (const file of files) {
     if (applied.has(file)) continue;
-    const sql = await readFile(join(MIGRATIONS_DIR, file), "utf8");
+    const sql = await readFile(join(migrationsDir, file), "utf8");
     const client = await pool.connect();
     try {
       await client.query("BEGIN");

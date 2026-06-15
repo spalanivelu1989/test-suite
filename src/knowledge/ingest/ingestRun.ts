@@ -1,7 +1,12 @@
 import type { Pool } from "pg";
 import type { RunReport } from "../../types";
 import type { Embedder } from "../embeddings/embed";
-import { embeddingForHash, persistRun } from "../store/repo";
+import {
+  embeddingForHash,
+  patternColumnsPresent,
+  patternEmbeddingForHash,
+  persistRun,
+} from "../store/repo";
 import { type ExtractedRun, extractRun } from "./extract";
 
 // Ingest a completed run into the knowledge base (Spec R3, R11). Idempotent by
@@ -29,6 +34,10 @@ export async function ingestRun(
   const ex = extractRun(report);
 
   if (embedder) await embedSpecs(pool, ex, embedder);
+  // Only embed patterns when migration 0004 is present; otherwise skip the work
+  // (persistRun would drop the columns anyway) — keeps the degraded path cheap.
+  if (embedder && (await patternColumnsPresent(pool)))
+    await embedPatterns(pool, ex, embedder);
   if (embedder) await embedHealingSignatures(ex, embedder);
 
   const client = await pool.connect();
@@ -81,6 +90,55 @@ async function embedSpecs(
     // Best-effort: leave nulls → those specs are matched lexically only.
     console.error(
       `[knowledge] embed-at-ingest failed (lexical only): ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+}
+
+/**
+ * PROTOTYPE: embed each spec's ABSTRACTED intent into pattern_embedding for the
+ * cross-app pattern tier — mirrors embedSpecs (same cache-by-hash, same
+ * best-effort degradation) but on patternText + the pattern_embedding column.
+ * Separate pass so a failure here can never disturb the exact-reuse embedding.
+ */
+async function embedPatterns(
+  pool: Pool,
+  ex: ExtractedRun,
+  embedder: Embedder,
+): Promise<void> {
+  const pending: { idx: number; text: string }[] = [];
+  for (let i = 0; i < ex.specs.length; i++) {
+    const cached = await patternEmbeddingForHash(
+      pool,
+      ex.specs[i].contentHash,
+      embedder.id,
+    ).catch(() => null);
+    if (cached) {
+      ex.specs[i].patternEmbedding = cached;
+      ex.specs[i].patternModel = embedder.id;
+    } else {
+      pending.push({ idx: i, text: ex.specs[i].patternText });
+    }
+  }
+  if (pending.length === 0) return;
+  try {
+    const vecs = await embedder.embed(pending.map((p) => p.text));
+    pending.forEach((p, j) => {
+      const v = vecs[j] ?? null;
+      ex.specs[p.idx].patternEmbedding = v;
+      ex.specs[p.idx].patternModel = v ? embedder.id : null;
+    });
+    // NOTE: a production embedder never returns a zero vector for non-empty text
+    // (patternTextFor never yields ""), so pattern_embedding is always a valid
+    // unit vector. A degenerate zero vector would carry a NaN cosine distance —
+    // harmlessly filtered at query time by selectGlobalPatterns' relevance floor
+    // — so no special-casing here keeps this consistent with embedSpecs and
+    // preserves the embed-by-hash cache (NULLs would force needless re-embeds).
+  } catch (err) {
+    // Best-effort: leave nulls → those specs sit out the cross-app tier.
+    console.error(
+      `[knowledge] pattern-embed failed (falls back to embedding): ${
         err instanceof Error ? err.message : String(err)
       }`,
     );

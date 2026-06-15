@@ -30,6 +30,37 @@ export function parseSqlVector(s: string | null): number[] | null {
   return inner.split(",").map(Number);
 }
 
+// ── Schema capability (graceful degradation when a migration is missing) ─────
+
+let warnedMissingPatternCols = false;
+
+/**
+ * True when migration 0004 has been applied (specs.pattern_embedding exists).
+ * Lets ingest persist CORE knowledge even on a DB that predates the pattern tier
+ * instead of failing the whole transaction on an unknown column — a forgotten
+ * `npm run knowledge:migrate` must never silently drop ALL knowledge for a run.
+ */
+export async function patternColumnsPresent(
+  db: Pool | PoolClient,
+): Promise<boolean> {
+  const r = await db.query<{ present: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'specs' AND column_name = 'pattern_embedding'
+     ) AS present`,
+  );
+  const present = r.rows[0]?.present === true;
+  if (!present && !warnedMissingPatternCols) {
+    warnedMissingPatternCols = true;
+    console.warn(
+      "[knowledge] specs.pattern_embedding is missing — persisting core knowledge " +
+        "WITHOUT pattern embeddings, and Global Pattern Retrieval is disabled. " +
+        "Run `npm run knowledge:migrate` to enable it.",
+    );
+  }
+  return present;
+}
+
 // ── Writes (run inside one transaction, owned by ingestRun) ──────────────────
 
 /** Persist an extracted run + its raw report. Idempotent by `runId`. */
@@ -65,23 +96,50 @@ export async function persistRun(
     run.runId,
   ]);
 
+  // Degrade gracefully when migration 0004 hasn't run: write the core spec row
+  // without the pattern columns rather than fail the whole transaction (D-guard).
+  const patternReady = await patternColumnsPresent(client);
   for (const s of ex.specs) {
-    await client.query(
-      `INSERT INTO specs(run_id, app_id, file, title, flow_id, content_hash, reused, tokens, embedding, embedding_model)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::vector,$10)`,
-      [
-        run.runId,
-        appId,
-        s.file,
-        s.title,
-        s.flowId,
-        s.contentHash,
-        s.reused,
-        s.tokens,
-        toSqlVector(s.embedding),
-        s.embeddingModel ?? null,
-      ],
-    );
+    if (patternReady) {
+      await client.query(
+        `INSERT INTO specs(run_id, app_id, file, title, flow_id, content_hash, reused, tokens,
+                           embedding, embedding_model, pattern_text, pattern_embedding, pattern_model)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::vector,$10,$11,$12::vector,$13)`,
+        [
+          run.runId,
+          appId,
+          s.file,
+          s.title,
+          s.flowId,
+          s.contentHash,
+          s.reused,
+          s.tokens,
+          toSqlVector(s.embedding),
+          s.embeddingModel ?? null,
+          s.patternText ?? null,
+          toSqlVector(s.patternEmbedding),
+          s.patternModel ?? null,
+        ],
+      );
+    } else {
+      await client.query(
+        `INSERT INTO specs(run_id, app_id, file, title, flow_id, content_hash, reused, tokens,
+                           embedding, embedding_model)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::vector,$10)`,
+        [
+          run.runId,
+          appId,
+          s.file,
+          s.title,
+          s.flowId,
+          s.contentHash,
+          s.reused,
+          s.tokens,
+          toSqlVector(s.embedding),
+          s.embeddingModel ?? null,
+        ],
+      );
+    }
   }
   for (const f of ex.flows) {
     await client.query(
@@ -306,6 +364,25 @@ export async function embeddingForHash(
   return res.rowCount ? parseSqlVector(res.rows[0].embedding) : null;
 }
 
+/**
+ * PROTOTYPE: cached pattern embedding for a content hash + model — mirrors
+ * embeddingForHash but on the pattern_embedding column (avoids re-embedding the
+ * abstracted intent of an unchanged spec).
+ */
+export async function patternEmbeddingForHash(
+  pool: Pool,
+  contentHash: string,
+  model: string,
+): Promise<number[] | null> {
+  const res = await pool.query<{ embedding: string | null }>(
+    `SELECT pattern_embedding::text AS embedding FROM specs
+      WHERE content_hash = $1 AND pattern_model = $2 AND pattern_embedding IS NOT NULL
+      LIMIT 1`,
+    [contentHash, model],
+  );
+  return res.rowCount ? parseSqlVector(res.rows[0].embedding) : null;
+}
+
 /** k nearest specs to a query embedding by cosine (HNSW), app-scoped (R6). */
 export async function findNearestSpecs(
   pool: Pool,
@@ -335,6 +412,77 @@ export async function findNearestSpecs(
     runId: r.run_id,
     file: r.file,
     title: r.title,
+    score: 1 - Number(r.dist),
+  }));
+}
+
+/**
+ * PROTOTYPE — Global pattern-retrieval tier. k nearest specs to a query embedding
+ * by cosine (HNSW) ACROSS ALL apps EXCEPT the current one, restricted to specs
+ * whose last run PASSED. Unlike findNearestSpecs (app-scoped, R6), this crosses
+ * the app boundary on purpose — but only to surface TITLES as inspiration; the
+ * caller never copies these specs' source forward (that would run another app's
+ * selectors). Passing-only so we never propagate a known-broken pattern.
+ *
+ * Matches on the ABSTRACTED pattern_embedding (entities stripped → workflow shape).
+ * The query vector MUST likewise be the abstracted scenario embedding — comparing
+ * an abstracted query against a concrete embedding would mix two vector spaces and
+ * is never done. Rows with no pattern_embedding (not yet backfilled) are simply
+ * excluded — run the backfill to enrol legacy specs; until then they don't
+ * participate, which is correct (better absent than matched in the wrong space).
+ *
+ * Perf note (prototype): the `app_id <> $1` + passing EXISTS predicates are
+ * applied alongside the HNSW order, which can force over-fetch on the index. For
+ * production, prefer a partial HNSW index on passing specs or a per-call
+ * candidate cap; fine at prototype scale.
+ */
+export async function findGlobalPatternSpecs(
+  pool: Pool,
+  excludeAppId: string,
+  queryEmbedding: number[],
+  k: number,
+): Promise<
+  {
+    appId: string;
+    runId: string;
+    file: string;
+    title: string | null;
+    flowId: string | null;
+    score: number;
+  }[]
+> {
+  const q = toSqlVector(queryEmbedding);
+  if (!q) return [];
+  const res = await pool.query<{
+    app_id: string;
+    run_id: string;
+    file: string;
+    title: string | null;
+    flow_id: string | null;
+    dist: string;
+  }>(
+    `SELECT s.app_id, s.run_id, s.file, s.title, s.flow_id,
+            (s.pattern_embedding <=> $2::vector) AS dist
+       FROM specs s
+      WHERE s.app_id <> $1
+        AND s.reused = false
+        AND s.pattern_embedding IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM test_results tr
+           WHERE tr.run_id = s.run_id AND tr.file = s.file
+             AND tr.outcome IN ('passed', 'healed')
+        )
+      ORDER BY s.pattern_embedding <=> $2::vector
+      LIMIT $3`,
+    [excludeAppId, q, k],
+  );
+  // cosine distance → similarity (normalized vectors): sim = 1 − distance.
+  return res.rows.map((r) => ({
+    appId: r.app_id,
+    runId: r.run_id,
+    file: r.file,
+    title: r.title,
+    flowId: r.flow_id,
     score: 1 - Number(r.dist),
   }));
 }

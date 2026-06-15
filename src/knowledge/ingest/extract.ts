@@ -4,6 +4,7 @@ import { norm, significantTokens } from "../../coverage/coverage";
 import { extractTitle, parsePlanScenarios } from "../../validator/validate";
 import { normalizeOrigin } from "../appId";
 import { REUSE_MARKER } from "../constants";
+import { patternTextFor } from "../embeddings/abstractIntent";
 import type { HealingEvent } from "../types";
 
 // Normalize a RunReport into knowledge-base rows (Spec R3). DEFENSIVE: any
@@ -27,11 +28,19 @@ export interface ExtractedRun {
     tokens: string[];
     /** Text embedded for semantic match (title + step comments) — Phase 2 (D5). */
     intentText: string;
+    /**
+     * PROTOTYPE: abstracted intent (app-specific entities stripped) embedded into
+     * pattern_embedding for the cross-app pattern tier — distinct from intentText.
+     */
+    patternText: string;
     /** True when this spec was copied forward from a prior run (carries the marker). */
     reused: boolean;
     /** Embedding + model, populated by ingestRun (best-effort); null if absent. */
     embedding?: number[] | null;
     embeddingModel?: string | null;
+    /** PROTOTYPE: pattern embedding + model (best-effort); null if absent. */
+    patternEmbedding?: number[] | null;
+    patternModel?: string | null;
   }[];
   flows: { appId: string; flowId: string; name: string }[];
   planScenarios: {
@@ -134,6 +143,8 @@ export function extractRun(report: RunReport): ExtractedRun {
         contentHash: sha1(s.code ?? ""),
         tokens,
         intentText,
+        // PROTOTYPE: abstracted intent for cross-app matching (R-pattern).
+        patternText: patternTextFor(intentText),
         reused: (s.code ?? "").includes(REUSE_MARKER),
       };
     });

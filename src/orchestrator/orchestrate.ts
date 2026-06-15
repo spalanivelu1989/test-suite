@@ -29,7 +29,11 @@ import {
   validateTests,
   type StageDeps,
 } from "./stages";
-import { createKnowledgeService, type KnowledgeService } from "../knowledge";
+import {
+  createKnowledgeService,
+  type KnowledgeEvent,
+  type KnowledgeService,
+} from "../knowledge";
 import { createBusinessContextService } from "../knowledge/business/service";
 import { loadAuthFromEnv } from "../auth/credentials";
 import { captureHealDeltas } from "../knowledge/heal/captureHeal";
@@ -96,6 +100,33 @@ async function collectHealingPrecedents(
 }
 
 /**
+ * Map a Knowledge Layer event to a run-stream progress line (pure, T-testable).
+ * Returns null for events that should NOT surface on the run stream:
+ *  - `decision` is already emitted by the Designer stage ("🧠 Coverage decisions").
+ *  - precedents / playbooks / disabled / error are internal telemetry.
+ * `patterns` is bridged so the Global Pattern tier's contribution is visible (it
+ * only fires when there were "new" scenarios for it to assist).
+ */
+export function knowledgeProgress(
+  e: KnowledgeEvent,
+): { stage: ProgressEvent["stage"]; message: string } | null {
+  switch (e.kind) {
+    case "ingested":
+      return {
+        stage: "done",
+        message: `Knowledge: ingested run (${e.flows} flow(s))`,
+      };
+    case "patterns":
+      return {
+        stage: "generating",
+        message: `🌐 Global patterns: ${e.hints} cross-app hint(s) for ${e.scenarios} new scenario(s)`,
+      };
+    default:
+      return null;
+  }
+}
+
+/**
  * T17: run the four-agent pipeline (Discoverer → Designer → Evolver → Reporter) for
  * one URL, emitting per-stage progress, and produce the rich RunReport (R12).
  */
@@ -151,8 +182,8 @@ export async function runPipeline(
     deps.knowledge ??
     createKnowledgeService({
       onEvent: (e) => {
-        if (e.kind === "ingested")
-          emit("done", `Knowledge: ingested run (${e.flows} flow(s))`);
+        const p = knowledgeProgress(e);
+        if (p) emit(p.stage, p.message);
       },
     });
   // Authored OKF business context (read from `business-context/`); cold when the dir

@@ -1,11 +1,18 @@
 import type { Pool } from "pg";
 import { normalizeOrigin } from "./appId";
 import { buildDesignerPack } from "./assemble/contextPack";
+import { patternTextFor } from "./embeddings/abstractIntent";
 import { type Embedder, LocalEmbedder } from "./embeddings/embed";
 import { ingestRun as doIngest } from "./ingest/ingestRun";
 import { signatureTokens } from "./heal/signature";
 import { getAppProfile, getCoverageMap } from "./retrieve/appProfile";
 import { decideForSpecs } from "./retrieve/coverageDecision";
+import {
+  mergePatternHints,
+  scenariosNeedingPatterns,
+  selectGlobalPatterns,
+  PATTERN_K,
+} from "./retrieve/globalPatterns";
 import {
   deriveLocatorHints,
   selectPrecedents,
@@ -13,6 +20,7 @@ import {
 import { withKb } from "./safety";
 import { closePool, getPool } from "./store/db";
 import {
+  findGlobalPatternSpecs,
   findNearestSpecs,
   readHealProvenanceTrend,
   readKnowledgeReuseTrend,
@@ -34,6 +42,7 @@ import type {
   KnowledgeReuseTrendPoint,
   KnowledgeEvent,
   KnowledgeService,
+  PatternHint,
   Playbook,
   PlaybookScope,
   ScenarioInput,
@@ -227,10 +236,21 @@ class PgKnowledgeService implements KnowledgeService {
         const heals = await readSuccessfulHealingEvents(this.pool, appId, null);
         const locatorHints = deriveLocatorHints(heals);
         const pack = buildDesignerPack(decisions, specs);
+        // PROTOTYPE: cross-app workflow patterns for the `new` scenarios
+        // (flagged off by default → additive, byte-identical when disabled).
+        const patterns = await this.globalPatterns(appId, decisions, withEmb);
         // Phase 3: trusted distilled principles, global + app-scoped (R12).
         const playbooks = await this.trustedPlaybooks(appId);
+        const designer =
+          locatorHints.length || patterns.length
+            ? {
+                ...pack,
+                ...(locatorHints.length ? { locatorHints } : {}),
+                ...(patterns.length ? { patterns } : {}),
+              }
+            : pack;
         return {
-          designer: locatorHints.length ? { ...pack, locatorHints } : pack,
+          designer,
           ...(playbooks.length ? { playbooks } : {}),
         };
       },
@@ -244,9 +264,62 @@ class PgKnowledgeService implements KnowledgeService {
         summarize: (pack) => ({
           ...tally(pack.designer?.decisions ?? []),
           locatorHints: pack.designer?.locatorHints?.length ?? 0,
+          patterns: pack.designer?.patterns?.length ?? 0,
           playbooks: pack.playbooks?.length ?? 0,
         }),
       },
+    );
+  }
+
+  /**
+   * PROTOTYPE — Global pattern-retrieval tier. For each scenario decided `new`,
+   * find similar PASSING scenarios on OTHER apps (cross-app HNSW) and return them
+   * as advisory pattern hints. Gated by KNOWLEDGE_GLOBAL_PATTERNS (default off) so
+   * it's strictly additive. Embedder-dependent: lexical-only mode yields nothing.
+   * Best-effort — a failed neighbor read drops to [] without touching decisions.
+   */
+  private async globalPatterns(
+    appId: string,
+    decisions: CoverageDecision[],
+    withEmb: ScenarioInput[],
+  ): Promise<PatternHint[]> {
+    if (process.env.KNOWLEDGE_GLOBAL_PATTERNS !== "true") return [];
+    const targets = scenariosNeedingPatterns(decisions, withEmb);
+    if (targets.length === 0) return [];
+    // Best-effort: a failed neighbor read degrades to [] WITHOUT discarding the
+    // (valuable) reuse decisions assembleContext already computed.
+    return withKb<PatternHint[]>(
+      "globalPatterns",
+      async () => {
+        // Query the ABSTRACTED space: re-embed each scenario name with the same
+        // entity-stripping used for pattern_embedding (sc.embedding is the raw
+        // name vector, which lives in the concrete space — wrong for this tier).
+        const patternEmbs = await this.embedTexts(
+          targets.map((sc) => patternTextFor(sc.name)),
+        );
+        const perScenario = await Promise.all(
+          targets.map(async (sc, i) => {
+            const emb = patternEmbs[i];
+            if (!emb) return [];
+            const rows = await findGlobalPatternSpecs(
+              this.pool,
+              appId,
+              emb,
+              PATTERN_K,
+            );
+            return selectGlobalPatterns(sc.name, rows);
+          }),
+        );
+        const hints = mergePatternHints(perScenario);
+        this.onEvent?.({
+          kind: "patterns",
+          scenarios: targets.length,
+          hints: hints.length,
+        });
+        return hints;
+      },
+      [],
+      { onError: this.onError },
     );
   }
 

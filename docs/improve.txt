@@ -1,0 +1,1 @@
+today the transferred signal is the pattern title. That's a strong coverage/recall nudge, but if you wanted the generator to inherit the actual step structure of proven tests, that's the richer-transfer enhancement we flagged earlier (injecting abstracted steps, not just the title) — a clear next step if you find the title-level hints aren't specific enough in practice.

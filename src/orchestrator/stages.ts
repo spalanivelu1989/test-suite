@@ -511,6 +511,15 @@ async function applyDesignerKnowledge(
       ...gen.locatorHints.map((h) => `- ${h}`),
     );
   }
+  // PROTOTYPE: cross-app workflow patterns — few-shot inspiration for the `new`
+  // scenarios, drawn from similar PASSING tests on other apps. Advisory only:
+  // adapt the pattern to THIS app's DOM; never assume selectors/routes carry over.
+  if (gen.patterns?.length) {
+    lines.push(
+      "SIMILAR WORKFLOWS TESTED ELSEWHERE — reuse the testing PATTERN, not the selectors:",
+      ...gen.patterns.map((p) => `- "${p.patternTitle}" (from ${p.sourceApp})`),
+    );
+  }
   // Phase 3: trusted distilled principles (R12, budgeted).
   if (playbookBlock) lines.push("\n\n" + playbookBlock);
   return lines;

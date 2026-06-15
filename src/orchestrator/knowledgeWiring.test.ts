@@ -10,6 +10,7 @@ import type {
   RunAgentResult,
 } from "../agents/runtime";
 import type { KnowledgeService } from "../knowledge";
+import { knowledgeProgress } from "./orchestrate";
 import { designTests, discoverTests } from "./stages";
 
 const fakeAgent: AgentDef = {
@@ -166,6 +167,35 @@ test("T15: a reuse decision skips regeneration and copies the prior spec (D4)", 
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
+});
+
+test("knowledgeProgress bridges the Global Pattern tier onto the run stream", () => {
+  // The patterns event becomes a visible "generating"-stage line.
+  assert.deepEqual(
+    knowledgeProgress({ kind: "patterns", scenarios: 3, hints: 2 }),
+    {
+      stage: "generating",
+      message: "🌐 Global patterns: 2 cross-app hint(s) for 3 new scenario(s)",
+    },
+  );
+  // ingested stays bridged (existing behavior).
+  assert.equal(
+    knowledgeProgress({
+      kind: "ingested",
+      appId: "a",
+      runId: "r",
+      flows: 4,
+    })?.stage,
+    "done",
+  );
+  // `decision` is surfaced by the Designer stage already → not re-bridged here.
+  assert.equal(knowledgeProgress({ kind: "decision", reuse: 8, new: 0 }), null);
+  // Internal telemetry is not bridged to the run stream.
+  assert.equal(knowledgeProgress({ kind: "playbooks", injected: 8 }), null);
+  assert.equal(
+    knowledgeProgress({ kind: "error", op: "x", message: "y" }),
+    null,
+  );
 });
 
 test("T19: a throwing KnowledgeService never fails the stage (N3)", async () => {
