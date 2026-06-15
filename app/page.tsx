@@ -31,6 +31,7 @@ import {
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors, AWS_COLORS } from "@/app/theme/aws";
 import { ConsoleLayout } from "@/app/components/ConsoleLayout";
+import { PatternExplorer } from "@/app/explore/PatternExplorer";
 import { LaunchWizard } from "@/app/components/LaunchWizard";
 import { TestRunsTable } from "@/app/components/TestRunsTable";
 import { TestReportView } from "@/app/components/TestReportView";
@@ -44,6 +45,24 @@ export default function HomePage() {
 
   // Tab State
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (
+      tab &&
+      [
+        "dashboard",
+        "test-runs",
+        "test-report",
+        "security-groups",
+        "key-pairs",
+        "explore",
+      ].includes(tab)
+    ) {
+      setActiveTab(tab);
+    }
+  }, []);
 
   // Runs State
   const [runs, setRuns] = useState<Run[]>([]);
@@ -562,6 +581,11 @@ export default function HomePage() {
           runs={runs}
           onSelectRun={(run) => setSelectedRun(run)}
         />
+      </Box>
+
+      {/* ==================== PATTERN EXPLORER TAB ==================== */}
+      <Box display={activeTab === "explore" ? "block" : "none"} width="100%">
+        <PatternExplorer />
       </Box>
 
       {/* ==================== SECURITY GROUPS TAB ==================== */}

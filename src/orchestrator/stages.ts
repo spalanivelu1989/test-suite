@@ -514,10 +514,18 @@ async function applyDesignerKnowledge(
   // PROTOTYPE: cross-app workflow patterns — few-shot inspiration for the `new`
   // scenarios, drawn from similar PASSING tests on other apps. Advisory only:
   // adapt the pattern to THIS app's DOM; never assume selectors/routes carry over.
+  // Each hint carries the matched test's ABSTRACTED workflow (entity-stripped, no
+  // selectors) as a skeleton the Designer can re-step against this app's UI.
   if (gen.patterns?.length) {
     lines.push(
-      "SIMILAR WORKFLOWS TESTED ELSEWHERE — reuse the testing PATTERN, not the selectors:",
-      ...gen.patterns.map((p) => `- "${p.patternTitle}" (from ${p.sourceApp})`),
+      "SIMILAR WORKFLOWS TESTED ELSEWHERE — reuse the testing PATTERN, not the selectors. " +
+        "Each shows the abstracted steps a passing test on another app used; adapt the " +
+        "sequence to THIS app's DOM, re-deriving every selector/URL from the live page:",
+      ...gen.patterns.map((p) =>
+        p.workflow
+          ? `- "${p.patternTitle}" (from ${p.sourceApp})\n    workflow: ${p.workflow}`
+          : `- "${p.patternTitle}" (from ${p.sourceApp})`,
+      ),
     );
   }
   // Phase 3: trusted distilled principles (R12, budgeted).

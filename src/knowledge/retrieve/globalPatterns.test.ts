@@ -25,11 +25,16 @@ function row(
 }
 
 test("selectGlobalPatterns keeps only candidates at/above the relevance floor", () => {
-  const hints = selectGlobalPatterns("Login with valid credentials", [
-    row("shop.example", "Sign in with email and password", 0.91),
-    row("bank.example", "Authenticate returning user", PATTERN_RELEVANCE),
-    row("blog.example", "Submit contact form", 0.4), // unrelated → dropped
-  ]);
+  // Explicit k so this exercises the FLOOR, not the (top-1) default cap.
+  const hints = selectGlobalPatterns(
+    "Login with valid credentials",
+    [
+      row("shop.example", "Sign in with email and password", 0.91),
+      row("bank.example", "Authenticate returning user", PATTERN_RELEVANCE),
+      row("blog.example", "Submit contact form", 0.4), // unrelated → dropped
+    ],
+    { k: 3 },
+  );
   assert.equal(hints.length, 2);
   assert.deepEqual(
     hints.map((h) => h.patternTitle),
@@ -53,6 +58,16 @@ test("selectGlobalPatterns drops untitled rows and caps to k", () => {
   );
   assert.equal(hints.length, 2);
   assert.ok(hints.every((h) => h.patternTitle));
+});
+
+test("by default only the single top-scoring match is passed (PATTERN_K = 1)", () => {
+  const hints = selectGlobalPatterns("Checkout", [
+    row("a", "Pay with card", 0.95),
+    row("c", "Complete purchase", 0.9),
+    row("d", "Place order", 0.88),
+  ]);
+  assert.equal(hints.length, 1);
+  assert.equal(hints[0].patternTitle, "Pay with card"); // highest score wins
 });
 
 test("mergePatternHints dedupes by source+title, keeps the best score, caps to budget", () => {

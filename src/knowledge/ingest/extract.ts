@@ -33,6 +33,11 @@ export interface ExtractedRun {
      * pattern_embedding for the cross-app pattern tier — distinct from intentText.
      */
     patternText: string;
+    /**
+     * The TITLE on its own — embedded into title_embedding for hybrid reuse (0005).
+     * Symmetric with the title-only scenario query, unlike intentText (+steps).
+     */
+    titleText: string;
     /** True when this spec was copied forward from a prior run (carries the marker). */
     reused: boolean;
     /** Embedding + model, populated by ingestRun (best-effort); null if absent. */
@@ -41,6 +46,9 @@ export interface ExtractedRun {
     /** PROTOTYPE: pattern embedding + model (best-effort); null if absent. */
     patternEmbedding?: number[] | null;
     patternModel?: string | null;
+    /** Hybrid reuse (0005): title embedding + model (best-effort); null if absent. */
+    titleEmbedding?: number[] | null;
+    titleModel?: string | null;
   }[];
   flows: { appId: string; flowId: string; name: string }[];
   planScenarios: {
@@ -145,6 +153,10 @@ export function extractRun(report: RunReport): ExtractedRun {
         intentText,
         // PROTOTYPE: abstracted intent for cross-app matching (R-pattern).
         patternText: patternTextFor(intentText),
+        // Hybrid reuse (0005): the title alone — symmetric with the title-only
+        // scenario query. Empty when the spec has no title → embedTitles skips it
+        // and the decision falls back to intentText's embedding.
+        titleText: title ?? "",
         reused: (s.code ?? "").includes(REUSE_MARKER),
       };
     });

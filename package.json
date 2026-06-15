@@ -15,6 +15,7 @@
     "knowledge:migrate": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-migrate.ts",
     "knowledge:embed-backfill": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-embed-backfill.ts",
     "knowledge:pattern-backfill": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-pattern-backfill.ts",
+    "knowledge:title-backfill": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-title-backfill.ts",
     "knowledge:distill": "node --env-file-if-exists=.env.local --import tsx bin/knowledge-distill.ts",
     "knowledge:calibrate": "tsx bin/knowledge-calibrate.ts"
   },

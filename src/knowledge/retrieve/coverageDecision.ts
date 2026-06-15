@@ -33,6 +33,20 @@ export const REUSE_THRESHOLD = 0.8;
 // regenerates, so a near-miss never masks a coverage gap by skipping the test.
 export const SEM_REUSE = 0.82;
 
+// HYBRID semantic score (migration 0005). The query is always a bare title
+// (ScenarioInput.name); specs.embedding encodes title + step comments (D5), a
+// DIFFERENT space in which an exact-title query tops out ~0.79 — below SEM_REUSE,
+// so reuse never fired. We blend two cosines against the one title query:
+//   semTitle  = cos(query, spec.title_embedding)   symmetric → exact title ~1.0
+//   semIntent = cos(query, spec.embedding)          title+steps → disambiguates
+//   sem       = w·semTitle + (1−w)·semIntent
+// w=0.5 lifts exact matches to ~0.90 (clears 0.82) while structurally-similar but
+// DIFFERENT tests stay ~0.77 (below 0.82): their lower semIntent drags the blend
+// down. Backward-compatible — a spec with no step comments has
+// title_embedding == embedding, so the blend equals the value SEM_REUSE was tuned
+// against; a spec with no title_embedding falls back to semIntent for both terms.
+export const SEM_TITLE_WEIGHT = 0.5;
+
 /** Overlap coefficient — robust to length asymmetry (short scenario vs long spec). */
 export function overlapCoefficient(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 || b.size === 0) return 0;
@@ -55,6 +69,21 @@ function semScore(
 }
 
 /**
+ * Hybrid semantic similarity of a title query to a spec (see SEM_TITLE_WEIGHT).
+ * Blends the symmetric title cosine with the richer title+steps cosine. When the
+ * spec has no title_embedding (un-backfilled), semTitle falls back to semIntent,
+ * so the blend reduces to today's pure-`embedding` score.
+ */
+function hybridSem(scEmb: number[] | null | undefined, spec: SpecRow): number {
+  const semIntent = semScore(scEmb, spec.embedding);
+  const semTitle =
+    spec.titleEmbedding && spec.titleEmbedding.length
+      ? semScore(scEmb, spec.titleEmbedding)
+      : semIntent;
+  return SEM_TITLE_WEIGHT * semTitle + (1 - SEM_TITLE_WEIGHT) * semIntent;
+}
+
+/**
  * Pure core (T12-testable without a DB): decide each scenario against existing
  * specs using both lexical tokens and (optional) embeddings.
  */
@@ -72,7 +101,7 @@ export function decideForSpecs(
     let bestCombined = -1;
     for (const s of specs) {
       const lex = overlapCoefficient(scTokens, new Set(s.tokens));
-      const sem = semScore(sc.embedding, s.embedding);
+      const sem = hybridSem(sc.embedding, s);
       const combined = Math.max(lex, sem);
       if (combined > bestCombined) {
         bestCombined = combined;

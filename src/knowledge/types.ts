@@ -218,6 +218,12 @@ export interface PatternHint {
   flowId?: string;
   /** Cosine similarity of the planned scenario to the pattern, 0..1. */
   score: number;
+  /**
+   * The ABSTRACTED workflow of the matched spec (title + step comments with
+   * app-specific entities stripped) — a selector-free skeleton the Designer can
+   * adapt. Undefined when the source spec predates pattern_text. See pattern_text.
+   */
+  workflow?: string;
 }
 
 /** Designer-facing half of a context pack. */

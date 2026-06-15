@@ -61,6 +61,35 @@ export async function patternColumnsPresent(
   return present;
 }
 
+let warnedMissingTitleCols = false;
+
+/**
+ * True when migration 0005 has been applied (specs.title_embedding exists). Same
+ * graceful-degradation guard as patternColumnsPresent: a DB at 0004-but-not-0005
+ * still persists core + pattern knowledge, just without the hybrid title term —
+ * the reuse decision then falls back to the title+steps `embedding` alone.
+ */
+export async function titleColumnsPresent(
+  db: Pool | PoolClient,
+): Promise<boolean> {
+  const r = await db.query<{ present: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'specs' AND column_name = 'title_embedding'
+     ) AS present`,
+  );
+  const present = r.rows[0]?.present === true;
+  if (!present && !warnedMissingTitleCols) {
+    warnedMissingTitleCols = true;
+    console.warn(
+      "[knowledge] specs.title_embedding is missing — hybrid reuse matching is " +
+        "disabled (falling back to title+steps embedding). " +
+        "Run `npm run knowledge:migrate` to enable it.",
+    );
+  }
+  return present;
+}
+
 // ── Writes (run inside one transaction, owned by ingestRun) ──────────────────
 
 /** Persist an extracted run + its raw report. Idempotent by `runId`. */
@@ -96,50 +125,61 @@ export async function persistRun(
     run.runId,
   ]);
 
-  // Degrade gracefully when migration 0004 hasn't run: write the core spec row
-  // without the pattern columns rather than fail the whole transaction (D-guard).
+  // Degrade gracefully when a migration hasn't run: assemble the spec INSERT from
+  // only the columns the schema actually has, rather than fail the whole
+  // transaction on an unknown column (D-guard). 0004 adds the pattern columns,
+  // 0005 the title column; each tier is appended only when present.
   const patternReady = await patternColumnsPresent(client);
+  const titleReady = await titleColumnsPresent(client);
+  const VECTOR_COLS = new Set([
+    "embedding",
+    "pattern_embedding",
+    "title_embedding",
+  ]);
   for (const s of ex.specs) {
+    const cols: string[] = [
+      "run_id",
+      "app_id",
+      "file",
+      "title",
+      "flow_id",
+      "content_hash",
+      "reused",
+      "tokens",
+      "embedding",
+      "embedding_model",
+    ];
+    const vals: unknown[] = [
+      run.runId,
+      appId,
+      s.file,
+      s.title,
+      s.flowId,
+      s.contentHash,
+      s.reused,
+      s.tokens,
+      toSqlVector(s.embedding),
+      s.embeddingModel ?? null,
+    ];
     if (patternReady) {
-      await client.query(
-        `INSERT INTO specs(run_id, app_id, file, title, flow_id, content_hash, reused, tokens,
-                           embedding, embedding_model, pattern_text, pattern_embedding, pattern_model)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::vector,$10,$11,$12::vector,$13)`,
-        [
-          run.runId,
-          appId,
-          s.file,
-          s.title,
-          s.flowId,
-          s.contentHash,
-          s.reused,
-          s.tokens,
-          toSqlVector(s.embedding),
-          s.embeddingModel ?? null,
-          s.patternText ?? null,
-          toSqlVector(s.patternEmbedding),
-          s.patternModel ?? null,
-        ],
-      );
-    } else {
-      await client.query(
-        `INSERT INTO specs(run_id, app_id, file, title, flow_id, content_hash, reused, tokens,
-                           embedding, embedding_model)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::vector,$10)`,
-        [
-          run.runId,
-          appId,
-          s.file,
-          s.title,
-          s.flowId,
-          s.contentHash,
-          s.reused,
-          s.tokens,
-          toSqlVector(s.embedding),
-          s.embeddingModel ?? null,
-        ],
+      cols.push("pattern_text", "pattern_embedding", "pattern_model");
+      vals.push(
+        s.patternText ?? null,
+        toSqlVector(s.patternEmbedding),
+        s.patternModel ?? null,
       );
     }
+    if (titleReady) {
+      cols.push("title_embedding", "title_model");
+      vals.push(toSqlVector(s.titleEmbedding), s.titleModel ?? null);
+    }
+    const placeholders = cols.map(
+      (c, i) => `$${i + 1}${VECTOR_COLS.has(c) ? "::vector" : ""}`,
+    );
+    await client.query(
+      `INSERT INTO specs(${cols.join(", ")}) VALUES (${placeholders.join(", ")})`,
+      vals,
+    );
   }
   for (const f of ex.flows) {
     await client.query(
@@ -309,8 +349,14 @@ export interface SpecRow {
   flowId: string | null;
   tokens: string[];
   lastOutcome: string | null;
-  /** Phase 2: semantic embedding, or null when not yet embedded. */
+  /** Phase 2: semantic embedding (title + step comments), or null when absent. */
   embedding: number[] | null;
+  /**
+   * Hybrid reuse (migration 0005): the TITLE embedded on its own, symmetric with
+   * the title-only scenario query. Null until backfilled → the decision falls back
+   * to `embedding` for both blend terms (today's behavior). See SEM_TITLE_WEIGHT.
+   */
+  titleEmbedding?: number[] | null;
 }
 
 /** Non-reused specs for an app with their last outcome + embedding — for decisions. */
@@ -326,8 +372,10 @@ export async function readSpecsForApp(
     tokens: string[];
     last_outcome: string | null;
     embedding: string | null;
+    title_embedding: string | null;
   }>(
     `SELECT s.run_id, s.file, s.title, s.flow_id, s.tokens, s.embedding::text AS embedding,
+            s.title_embedding::text AS title_embedding,
             (SELECT tr.outcome FROM test_results tr
               WHERE tr.run_id = s.run_id AND tr.file = s.file LIMIT 1) AS last_outcome
        FROM specs s
@@ -343,6 +391,7 @@ export async function readSpecsForApp(
     tokens: r.tokens ?? [],
     lastOutcome: r.last_outcome,
     embedding: parseSqlVector(r.embedding),
+    titleEmbedding: parseSqlVector(r.title_embedding),
   }));
 }
 
@@ -377,6 +426,21 @@ export async function patternEmbeddingForHash(
   const res = await pool.query<{ embedding: string | null }>(
     `SELECT pattern_embedding::text AS embedding FROM specs
       WHERE content_hash = $1 AND pattern_model = $2 AND pattern_embedding IS NOT NULL
+      LIMIT 1`,
+    [contentHash, model],
+  );
+  return res.rowCount ? parseSqlVector(res.rows[0].embedding) : null;
+}
+
+/** Like embeddingForHash, on the title_embedding column (hybrid reuse, 0005). */
+export async function titleEmbeddingForHash(
+  pool: Pool,
+  contentHash: string,
+  model: string,
+): Promise<number[] | null> {
+  const res = await pool.query<{ embedding: string | null }>(
+    `SELECT title_embedding::text AS embedding FROM specs
+      WHERE content_hash = $1 AND title_model = $2 AND title_embedding IS NOT NULL
       LIMIT 1`,
     [contentHash, model],
   );
@@ -449,6 +513,7 @@ export async function findGlobalPatternSpecs(
     title: string | null;
     flowId: string | null;
     score: number;
+    patternText: string | null;
   }[]
 > {
   const q = toSqlVector(queryEmbedding);
@@ -460,8 +525,9 @@ export async function findGlobalPatternSpecs(
     title: string | null;
     flow_id: string | null;
     dist: string;
+    pattern_text: string | null;
   }>(
-    `SELECT s.app_id, s.run_id, s.file, s.title, s.flow_id,
+    `SELECT s.app_id, s.run_id, s.file, s.title, s.flow_id, s.pattern_text,
             (s.pattern_embedding <=> $2::vector) AS dist
        FROM specs s
       WHERE s.app_id <> $1
@@ -484,6 +550,7 @@ export async function findGlobalPatternSpecs(
     title: r.title,
     flowId: r.flow_id,
     score: 1 - Number(r.dist),
+    patternText: r.pattern_text,
   }));
 }
 

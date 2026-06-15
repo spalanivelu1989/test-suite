@@ -6,6 +6,8 @@ import {
   patternColumnsPresent,
   patternEmbeddingForHash,
   persistRun,
+  titleColumnsPresent,
+  titleEmbeddingForHash,
 } from "../store/repo";
 import { type ExtractedRun, extractRun } from "./extract";
 
@@ -38,6 +40,9 @@ export async function ingestRun(
   // (persistRun would drop the columns anyway) — keeps the degraded path cheap.
   if (embedder && (await patternColumnsPresent(pool)))
     await embedPatterns(pool, ex, embedder);
+  // Hybrid reuse (0005): embed the title on its own, same gating as patterns.
+  if (embedder && (await titleColumnsPresent(pool)))
+    await embedTitles(pool, ex, embedder);
   if (embedder) await embedHealingSignatures(ex, embedder);
 
   const client = await pool.connect();
@@ -139,6 +144,50 @@ async function embedPatterns(
     // Best-effort: leave nulls → those specs sit out the cross-app tier.
     console.error(
       `[knowledge] pattern-embed failed (falls back to embedding): ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+}
+
+/**
+ * Hybrid reuse (0005): embed each spec's TITLE on its own into title_embedding —
+ * mirrors embedSpecs/embedPatterns (cache-by-hash, best-effort) but on titleText.
+ * Specs with no title (titleText === "") are skipped, leaving title_embedding null
+ * so the decision falls back to the title+steps `embedding` for that spec.
+ */
+async function embedTitles(
+  pool: Pool,
+  ex: ExtractedRun,
+  embedder: Embedder,
+): Promise<void> {
+  const pending: { idx: number; text: string }[] = [];
+  for (let i = 0; i < ex.specs.length; i++) {
+    if (!ex.specs[i].titleText) continue; // untitled → no symmetric title vector
+    const cached = await titleEmbeddingForHash(
+      pool,
+      ex.specs[i].contentHash,
+      embedder.id,
+    ).catch(() => null);
+    if (cached) {
+      ex.specs[i].titleEmbedding = cached;
+      ex.specs[i].titleModel = embedder.id;
+    } else {
+      pending.push({ idx: i, text: ex.specs[i].titleText });
+    }
+  }
+  if (pending.length === 0) return;
+  try {
+    const vecs = await embedder.embed(pending.map((p) => p.text));
+    pending.forEach((p, j) => {
+      const v = vecs[j] ?? null;
+      ex.specs[p.idx].titleEmbedding = v;
+      ex.specs[p.idx].titleModel = v ? embedder.id : null;
+    });
+  } catch (err) {
+    // Best-effort: leave nulls → hybrid falls back to the title+steps embedding.
+    console.error(
+      `[knowledge] title-embed failed (falls back to embedding): ${
         err instanceof Error ? err.message : String(err)
       }`,
     );

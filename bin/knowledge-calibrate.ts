@@ -39,6 +39,11 @@ async function main() {
     tokens: [...significantTokens(p.intent)],
     lastOutcome: "passed",
     embedding: intentVecs[i],
+    // Hybrid reuse (0005): the fixture intents have no step comments, so the
+    // title-only vector equals the intent vector — the blend then reduces to the
+    // pure-`embedding` score this set calibrated SEM_REUSE against. (On real
+    // specs, title_embedding differs from embedding and lifts exact matches.)
+    titleEmbedding: intentVecs[i],
   }));
 
   // Paraphrases (positives) + negatives.

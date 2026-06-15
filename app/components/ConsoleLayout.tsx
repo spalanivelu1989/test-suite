@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useLayoutEffect } from "react";
+
+// Run before paint on the client (so the persisted sidebar width is applied
+// before the first frame), but fall back to useEffect on the server to avoid the
+// SSR "useLayoutEffect does nothing" warning.
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import {
   Box,
   Flex,
@@ -19,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  DatabaseZap,
 } from "lucide-react";
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors, SIDEBAR_GRADIENT } from "@/app/theme/aws";
@@ -42,6 +49,34 @@ export function ConsoleLayout({
   const colors = getAWSColors(theme);
   const isDark = theme === "dark";
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Animate width only AFTER the persisted state is applied, so restoring a
+  // minimized sidebar on a fresh mount (e.g. navigating to Pattern Explorer)
+  // snaps instantly instead of flashing open and animating closed.
+  const [animateWidth, setAnimateWidth] = useState(false);
+
+  useIsomorphicLayoutEffect(() => {
+    try {
+      const saved = localStorage.getItem("sidebar-open");
+      if (saved !== null) {
+        setSidebarOpen(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    // Enable the width transition on the next frame — after the restored state
+    // has been committed (and painted) without animation.
+    const id = requestAnimationFrame(() => setAnimateWidth(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const handleToggleSidebar = (open: boolean) => {
+    setSidebarOpen(open);
+    try {
+      localStorage.setItem("sidebar-open", JSON.stringify(open));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Functional navigation items linked to app state
   const navItems = [
@@ -53,6 +88,7 @@ export function ConsoleLayout({
       badge: runningCount > 0 ? runningCount : undefined,
     },
     { id: "test-report", label: "Test Report", icon: ClipboardList },
+    { id: "explore", label: "Pattern Explorer", icon: DatabaseZap },
   ];
 
   return (
@@ -75,7 +111,9 @@ export function ConsoleLayout({
         flexDirection="column"
         flexShrink={0}
         overflowY="auto"
-        transition="width 0.22s cubic-bezier(0.4, 0, 0.2, 1)"
+        transition={
+          animateWidth ? "width 0.22s cubic-bezier(0.4, 0, 0.2, 1)" : "none"
+        }
         zIndex={100}
         h="100vh"
         position="sticky"
@@ -125,7 +163,7 @@ export function ConsoleLayout({
                   borderColor: "rgba(255,255,255,0.5)",
                 }}
                 transition="all 0.2s ease"
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => handleToggleSidebar(false)}
                 title="Collapse Sidebar"
               >
                 <ChevronLeft size={16} strokeWidth={2.5} />
@@ -150,7 +188,7 @@ export function ConsoleLayout({
                 borderColor: "rgba(255,255,255,0.5)",
               }}
               transition="all 0.2s ease"
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => handleToggleSidebar(true)}
               title="Expand Sidebar"
             >
               <ChevronRight size={16} strokeWidth={2.5} />
@@ -303,6 +341,7 @@ export function ConsoleLayout({
             {activeTab === "test-report" && "Test Report"}
             {activeTab === "security-groups" && "Security Groups"}
             {activeTab === "key-pairs" && "Key Pairs (API Keys)"}
+            {activeTab === "explore" && "Pattern Explorer"}
           </Text>
         </Flex>
 

@@ -24,9 +24,15 @@ import type { CoverageDecision, PatternHint, ScenarioInput } from "../types";
 
 /** Relevance floor for a cross-app pattern hint — deliberately below SEM_REUSE. */
 export const PATTERN_RELEVANCE = 0.7;
-/** Max hints surfaced per scenario, and overall, to keep the prompt bounded. */
-export const PATTERN_K = 3;
+/**
+ * Hints surfaced PER scenario: only the single top-scoring match above the floor
+ * is passed to the generator as reference (no runner-ups).
+ */
+export const PATTERN_K = 1;
+/** Overall cap across all `new` scenarios (one top match each), to bound the prompt. */
 export const PATTERN_BUDGET = 8;
+/** Cap each hint's abstracted-workflow skeleton so a long spec can't flood the prompt. */
+export const PATTERN_WORKFLOW_MAXLEN = 240;
 
 /** One cross-app candidate spec returned by the nearest-neighbor read. */
 export interface GlobalPatternRow {
@@ -37,6 +43,24 @@ export interface GlobalPatternRow {
   flowId: string | null;
   /** Cosine similarity to the query scenario, 0..1 (1 − HNSW distance). */
   score: number;
+  /** Abstracted workflow text (title + steps, entities stripped) — pattern_text. */
+  patternText?: string | null;
+}
+
+/**
+ * Trim an abstracted pattern_text into a compact, selector-free workflow skeleton
+ * for the Designer prompt: collapse whitespace and cap length on a word boundary.
+ */
+export function workflowSkeleton(
+  patternText: string | null | undefined,
+  maxLen = PATTERN_WORKFLOW_MAXLEN,
+): string | undefined {
+  const text = (patternText ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return undefined;
+  if (text.length <= maxLen) return text;
+  const cut = text.slice(0, maxLen);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
 /**
@@ -61,6 +85,7 @@ export function selectGlobalPatterns(
       sourceApp: c.appId,
       flowId: c.flowId ?? undefined,
       score: c.score,
+      workflow: workflowSkeleton(c.patternText),
     }));
 }
 
