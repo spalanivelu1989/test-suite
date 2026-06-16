@@ -1,12 +1,14 @@
 import { closeAllPools, getPool } from "../src/knowledge/store/db";
 
-// Remove leftover INTEGRATION-TEST apps from a Knowledge DB. The knowledge + distill
-// integration suites create disposable, randomly-named synthetic apps and never
-// clean up (they rely on unique origins for isolation). When those suites are run
-// against a real KNOWLEDGE_DATABASE_URL instead of the disposable `knowledge_test`
-// DB, the fixtures linger — and they are NOT inert: trusted GLOBAL playbooks
-// distilled by the distill tests get injected into real prompts, and the cross-app
-// pattern tier can surface the fake specs as hints. This script deletes them.
+// Remove leftover SYNTHETIC TEST apps from a Knowledge DB. Two sources:
+//   1. The knowledge + distill integration suites create disposable, randomly-named
+//      apps (kp-*/distill-*.example.com) and never clean up. Run against a real
+//      KNOWLEDGE_DATABASE_URL (not the disposable knowledge_test DB), the fixtures
+//      linger — and they are NOT inert: trusted GLOBAL playbooks distilled by the
+//      distill tests get injected into real prompts, and the cross-app pattern tier
+//      can surface the fake specs as hints.
+//   2. Throwaway API-test runs (curl POST /api/runs with x.com / example.com) that
+//      get ingested as real apps when the pipeline completes.
 //
 // SAFE BY DEFAULT: it only reports (a dry run). Pass --apply to actually delete.
 //
@@ -15,10 +17,17 @@ import { closeAllPools, getPool } from "../src/knowledge/store/db";
 //   # actually delete:
 //   KNOWLEDGE_DATABASE_URL=... npx tsx bin/knowledge-clean-test-apps.ts --apply
 
-// Synthetic origins these suites generate (see src/knowledge/integration.test.ts and
-// src/knowledge/distill/integration.test.ts). Tightly scoped to the *.example.com
-// fixtures so a real app can never match by accident.
-const PATTERNS = ["https://kp-%.example.com", "https://distill-%.example.com"];
+// SQL LIKE patterns. The kp-*/distill- entries use a `%` wildcard; the rest are
+// exact origins (no % or _), so LIKE matches them exactly — a real app can't match
+// by accident. example.com is IANA-reserved (never a real target); x.com is the
+// project's canonical unit-test fixture / API-test URL.
+const PATTERNS = [
+  "https://kp-%.example.com",
+  "https://distill-%.example.com",
+  "https://example.com",
+  "https://x.com",
+  "ftp://x.com",
+];
 
 // Every table that carries an app reference, child → parent, so explicit deletes
 // never trip a foreign key (we do not rely on ON DELETE CASCADE). `playbooks` keys

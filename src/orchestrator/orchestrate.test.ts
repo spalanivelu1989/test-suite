@@ -7,6 +7,7 @@ import { createClaudeClient } from "../claude/client";
 import type { RunAgentResult } from "../agents/runtime";
 import { createWorkspace } from "../agents/workspace";
 import type { PlaywrightJsonReport } from "../results/parse";
+import type { KnowledgeService } from "../knowledge";
 import type { ProgressEvent } from "../types";
 import { runPipeline } from "./orchestrate";
 
@@ -26,6 +27,30 @@ function narrativeClient() {
       },
     },
   });
+}
+
+// A disabled, no-op knowledge service so this UNIT test never touches a real DB.
+// Without it, runPipeline defaults to a live KnowledgeService (reads
+// KNOWLEDGE_DATABASE_URL) and would ingest this fake "https://x.com" run into
+// whatever DB is configured — polluting it on every `test:unit`/`test:db` run.
+function noopKnowledge(): KnowledgeService {
+  return {
+    enabled: false,
+    appIdFor: (u) => u,
+    ingestRun: async () => {},
+    getAppProfile: async () => null,
+    getLastPlan: async () => null,
+    getCoverageMap: async () => null,
+    planCoverageDecision: async (s) =>
+      s.map((x) => ({ scenario: x.name, action: "new", score: 0 })),
+    assembleContext: async () => ({}),
+    findSimilarSpecs: async () => [],
+    getHealingPrecedents: async () => [],
+    getPlaybooks: async () => [],
+    getHealProvenanceTrend: async () => [],
+    getKnowledgeReuseTrend: async () => [],
+    close: async () => {},
+  };
 }
 
 test("runPipeline runs the four stages in order and builds a rich report", async () => {
@@ -86,6 +111,7 @@ test("runPipeline runs the four stages in order and builds a rich report", async
       { url: "https://x.com" },
       {
         claude: narrativeClient(),
+        knowledge: noopKnowledge(),
         curatedFlows: [{ id: "home", name: "Home" }],
         emit: (e: Omit<ProgressEvent, "at">) => events.push(e.stage),
         stageDeps,
@@ -158,6 +184,7 @@ test("runPipeline throws when the discoverer produces no plan", async () => {
         { url: "https://x.com" },
         {
           claude: narrativeClient(),
+          knowledge: noopKnowledge(),
           curatedFlows: [],
           stageDeps,
           makeWorkspace: async () => ({
