@@ -253,6 +253,22 @@ the other.
 > backfilled) simply uses its `embedding` for both halves of the blend, which gives
 > exactly the old pre‑0005 number — again, no error.
 
+#### Known limit: same title, different workflow (and the flow guard)
+
+The reuse query is **only a title**, so two _different_ workflows that happen to
+share a title (a newsletter "Submit the form" vs a support "Submit the form") look
+identical to the matcher — it would reuse the wrong test and silently hide a
+coverage gap. The blend can't catch this: identical titles score ~0.90 regardless
+of the steps.
+
+**Guard (Fix 2):** the reuse decision also takes the scenario's **flow** into
+account. When both the planned scenario and the matched spec know their flow
+(`ScenarioInput.flowId` vs `specs.flow_id`, compared via the same `norm()`), reuse
+is **refused if the flows differ** — same title on a different page → regenerate.
+It's backward‑compatible: if either side's flow is unknown, the decision is
+unchanged. (Fully effective once the planner tags each scenario with its
+flow/page; until then it's a no‑op for callers that don't pass `flowId`.)
+
 ---
 
 ## 3. Global Pattern Retrieval
