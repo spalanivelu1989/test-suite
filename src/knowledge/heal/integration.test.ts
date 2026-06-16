@@ -10,8 +10,9 @@ import type { HealingEvent } from "../types";
 
 // Phase 3 healing-memory integration tests against a real Postgres (T12). Skipped
 // when no KNOWLEDGE_DATABASE_URL is set, so `npm run test:unit` stays green.
+import { dbTestSkip } from "../store/testDbGuard";
 const DB = process.env.KNOWLEDGE_DATABASE_URL;
-const opts = { skip: DB ? false : "KNOWLEDGE_DATABASE_URL not set" };
+const opts = { skip: dbTestSkip(DB) };
 
 function uniqueUrl(): string {
   return `https://heal-${randomUUID().slice(0, 8)}.example.com/`;

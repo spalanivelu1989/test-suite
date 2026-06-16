@@ -10,8 +10,9 @@ import type { HealingEvent } from "../types";
 import { runDistillation } from "./run";
 
 // Phase 3b distillation integration tests (T20). Skipped without a DB.
+import { dbTestSkip } from "../store/testDbGuard";
 const DB = process.env.KNOWLEDGE_DATABASE_URL;
-const opts = { skip: DB ? false : "KNOWLEDGE_DATABASE_URL not set" };
+const opts = { skip: dbTestSkip(DB) };
 
 // 384-d to match the vector(384) columns (FakeEmbedder pads).
 const embedder = new FakeEmbedder(

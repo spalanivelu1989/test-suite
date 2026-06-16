@@ -9,8 +9,9 @@ import { countRuns } from "./store/repo";
 
 // Integration + NFR tests against a real Postgres (T17/T18). Skipped when no
 // KNOWLEDGE_DATABASE_URL is set, so `npm run test:unit` stays green without a DB.
+import { dbTestSkip } from "./store/testDbGuard";
 const DB = process.env.KNOWLEDGE_DATABASE_URL;
-const opts = { skip: DB ? false : "KNOWLEDGE_DATABASE_URL not set" };
+const opts = { skip: dbTestSkip(DB) };
 
 // Each test uses a unique origin → isolation without truncation.
 function uniqueUrl(): string {

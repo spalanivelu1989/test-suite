@@ -14,8 +14,9 @@ import { migrate } from "./store/migrate";
 // unifies them — but their ABSTRACTED intents both collapse to "checkout with card
 // ending", so the cross-app tier surfaces App A's test as a pattern hint for App B.
 // Skipped without KNOWLEDGE_DATABASE_URL.
+import { dbTestSkip } from "./store/testDbGuard";
 const DB = process.env.KNOWLEDGE_DATABASE_URL;
-const opts = { skip: DB ? false : "KNOWLEDGE_DATABASE_URL not set" };
+const opts = { skip: dbTestSkip(DB) };
 
 const D = 384;
 const uniqueUrl = (tag: string) =>

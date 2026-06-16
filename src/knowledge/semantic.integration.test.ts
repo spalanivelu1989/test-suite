@@ -9,8 +9,9 @@ import { migrate } from "./store/migrate";
 
 // Phase 2 DB-backed tests (T13/T14): embeddings stored in pgvector, semantic
 // matching, cache, backfill, degradation. Skipped without KNOWLEDGE_DATABASE_URL.
+import { dbTestSkip } from "./store/testDbGuard";
 const DB = process.env.KNOWLEDGE_DATABASE_URL;
-const opts = { skip: DB ? false : "KNOWLEDGE_DATABASE_URL not set" };
+const opts = { skip: dbTestSkip(DB) };
 
 const D = 384;
 const uniqueUrl = () => `https://sem-${randomUUID().slice(0, 8)}.example.com/`;
