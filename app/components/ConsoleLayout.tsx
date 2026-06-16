@@ -26,6 +26,7 @@ import {
   ChevronRight,
   ClipboardList,
   DatabaseZap,
+  Terminal,
 } from "lucide-react";
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors, SIDEBAR_GRADIENT } from "@/app/theme/aws";
@@ -78,8 +79,8 @@ export function ConsoleLayout({
     }
   };
 
-  // Functional navigation items linked to app state
-  const navItems = [
+  // Primary application navigation (top of sidebar)
+  const topNavItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     {
       id: "test-runs",
@@ -88,8 +89,59 @@ export function ConsoleLayout({
       badge: runningCount > 0 ? runningCount : undefined,
     },
     { id: "test-report", label: "Test Report", icon: ClipboardList },
+  ];
+
+  // Developer utility tools (bottom of sidebar)
+  const bottomNavItems = [
+    { id: "sql-query", label: "SQL Query", icon: Terminal },
     { id: "explore", label: "Pattern Explorer", icon: DatabaseZap },
   ];
+
+  const renderNavItem = (item: { id: string; label: string; icon: any; badge?: number }) => {
+    const isActive = activeTab === item.id;
+    const Icon = item.icon;
+    return (
+      <Button
+        key={item.id}
+        onClick={() => setActiveTab(item.id)}
+        variant="ghost"
+        justifyContent={sidebarOpen ? "flex-start" : "center"}
+        px={sidebarOpen ? 3.5 : 0}
+        py={2.5}
+        height="34px"
+        borderRadius="lg"
+        bg={isActive ? "rgba(255,255,255,0.2)" : "transparent"}
+        border={
+          isActive
+            ? "1.5px solid rgba(255,255,255,0.55)"
+            : "1.5px solid transparent"
+        }
+        color="white"
+        fontWeight={isActive ? "semibold" : "normal"}
+        fontSize="13px"
+        cursor="pointer"
+        _hover={{
+          bg: "rgba(255,255,255,0.12)",
+          color: "white",
+        }}
+      >
+        <HStack
+          gap={3.5}
+          justify={sidebarOpen ? "flex-start" : "center"}
+          w="full"
+          overflow="hidden"
+        >
+          <Box
+            color={isActive ? "white" : "rgba(255,255,255,0.7)"}
+            flexShrink={0}
+          >
+            <Icon size={15} />
+          </Box>
+          {sidebarOpen && <Text truncate>{item.label}</Text>}
+        </HStack>
+      </Button>
+    );
+  };
 
   return (
     <Box
@@ -204,51 +256,36 @@ export function ConsoleLayout({
           py={3}
           flexShrink={0}
         >
-          {navItems.map((item) => {
-            const isActive = activeTab === item.id;
-            const Icon = item.icon;
-            return (
-              <Button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                variant="ghost"
-                justifyContent={sidebarOpen ? "flex-start" : "center"}
-                px={sidebarOpen ? 3.5 : 0}
-                py={2.5}
-                height="34px"
-                borderRadius="lg"
-                bg={isActive ? "rgba(255,255,255,0.2)" : "transparent"}
-                border={
-                  isActive
-                    ? "1.5px solid rgba(255,255,255,0.55)"
-                    : "1.5px solid transparent"
-                }
-                color="white"
-                fontWeight={isActive ? "semibold" : "normal"}
-                fontSize="13px"
-                cursor="pointer"
-                _hover={{
-                  bg: "rgba(255,255,255,0.12)",
-                  color: "white",
-                }}
-              >
-                <HStack
-                  gap={3.5}
-                  justify={sidebarOpen ? "flex-start" : "center"}
-                  w="full"
-                  overflow="hidden"
-                >
-                  <Box
-                    color={isActive ? "white" : "rgba(255,255,255,0.7)"}
-                    flexShrink={0}
-                  >
-                    <Icon size={15} />
-                  </Box>
-                  {sidebarOpen && <Text truncate>{item.label}</Text>}
-                </HStack>
-              </Button>
-            );
-          })}
+          {topNavItems.map(renderNavItem)}
+        </VStack>
+
+        {/* Spacer to push bottom items to the bottom */}
+        <Box flex={1} />
+
+        {/* Utility / Playground Navigation Buttons */}
+        <VStack
+          align="stretch"
+          gap={0.5}
+          px={sidebarOpen ? 2 : 1}
+          py={3}
+          flexShrink={0}
+        >
+          {sidebarOpen ? (
+            <Text
+              fontSize="9.5px"
+              fontWeight="extrabold"
+              color="rgba(255,255,255,0.4)"
+              letterSpacing="0.08em"
+              px={3.5}
+              mb={2.5}
+              textTransform="uppercase"
+            >
+              Admin Panel
+            </Text>
+          ) : (
+            <Box h="1px" bg="rgba(255,255,255,0.12)" mx={3} mb={2.5} />
+          )}
+          {bottomNavItems.map(renderNavItem)}
         </VStack>
 
         {/* Sidebar Footer with Theme Toggle */}

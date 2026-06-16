@@ -32,6 +32,7 @@ import { useThemeMode } from "@/app/providers";
 import { getAWSColors, AWS_COLORS } from "@/app/theme/aws";
 import { ConsoleLayout } from "@/app/components/ConsoleLayout";
 import { PatternExplorer } from "@/app/explore/PatternExplorer";
+import { SqlQuery } from "@/app/sql-query/SqlQuery";
 import { LaunchWizard } from "@/app/components/LaunchWizard";
 import { TestRunsTable } from "@/app/components/TestRunsTable";
 import { TestReportView } from "@/app/components/TestReportView";
@@ -58,6 +59,7 @@ export default function HomePage() {
         "security-groups",
         "key-pairs",
         "explore",
+        "sql-query",
       ].includes(tab)
     ) {
       setActiveTab(tab);
@@ -586,6 +588,11 @@ export default function HomePage() {
       {/* ==================== PATTERN EXPLORER TAB ==================== */}
       <Box display={activeTab === "explore" ? "block" : "none"} width="100%">
         <PatternExplorer />
+      </Box>
+
+      {/* ==================== SQL QUERY TAB ==================== */}
+      <Box display={activeTab === "sql-query" ? "block" : "none"} width="100%">
+        <SqlQuery />
       </Box>
 
       {/* ==================== SECURITY GROUPS TAB ==================== */}

@@ -2,22 +2,22 @@
 
 ## The big idea in one paragraph
 
-Every time we run our AI testing tool against a web app, it learns something:
+Every time we run our AI testing tool against a web app, it learns a few things:
 which user workflows exist, what good tests for them look like, and how broken
-tests got repaired. We **save** that learning in a PostgreSQL database (the
-"Knowledge Layer"). The next time an agent generates tests, it first **asks the
-database what it already knows** — so it can _reuse_ a test it wrote last week
-instead of writing it again, and _borrow patterns_ from completely different apps
-that have similar workflows. Two kinds of memory power this:
+tests got fixed. We save all of that in a PostgreSQL database we call the
+"Knowledge Layer." So the next time we generate tests, the tool checks what it
+already knows first. That way it can reuse a test it wrote last week instead of
+writing it again, and it can borrow ideas from completely different apps that have
+similar workflows. Two kinds of memory make this work:
 
-| Memory type                  | Plain-English meaning                                     |
+| Memory type                  | What it's really asking                                   |
 | ---------------------------- | --------------------------------------------------------- |
 | **App‑Scoped Retrieval**     | "What do I already know about _this exact app_?"          |
 | **Global Pattern Retrieval** | "How have _similar workflows on other apps_ been tested?" |
 
 Think of it like an experienced QA engineer joining a project. App‑Scoped memory
-is **their notes from this specific project**. Global Pattern memory is **their
-years of general experience** from every other project they've worked on.
+is their notes from this specific project. Global Pattern memory is the years of
+general experience they bring from every other project they've worked on.
 
 ---
 
@@ -38,21 +38,19 @@ years of general experience** from every other project they've worked on.
 
 ## 1. How agents decide the retrieval scope
 
-Two agents are involved, and they touch the knowledge base differently:
+Two agents do the work here, and they use the knowledge base in different ways:
 
 - The **Discoverer Agent** explores the target URL and plans the test scenarios.
-  It makes **no reuse/coverage decision** — de‑duplicating against prior runs is the
-  Designer's job alone (ADR‑0003). But it **is** primed with history as
-  _accelerator memory_: the **previous plan for this app** (`getLastPlan` — the most
-  recent `app_id` run's `planMarkdown`, clipped to ~4k tokens), trusted **playbooks**
-  (crawl‑strategy principles), and authored **business context**. It still crawls the
-  live site and must revise/extend that memory, never blindly copy it.
-- The **Designer Agent** takes those planned scenarios and **queries the knowledge
-  base** to make the actual **reuse vs generate** decision, _per scenario_ — reusing
-  an existing test or generating a fresh one (with cross‑app patterns as inspiration).
+  It doesn't decide what to reuse — but it does read the previous plan and the
+  business context to get a head start. It still crawls the live site every time,
+  and it's expected to update and extend that earlier plan, not just copy it.
+- The **Designer Agent** takes those planned scenarios and asks the knowledge base
+  the real question: for each scenario, should we **reuse** an existing test or
+  **write a fresh one**?
 
-A common misconception is that the Designer picks _either_ App‑Scoped _or_ Global.
-In reality it's a **cascade gated on whether we've seen this app before**:
+People often assume the Designer picks _either_ App‑Scoped _or_ Global. It's
+actually a sequence, and the first thing it checks is whether we've seen this app
+before:
 
 ```mermaid
 flowchart TD
@@ -78,36 +76,36 @@ flowchart TD
     H --> I["Similar workflow found in other applications — here's what they checked; go write the equivalent for this app."]
 ```
 
-**Reading the gate:** `app_url` "exists" when the knowledge base already holds
-prior specs for this app's `app_id` (`readSpecsForApp` returns rows). A
-**brand‑new app** has none, so there's nothing to reuse — every scenario skips the
-in‑app search and goes straight to the cross‑app global tier. For a **known app**,
-each scenario first tries an in‑app match; only the scenarios that _don't_ clear
-the reuse bar fall through to the global tier.
+**Reading the gate:** Have we tested this app before? If yes, the knowledge base
+already has tests saved for it, so we look there first. If no — it's a brand‑new
+app and there's nothing of our own to reuse — so we skip that step and go straight
+to looking at how other apps handled similar workflows. And for an app we already
+know, we still only borrow from other apps for the scenarios we couldn't find a
+good match for here.
 
-> The `≥ 0.82` shown on the gate is the **semantic** reuse threshold. In code the
-> in‑app decision also accepts a strong **lexical** match (token overlap ≥ 0.80),
-> and a match is only reused when that test **last passed** — see §2. The cross‑app
-> tier is additionally behind the `KNOWLEDGE_GLOBAL_PATTERNS=true` flag — see §3.
+> A couple of details the diagram leaves out: the `≥ 0.82` is the score for the
+> _meaning_-based match. We also reuse a test if its words overlap strongly enough
+> (a score of 0.80), and either way we only reuse a test that **passed** last time
+> — more on both in §2. The cross‑app step also only runs when the
+> `KNOWLEDGE_GLOBAL_PATTERNS=true` setting is turned on — more in §3.
 
-### When does it choose App‑Scoped retrieval?
+### When do we use App‑Scoped retrieval?
 
-**First, whenever the app already exists in the knowledge base.** App‑Scoped is the
-high‑precision, high‑trust tier, so it's tried for _every_ scenario of a known app —
-reusing an exact, previously‑passing test is the cheapest and safest outcome. For a
-**brand‑new app** there are no prior specs, so this tier is skipped entirely.
+Whenever the app is already in the knowledge base, and we try it first. This is the
+careful, high‑trust tier, so we run it for every scenario of an app we know —
+reusing a test that already passed is the cheapest and safest thing we can do. If
+the app is brand‑new, there's nothing saved yet, so we skip this step.
 
-### When does it choose Global Pattern retrieval?
+### When do we use Global Pattern retrieval?
 
-**For the leftovers** — every scenario the App‑Scoped tier could _not_ confidently
-match (the "new" ones), _plus_ **all** scenarios when the app itself is brand‑new
-(nothing to reuse). It runs only when the feature flag
-`KNOWLEDGE_GLOBAL_PATTERNS=true` is set, and it never _replaces_ an App‑Scoped
-reuse — it only fills the gaps.
+For the leftovers — any scenario we couldn't confidently match here, plus every
+scenario when the app itself is brand‑new (since there's nothing of our own to
+reuse). It only runs when the `KNOWLEDGE_GLOBAL_PATTERNS=true` setting is on, and
+it never overrides a reuse — it just fills the gaps.
 
 ### What information drives the decision?
 
-The decision is **automatic and per‑scenario**, based on:
+The decision is automatic and happens per scenario, based on:
 
 | Signal                                                                               | Used for                                                     |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -116,10 +114,10 @@ The decision is **automatic and per‑scenario**, based on:
 | **Last outcome** of the matched test (`passed` / `healed` / `failed`)                | Only a _passing_ test is reused; a failed one is regenerated |
 | **The `KNOWLEDGE_GLOBAL_PATTERNS` flag**                                             | Whether the Global tier runs at all                          |
 
-> 🔑 **Key invariant:** App‑Scoped reuse copies _real test code_ forward, so it
-> must stay locked to the same app — that code contains selectors and URLs that
-> only work on that app. Global Pattern retrieval never copies code; it only
-> shares _ideas_, so it's safe to cross app boundaries.
+> 🔑 **The one rule to remember:** App‑Scoped reuse copies real test code forward,
+> so it has to stay locked to the same app — that code contains selectors and URLs
+> that only work there. Global Pattern retrieval never copies code; it only shares
+> ideas, so it's safe to cross between apps.
 
 ---
 
@@ -127,25 +125,26 @@ The decision is **automatic and per‑scenario**, based on:
 
 ### What it does
 
-Answers: _"For this specific app, have I tested this workflow before — and can I
-just reuse that test?"_
+It answers a simple question: _"Have I tested this workflow on this app before — and
+can I just reuse that test?"_
 
 ### How the agent queries the knowledge database
 
-When a run starts, the service (`PgKnowledgeService.assembleContext`) does this:
+When a run starts, the service (`PgKnowledgeService.assembleContext`) does three
+things:
 
-1. Compute the `app_id` by **normalizing the URL to its origin**
+1. Work out the `app_id` by trimming the URL down to its origin
    (`https://sap-incentive.example.com/calc?x=1` → `https://sap-incentive.example.com`).
-   This is why two different pages of the _same_ app share knowledge.
-2. Load every previously generated, **non‑reused** spec for that `app_id`
-   (`readSpecsForApp`), each with its lexical tokens, its embedding, and the
-   outcome of the last time it ran.
-3. For each planned scenario, score it against those specs and decide **reuse** or
+   That's why two different pages of the _same_ app share knowledge.
+2. Load every test (spec) we originally wrote for that `app_id` — skipping copies
+   (`readSpecsForApp`) — along with each one's key words, its embedding, and how it
+   did the last time it ran.
+3. For each planned scenario, score it against those tests and decide **reuse** or
    **new** (`decideForSpecs`).
 
-### How previous specs, runs, reports, and tests are discovered
+### Where previous specs, runs, reports, and tests live
 
-Everything hangs off `app_id`. The relevant tables (real names in our schema):
+Everything hangs off `app_id`. Here are the real tables in our schema:
 
 | Concept in this doc      | Real table                                                        | What it holds                                       |
 | ------------------------ | ----------------------------------------------------------------- | --------------------------------------------------- |
@@ -156,64 +155,65 @@ Everything hangs off `app_id`. The relevant tables (real names in our schema):
 | Healing history          | `healing_events`                                                  | Every repair the self‑healing step made             |
 | Flows                    | `flows`                                                           | Logical user‑workflow names for the app             |
 
-### How existing tests are reused instead of recreated
+### How existing tests get reused instead of rewritten
 
-If a planned scenario **confidently matches** an existing spec **whose last run
-passed**, the agent **copies that spec's source code forward verbatim** — tagged
-with a `// @kp-reused` marker — and skips the AI generation entirely. No LLM call,
-no risk of a different result. If the match is weak, or the matched test last
-_failed_, the scenario is regenerated from scratch (we never silently skip a
-scenario — every planned flow ends with a test).
+If a planned scenario confidently matches an existing test whose last run passed,
+the agent copies that test's code forward exactly as it was — tagged with a
+`// @kp-reused` marker — and skips the AI step entirely. No LLM call, and no chance
+of getting a different result. If the match is weak, or the matched test failed
+last time, we write the scenario fresh instead. We never quietly drop a scenario —
+every planned flow ends up with a test.
 
-### How app‑specific knowledge improves coverage
+### How this improves coverage over time
 
 Because the agent remembers what's already covered, it spends its generation
-budget on the **gaps** instead of re‑deriving tests it already has. Over many
-runs this pushes coverage up and keeps it stable (we even track a
-"knowledge‑reuse trend" per app).
+budget on the gaps instead of rebuilding tests it already has. Over many runs that
+pushes coverage up and keeps it steady (we even track a "knowledge‑reuse trend"
+per app).
 
-### The retrieval algorithms (App‑Scoped)
+### How the matching actually works
 
-We use **hybrid retrieval** — two scoring methods, and the _stronger_ one wins:
+We match in two ways and go with whichever is more confident:
 
-1. **Lexical / metadata filtering** — `overlapCoefficient` over
-   `significantTokens` (the meaningful words in the scenario title). Robust, no AI
-   needed. Threshold to reuse: **0.80**.
-2. **Semantic similarity search (embeddings + vector search)** — text is converted
-   to a **384‑dimension embedding** by a local model (`Xenova/bge-small-en-v1.5`,
-   mean‑pooled, L2‑normalized), compared by **cosine similarity** and accelerated by
-   pgvector **HNSW indexes**. The reuse query is always a **bare scenario title**
-   (`ScenarioInput.name`), so we keep **two** embeddings per spec and blend them
-   (migration 0005, weight `SEM_TITLE_WEIGHT = 0.5`):
+1. **Word overlap** — `overlapCoefficient` over `significantTokens` (the meaningful
+   words in the scenario title). It's simple and needs no AI. We reuse if this hits
+   **0.80**.
+2. **Meaning-based match (embeddings)** — we turn text into a list of **384 numbers**
+   (an "embedding") using a local model (`Xenova/bge-small-en-v1.5`), and compare
+   two pieces of text by how close their numbers are (cosine similarity). A pgvector
+   **HNSW index** makes that search fast. The catch: the thing we search _with_ is
+   always just a scenario **title** (`ScenarioInput.name`), so we keep **two**
+   embeddings per test and blend them (migration 0005, weight
+   `SEM_TITLE_WEIGHT = 0.5`):
 
    | Column                  | Embeds                             | Role in the blend                                             |
    | ----------------------- | ---------------------------------- | ------------------------------------------------------------- |
-   | `specs.title_embedding` | the **title alone**                | `semTitle` — symmetric with the query → exact title ≈ **1.0** |
+   | `specs.title_embedding` | the **title alone**                | `semTitle` — same shape as the query → exact title ≈ **1.0**  |
    | `specs.embedding`       | **title + numbered step comments** | `semIntent` — richer; keeps similar‑but‑different tests apart |
 
    ```
    sem = 0.5 · cos(query, title_embedding)  +  0.5 · cos(query, embedding)
    ```
 
-   **Why blend, instead of just `embedding`?** A title‑only query scored against
-   `embedding` (title + steps) tops out around **0.79** — _below_ the 0.82 reuse bar
-   — so an exact‑title match used to silently **never reuse**. The `title_embedding`
-   term restores exact‑match confidence (lifts it to ≈ 0.90, clearing 0.82), while
-   the `embedding` term keeps two structurally‑similar but _different_ tests apart
-   ("About scrolls" vs "Contact scrolls" stay ≈ 0.77, below the bar). Threshold to
-   reuse stays **0.82** (`SEM_REUSE`, deliberately strict — only a near‑certain match
-   copies a test forward).
+   **Why blend the two, instead of just using `embedding`?** Comparing a bare title
+   against an embedding built from a title _plus its steps_ tops out around **0.79**
+   — just under the 0.82 bar — so an exact‑title match used to quietly never reuse.
+   Adding the title‑only term fixes that (it lifts an exact match to about 0.90,
+   clearing the bar), while the title+steps term still keeps two look‑alike but
+   _different_ tests apart ("About scrolls" vs "Contact scrolls" stay around 0.77,
+   below the bar). The reuse bar stays **0.82** (`SEM_REUSE`) on purpose — strict, so
+   only a near‑certain match copies a test forward.
 
 ```
 reuse  ⟺  ( lexical ≥ 0.80  OR  sem ≥ 0.82 )  AND  last run passed
 new    ⟺  everything else
 ```
 
-> **Graceful degradation:** if embeddings are turned off or the model fails, the
-> semantic score is simply `0`, and the system falls back to lexical‑only — same
-> code path, never an error. And a spec with **no `title_embedding`** (ingested
-> before 0005, or not yet backfilled) reuses its `embedding` for _both_ blend terms,
-> so the score collapses to the pre‑0005 behaviour — no error, just the old number.
+> **It fails gracefully.** If embeddings are turned off or the model errors out, the
+> meaning score is just `0` and we fall back to word overlap — same code path, no
+> crash. And a test with **no `title_embedding`** yet (ingested before 0005, or not
+> backfilled) simply uses its `embedding` for both halves of the blend, which gives
+> exactly the old pre‑0005 number — again, no error.
 
 ---
 
@@ -221,16 +221,15 @@ new    ⟺  everything else
 
 ### What it does
 
-Answers: _"This is a brand‑new workflow for this app — but how have **similar
-workflows on completely different apps** been tested?"_ It transfers _testing
-know‑how_ between unrelated applications.
+It answers: _"This workflow is brand‑new for this app — but how have similar
+workflows on completely different apps been tested?"_ In other words, it carries
+testing know‑how between unrelated applications.
 
-### How the system learns common patterns across applications
+### How the system spots patterns across apps
 
-Every app's tests are stored with a second, special embedding called the
-**pattern embedding** (`specs.pattern_embedding`). Before embedding, the test's
-intent is **abstracted** — app‑specific details (product names, prices, URLs,
-numbers) are stripped out:
+Every app's tests get a second, special embedding called the **pattern embedding**
+(`specs.pattern_embedding`). Before we build it, we strip out the app‑specific
+details — product names, prices, URLs, numbers:
 
 ```
 "Add 'SAP Integration Suite' to comparison"   ─abstract→   "add to comparison"
@@ -238,40 +237,40 @@ numbers) are stripped out:
 "Checkout with card ending 4242"               ─abstract→   "checkout with card ending"
 ```
 
-This makes the embedding capture the **workflow shape**, not the vocabulary, so
-the same workflow on two different apps lands in the same place in vector space.
+That makes the embedding capture the _shape_ of the workflow rather than the exact
+words, so the same workflow on two different apps lands in the same place.
 
-### How reusable validation patterns are discovered
+### How we find reusable patterns
 
-Two mechanisms work together:
+Two things work together:
 
-1. **Embedding‑based retrieval over the pattern corpus** — the planned scenario is
-   abstracted the same way, embedded, and used to find the **nearest passing
-   patterns on _other_ apps** (`findGlobalPatternSpecs`, a cross‑app HNSW search).
-2. **Distilled Playbooks** (`playbooks` table) — our closest thing to an explicit
-   **pattern library**. A background "distillation" job studies recurring repairs
-   and writes down reusable _principles_ (e.g. "prefer role‑based locators over
-   brittle CSS"). Only principles backed by enough evidence are promoted to
-   `trusted` and injected into prompts. Playbooks can be **global** (apply
-   everywhere), **app**‑specific, or **componentType**‑specific.
+1. **Searching the pattern collection** — we abstract the planned scenario the same
+   way, embed it, and find the closest passing patterns on _other_ apps
+   (`findGlobalPatternSpecs`, a cross‑app HNSW search).
+2. **Distilled Playbooks** (`playbooks` table) — the closest thing we have to a
+   written pattern library. A background "distillation" job studies repairs that
+   keep happening and writes down reusable rules of thumb (e.g. "prefer role‑based
+   locators over brittle CSS"). Only rules with enough evidence behind them get
+   marked `trusted` and added to prompts. Playbooks can apply everywhere
+   (**global**), to one **app**, or to one **componentType**.
 
 ### How agents recognize similar workflows
 
-By **nearest‑neighbor search** in the abstracted embedding space. "Fill in
-migration inputs and calculate savings" on a SAP app sits near "fill in loan
-inputs and calculate interest" on a banking app — different domains, same
-_form → compute → show result_ shape.
+By finding the nearest neighbors in that abstracted space. "Fill in migration inputs
+and calculate savings" on a SAP app sits right next to "fill in loan inputs and
+calculate interest" on a banking app — different worlds, same _fill in a form →
+compute → show the result_ shape.
 
-### How historical patterns help generate new scenarios
+### How past patterns help write new scenarios
 
-The single best matched pattern is passed to the test‑designer agent as **few‑shot
-inspiration** ("here's how this kind of workflow was tested elsewhere — adapt it
-to _this_ app's screen"). Each hint carries an **abstracted workflow skeleton**
-(`PatternHint.workflow`) — the matched spec's title + steps with app‑specific
-entities stripped, collapsed and capped at `PATTERN_WORKFLOW_MAXLEN = 240` chars
-(`workflowSkeleton`) so a long spec can't flood the prompt, and so no foreign
-selectors or URLs leak in. The agent still writes a fresh test against the current
-app; it just starts from a better idea, which improves coverage and surfaces edge
+We hand the single best match to the Designer agent as an example to learn from
+("here's how this kind of workflow was tested elsewhere — adapt it to this app's
+screen"). Each hint comes with an **abstracted workflow skeleton**
+(`PatternHint.workflow`) — the matched test's title and steps with the
+app‑specific bits removed, trimmed to at most 240 characters
+(`PATTERN_WORKFLOW_MAXLEN`) so a long test can't flood the prompt and no foreign
+selectors or URLs sneak in. The agent still writes a fresh test against the current
+app; it just starts from a better idea, which lifts coverage and surfaces edge
 cases it might not have thought of.
 
 ### The pattern‑recognition algorithms (Global)
@@ -283,17 +282,18 @@ cases it might not have thought of.
 | **Clustering**                              | The distillation job (`clusterEpisodes`) groups recurring repair episodes by strategy + signature similarity (single‑link, threshold 0.60) so each cluster becomes one principle |
 | **Pattern library**                         | The `playbooks` table — distilled, evidence‑linked, trust‑gated principles                                                                                                       |
 
-**Safety rails for the Global tier:**
+**The guardrails on this tier:**
 
-- **Passing‑only** — we never propagate a pattern from a test that failed.
-- **Relevance floor 0.70** (`PATTERN_RELEVANCE`) — lower than App‑Scoped's 0.82
-  ("relevant example?" is a looser question than "the same test?").
-- **Top‑1 per scenario (`PATTERN_K = 1`), 8 total (`PATTERN_BUDGET`)** — only the
-  single best match above the floor is surfaced per `new` scenario (no runner‑ups),
-  keeping the prompt focused.
-- **Skeleton‑only** — each hint is trimmed to a ≤ 240‑char abstracted workflow
-  (`PATTERN_WORKFLOW_MAXLEN`), never raw foreign code.
-- **Advisory only** — hints are _read_, never _executed_; the decision stays "new".
+- **Passing tests only** — we never copy an idea from a test that failed.
+- **A relevance floor of 0.70** (`PATTERN_RELEVANCE`) — looser than App‑Scoped's
+  0.82, because "is this a relevant example?" is an easier question than "is this the
+  same test?".
+- **One hint per scenario (`PATTERN_K = 1`), 8 in total (`PATTERN_BUDGET`)** — only
+  the single best match above the floor goes to each new scenario, which keeps the
+  prompt focused.
+- **Skeletons, not code** — each hint is trimmed to a short abstracted workflow
+  (`PATTERN_WORKFLOW_MAXLEN`, 240 chars), never raw code from another app.
+- **Advice only** — hints are read, never run; the decision stays "new".
 
 ---
 
@@ -322,7 +322,7 @@ cases it might not have thought of.
 3. Fill **migration input fields**
 4. **Calculate projected savings**
 
-Assume the app has been tested before (previous runs exist).
+Let's assume we've tested this app before, so there's some history to draw on.
 
 ### The flow
 
@@ -366,23 +366,24 @@ New URL submitted
 | The extra **negative/zero boundary** edge case  | **Global Pattern**              | A tax app had already learned to test numeric boundaries                |
 | Selectors / actual field names in the new tests | **Neither (freshly generated)** | These are specific to _this_ app's DOM and must be written against it   |
 
-### Why both are needed
+### Why we need both
 
-- **App‑Scoped alone** would reuse the 2 known tests but generate the 2 new ones
-  "cold," missing edge cases other apps already discovered.
-- **Global alone** would give generic inspiration but waste effort regenerating
-  the 2 workflows we already have perfectly good tests for — and risk running
+- **App‑Scoped on its own** would reuse the 2 known tests but write the 2 new ones
+  from scratch, missing edge cases other apps already found.
+- **Global on its own** would give generic inspiration but waste effort rewriting
+  the 2 workflows we already have perfectly good tests for — and risk pulling in
   another app's selectors.
-- **Together:** maximum reuse (cheap, safe) + maximum learning (broad coverage).
+- **Together:** maximum reuse (cheap and safe) plus maximum learning (broad
+  coverage).
 
 ---
 
 ## 6. PostgreSQL examples
 
-> In all queries below, `:app_id = 'https://sap-incentive.example.com'`.
-> Where a `:query_vec` appears, it is a **384‑dimension vector** computed by the
-> embedder in application code (you don't hand‑write vectors). `<=>` is pgvector's
-> **cosine distance**; `1 - (a <=> b)` is the cosine **similarity**.
+> In all the queries below, `:app_id = 'https://sap-incentive.example.com'`. Where
+> you see `:query_vec`, that's a **384‑number vector** the embedder builds in code
+> (you never write vectors by hand). `<=>` is pgvector's **cosine distance**, and
+> `1 - (a <=> b)` turns that into a **similarity** score.
 
 ### App‑Scoped Retrieval
 
@@ -411,14 +412,14 @@ SELECT s.run_id, s.file, s.title, s.flow_id, s.tokens,
  ORDER BY s.created_at DESC;
 ```
 
-_Returns:_ the reusable test modules for this app + whether each last passed.
-This is exactly what `readSpecsForApp` loads before deciding reuse vs new.
+_Returns:_ the reusable test modules for this app, and whether each one passed last
+time. This is exactly what `readSpecsForApp` loads before deciding reuse vs new.
 
 **(c) Find the most similar existing test to a planned scenario (hybrid semantic)** — `specs.title_embedding` + `specs.embedding`
 
-`:query_vec` is the embedding of the **bare scenario title**. We blend the
-title‑only cosine with the title+steps cosine (`SEM_TITLE_WEIGHT = 0.5`), falling
-back to `embedding` when a spec has no `title_embedding`:
+Here `:query_vec` is the embedding of the **bare scenario title**. We blend the
+title‑only score with the title+steps score (`SEM_TITLE_WEIGHT = 0.5`), and fall
+back to `embedding` when a test has no `title_embedding`:
 
 ```sql
 SELECT s.file, s.title,
@@ -433,9 +434,9 @@ SELECT s.file, s.title,
  LIMIT 5;
 ```
 
-_Returns:_ the top‑5 closest prior tests. If the top blended similarity ≥ 0.82
-**and** that test last passed, the agent reuses it. (This mirrors `hybridSem` in
-`coverageDecision.ts`; in production the blend is computed in app code over the
+_Returns:_ the 5 closest prior tests. If the top blended score is 0.82 or higher
+**and** that test passed last time, the agent reuses it. (This mirrors `hybridSem`
+in `coverageDecision.ts`; in production the blend is computed in app code over the
 candidate set, not in one SQL pass.)
 
 **(d) Load historical reports** — table `raw_reports`
@@ -449,8 +450,9 @@ SELECT run_id, report->>'generatedAt' AS generated_at,
  LIMIT 10;
 ```
 
-_Returns:_ the verbatim run reports (stored as JSON) — the source of truth used to
-rebuild knowledge and to fetch a spec's full source code when copying it forward.
+_Returns:_ the full run reports (stored as JSON). These are the source of truth we
+use to rebuild knowledge and to grab a test's full source code when copying it
+forward.
 
 **(e) Find healed / fixed tests** — table `healing_events`
 
@@ -463,13 +465,13 @@ SELECT flow_id, file, failure_signature, strategy,
  ORDER BY created_at DESC;
 ```
 
-_Returns:_ every successful self‑repair for this app — used to suggest resilient
-locators and to seed healing precedents.
+_Returns:_ every successful self‑repair for this app — which we use to suggest
+sturdier locators and to seed healing precedents.
 
 ### Global Pattern Retrieval
 
-> These cross **all apps except the current one** and only consider **passing**
-> tests, matching on the abstracted `pattern_embedding`.
+> These look across **every app except the current one**, only at tests that
+> **passed**, matching on the abstracted `pattern_embedding`.
 
 **(a) Find form‑fill / validation patterns from other apps**
 
@@ -488,10 +490,9 @@ SELECT s.app_id, s.title,
  LIMIT 3;
 ```
 
-_Returns:_ the 3 most similar passing form‑fill tests from other apps. With
-`:query_vec` = embedding of `"fill input fields"`, this surfaces the loan‑app and
-invoice‑app form patterns from the walkthrough. (This is exactly
-`findGlobalPatternSpecs`.)
+_Returns:_ the 3 closest passing form‑fill tests from other apps. With `:query_vec`
+= embedding of `"fill input fields"`, this surfaces the loan‑app and invoice‑app
+form patterns from the walkthrough. (This is exactly `findGlobalPatternSpecs`.)
 
 **(b) Find common numeric boundary test patterns**
 Same shape — only the meaning of `:query_vec` changes (embedding of
@@ -511,9 +512,9 @@ SELECT s.app_id, s.title, 1 - (s.pattern_embedding <=> :query_vec) AS similarity
 _Returns:_ passing tests from other apps that exercise numeric boundaries
 (negative/zero/max), e.g. the tax app's boundary test.
 
-**(c) Find calculation‑workflow patterns** — same query, `:query_vec` =
-embedding of `"calculate projected savings"`. _Returns:_ "input → compute →
-show result" tests across apps.
+**(c) Find calculation‑workflow patterns** — same query, with `:query_vec` =
+embedding of `"calculate projected savings"`. _Returns:_ "input → compute → show
+result" tests across apps.
 
 **(d) Find reusable scenario templates (distilled principles)** — table `playbooks`
 
@@ -525,9 +526,9 @@ SELECT principle, antipattern, recommendation, support_count, confidence
  ORDER BY support_count DESC, confidence DESC;
 ```
 
-_Returns:_ the trusted, evidence‑backed "rules of thumb" that apply beyond a single
-app — our explicit pattern library. (`getPlaybooks` / `trustedPlaybooks` load
-these and inject them into prompts.)
+_Returns:_ the trusted, evidence‑backed rules of thumb that apply beyond a single
+app — our explicit pattern library. (`getPlaybooks` / `trustedPlaybooks` load these
+and add them to prompts.)
 
 ---
 
@@ -623,7 +624,7 @@ sequenceDiagram
 
 ## 9. Folder structure
 
-This mirrors the real layout under `src/knowledge/` — a clean separation between
+This mirrors the real layout under `src/knowledge/` — a clean split between
 _storing_, _retrieving_, and _learning_:
 
 ```
@@ -671,74 +672,76 @@ src/knowledge/
     └── provenance.ts         # Track template‑directed vs blind repairs
 ```
 
-**Mental model:** `store/` is the filing cabinet, `ingest/` files things away,
-`retrieve/` pulls the right folder when asked, and `distill/` is the librarian who
-periodically writes summary "best‑practice" cards from everything filed.
+**An easy way to picture it:** `store/` is the filing cabinet, `ingest/` files
+things away, `retrieve/` pulls the right folder when you ask, and `distill/` is the
+librarian who every so often writes "best‑practice" summary cards from everything
+on file.
 
 ---
 
 ## 10. Best practices
 
-### When to create a _new_ pattern (vs reuse)
+### When to write a _new_ test (instead of reusing one)
 
-- A scenario is genuinely **new to this app** (App‑Scoped found no confident
-  match) → generate it, ideally informed by Global hints.
-- A previously matching test **last failed** → regenerate, don't reuse a broken
-  test.
-- A **distilled principle** (playbook) is only created by the background
-  distillation job, and only when it has **enough independent supporting
-  evidence** across runs — never hand‑written ad hoc. This keeps the pattern
-  library trustworthy.
+- The scenario is genuinely new to this app (App‑Scoped found no confident match) →
+  write it, ideally with Global hints to guide it.
+- A test that used to match **failed last time** → write it again; don't reuse a
+  broken test.
+- A **playbook** (distilled principle) is only ever created by the background
+  distillation job, and only once it has **enough independent evidence** across runs
+  — never written by hand on the spot. That's what keeps the pattern library
+  trustworthy.
 
 ### When to reuse an existing module
 
-- The planned scenario **confidently matches** (lexical ≥ 0.80 **or** semantic
-  ≥ 0.82) a prior spec **whose last run passed**. Reuse is the default — it's
-  free, deterministic, and safe. Prefer it whenever the bar is met.
+- The scenario **confidently matches** a prior test (word overlap ≥ 0.80 **or**
+  meaning score ≥ 0.82) **whose last run passed**. Reuse is the default here — it's
+  free, repeatable, and safe — so prefer it whenever the bar is met.
 
 ### How to avoid duplicate knowledge
 
-- **Idempotent ingest:** writes are keyed by `run_id` (delete‑then‑insert), so
+- **Ingest is idempotent:** writes are keyed by `run_id` (delete‑then‑insert), so
   re‑ingesting the same run never duplicates rows.
-- **Content‑hash embedding cache:** an unchanged test is never re‑embedded.
-- **Reuse provenance:** copied‑forward specs are flagged `reused = true` and are
-  _excluded_ from future reuse/pattern searches, so a copy never masquerades as a
-  fresh original.
-- **In‑run de‑duplication:** Global hints are merged by `(source app, title)`,
-  keeping only the best‑scoring one.
-- Don't invent parallel tables — all SQL goes through `store/repo.ts`; reuse the
+- **Embeddings are cached by content hash:** an unchanged test is never re‑embedded.
+- **Copies are tracked:** copied‑forward tests are flagged `reused = true` and left
+  out of future reuse and pattern searches, so a copy never poses as a fresh
+  original.
+- **Hints are de‑duplicated within a run:** Global hints are merged by
+  `(source app, title)`, keeping only the best‑scoring one.
+- **Don't add parallel tables:** all SQL goes through `store/repo.ts`; reuse the
   existing tables and the `app_id` convention.
 
-### How knowledge evolves over time
+### How knowledge grows over time
 
-- **Every run teaches the system.** New specs, outcomes, and heals are ingested,
-  so the App‑Scoped store grows and coverage trends upward.
-- **Healing feeds learning.** Repairs become `healing_events`; the distillation
-  job clusters them and promotes durable lessons into `trusted` playbooks that
-  improve _all_ future generation (we track the share of repairs that were
-  guided by a prior template — a rising number means the memory is working).
-- **Patterns sharpen as the pool grows.** The more apps in the database, the
-  richer Global Pattern retrieval becomes — which is why, when you enable the
-  Global tier, it's worth **backfilling** `pattern_embedding` for historical
-  specs (`npm run knowledge:pattern-backfill`) so day‑one transfer isn't limited
-  to brand‑new runs.
-- **Backfill the title embedding after migration 0005.** Specs ingested before
-  0005 have no `title_embedding`, so reuse falls back to `embedding` for both blend
-  terms — which caps exact‑title scenarios at ≈ 0.79 (below 0.82) and silently
-  suppresses reuse. Run `npm run knowledge:title-backfill` to re‑embed stored
-  titles in place (idempotent; reads `specs.title`, no `raw_reports` needed).
-- **Thresholds are calibrated, not guessed.** The reuse threshold (0.82,
-  `SEM_REUSE`) and the title/intent blend weight (`SEM_TITLE_WEIGHT = 0.5`) were
-  tuned against a labeled set (`npm run knowledge:calibrate`); if you change
-  embedding models or the abstraction rules, re‑calibrate.
+- **Every run teaches the system.** New tests, outcomes, and repairs get ingested,
+  so the App‑Scoped store grows and coverage trends up.
+- **Repairs feed learning.** Fixes become `healing_events`; the distillation job
+  groups them and promotes the durable lessons into `trusted` playbooks that improve
+  _all_ future generation (we track the share of repairs guided by a prior template
+  — when that number rises, the memory is doing its job).
+- **Patterns get sharper as the pool grows.** The more apps in the database, the
+  better Global Pattern retrieval gets — so when you turn the Global tier on, it's
+  worth **backfilling** `pattern_embedding` for older tests
+  (`npm run knowledge:pattern-backfill`) so the benefit isn't limited to brand‑new
+  runs.
+- **Backfill the title embedding after migration 0005.** Tests ingested before 0005
+  have no `title_embedding`, so reuse falls back to `embedding` for both halves of
+  the blend — which caps exact‑title scenarios around 0.79 (under 0.82) and quietly
+  suppresses reuse. Run `npm run knowledge:title-backfill` to re‑embed the stored
+  titles in place (it's idempotent, reads `specs.title`, and needs no
+  `raw_reports`).
+- **The thresholds are tuned, not guessed.** The reuse bar (0.82, `SEM_REUSE`) and
+  the title/intent blend weight (`SEM_TITLE_WEIGHT = 0.5`) were calibrated against a
+  labeled set (`npm run knowledge:calibrate`); if you swap the embedding model or
+  change the abstraction rules, re‑calibrate.
 
 ---
 
 ### TL;DR for a new contributor
 
-- **App‑Scoped = "reuse my own past tests for this app"** — strict, code‑level,
-  high precision, always tried first.
-- **Global Pattern = "borrow ideas from how other apps tested similar
-  workflows"** — abstracted, advisory, broad, used for the gaps.
-- Both write back into PostgreSQL after every run, so the system **gets smarter
-  the more it's used**.
+- **App‑Scoped = "reuse my own past tests for this app."** Strict, code‑level, very
+  precise, always tried first.
+- **Global Pattern = "borrow ideas from how other apps tested similar workflows."**
+  Abstracted, advisory, broad, used for the gaps.
+- Both write back into PostgreSQL after every run, so the system **gets smarter the
+  more you use it**.
