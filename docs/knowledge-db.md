@@ -146,21 +146,41 @@ We use **hybrid retrieval** — two scoring methods, and the _stronger_ one wins
 1. **Lexical / metadata filtering** — `overlapCoefficient` over
    `significantTokens` (the meaningful words in the scenario title). Robust, no AI
    needed. Threshold to reuse: **0.80**.
-2. **Semantic similarity search (embeddings + vector search)** — each spec's
-   _intent text_ (title + numbered step comments) is converted to a **384‑dimension
-   embedding** by a local model (`Xenova/bge-small-en-v1.5`, mean‑pooled,
-   L2‑normalized). Similarity is **cosine similarity**, accelerated by a pgvector
-   **HNSW index**. Threshold to reuse: **0.82** (deliberately strict — only a
-   near‑certain match copies a test forward).
+2. **Semantic similarity search (embeddings + vector search)** — text is converted
+   to a **384‑dimension embedding** by a local model (`Xenova/bge-small-en-v1.5`,
+   mean‑pooled, L2‑normalized), compared by **cosine similarity** and accelerated by
+   pgvector **HNSW indexes**. The reuse query is always a **bare scenario title**
+   (`ScenarioInput.name`), so we keep **two** embeddings per spec and blend them
+   (migration 0005, weight `SEM_TITLE_WEIGHT = 0.5`):
+
+   | Column                  | Embeds                             | Role in the blend                                             |
+   | ----------------------- | ---------------------------------- | ------------------------------------------------------------- |
+   | `specs.title_embedding` | the **title alone**                | `semTitle` — symmetric with the query → exact title ≈ **1.0** |
+   | `specs.embedding`       | **title + numbered step comments** | `semIntent` — richer; keeps similar‑but‑different tests apart |
+
+   ```
+   sem = 0.5 · cos(query, title_embedding)  +  0.5 · cos(query, embedding)
+   ```
+
+   **Why blend, instead of just `embedding`?** A title‑only query scored against
+   `embedding` (title + steps) tops out around **0.79** — _below_ the 0.82 reuse bar
+   — so an exact‑title match used to silently **never reuse**. The `title_embedding`
+   term restores exact‑match confidence (lifts it to ≈ 0.90, clearing 0.82), while
+   the `embedding` term keeps two structurally‑similar but _different_ tests apart
+   ("About scrolls" vs "Contact scrolls" stay ≈ 0.77, below the bar). Threshold to
+   reuse stays **0.82** (`SEM_REUSE`, deliberately strict — only a near‑certain match
+   copies a test forward).
 
 ```
-reuse  ⟺  ( lexical ≥ 0.80  OR  semantic ≥ 0.82 )  AND  last run passed
+reuse  ⟺  ( lexical ≥ 0.80  OR  sem ≥ 0.82 )  AND  last run passed
 new    ⟺  everything else
 ```
 
 > **Graceful degradation:** if embeddings are turned off or the model fails, the
 > semantic score is simply `0`, and the system falls back to lexical‑only — same
-> code path, never an error.
+> code path, never an error. And a spec with **no `title_embedding`** (ingested
+> before 0005, or not yet backfilled) reuses its `embedding` for _both_ blend terms,
+> so the score collapses to the pre‑0005 behaviour — no error, just the old number.
 
 ---
 
@@ -211,9 +231,13 @@ _form → compute → show result_ shape.
 
 ### How historical patterns help generate new scenarios
 
-The matched patterns are passed to the test‑designer agent as **few‑shot
+The single best matched pattern is passed to the test‑designer agent as **few‑shot
 inspiration** ("here's how this kind of workflow was tested elsewhere — adapt it
-to _this_ app's screen"). The agent still writes a fresh test against the current
+to _this_ app's screen"). Each hint carries an **abstracted workflow skeleton**
+(`PatternHint.workflow`) — the matched spec's title + steps with app‑specific
+entities stripped, collapsed and capped at `PATTERN_WORKFLOW_MAXLEN = 240` chars
+(`workflowSkeleton`) so a long spec can't flood the prompt, and so no foreign
+selectors or URLs leak in. The agent still writes a fresh test against the current
 app; it just starts from a better idea, which improves coverage and surfaces edge
 cases it might not have thought of.
 
@@ -222,16 +246,20 @@ cases it might not have thought of.
 | Algorithm                                   | Where we use it                                                                                                                                                                  |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Abstraction + embedding‑based retrieval** | Strip entities → embed → represent workflow shape                                                                                                                                |
-| **Nearest‑neighbor search (cosine + HNSW)** | `findGlobalPatternSpecs` finds the top‑k most similar passing patterns on other apps                                                                                             |
+| **Nearest‑neighbor search (cosine + HNSW)** | `findGlobalPatternSpecs` ranks passing patterns on other apps; `selectGlobalPatterns` keeps the single top match per scenario (`PATTERN_K = 1`)                                  |
 | **Clustering**                              | The distillation job (`clusterEpisodes`) groups recurring repair episodes by strategy + signature similarity (single‑link, threshold 0.60) so each cluster becomes one principle |
 | **Pattern library**                         | The `playbooks` table — distilled, evidence‑linked, trust‑gated principles                                                                                                       |
 
 **Safety rails for the Global tier:**
 
 - **Passing‑only** — we never propagate a pattern from a test that failed.
-- **Relevance floor 0.70** — lower than App‑Scoped's 0.82 ("relevant example?" is a
-  looser question than "the same test?").
-- **Top‑3 per scenario, 8 total** — keeps the prompt focused.
+- **Relevance floor 0.70** (`PATTERN_RELEVANCE`) — lower than App‑Scoped's 0.82
+  ("relevant example?" is a looser question than "the same test?").
+- **Top‑1 per scenario (`PATTERN_K = 1`), 8 total (`PATTERN_BUDGET`)** — only the
+  single best match above the floor is surfaced per `new` scenario (no runner‑ups),
+  keeping the prompt focused.
+- **Skeleton‑only** — each hint is trimmed to a ≤ 240‑char abstracted workflow
+  (`PATTERN_WORKFLOW_MAXLEN`), never raw foreign code.
 - **Advisory only** — hints are _read_, never _executed_; the decision stays "new".
 
 ---
@@ -281,12 +309,12 @@ New URL submitted
 ③ Existing tests reused  ───────────────► 2 spec files copied forward verbatim (no AI, instant)
    │
    ▼
-④ Global patterns loaded (for the 2 "new" scenarios)
+④ Global patterns loaded (for the 2 "new" scenarios — single best match each)
    │   "fill migration input fields" ─abstract→ "fill input fields"
-   │        → nearest passing patterns on OTHER apps: a loan calculator's
-   │          "fill application inputs", an invoice tool's "fill line‑item form"
+   │        → top passing pattern on another app: a loan calculator's
+   │          "fill application inputs" (workflow skeleton, ≤240 chars)
    │   "calculate projected savings (negative input)" ─abstract→ "calculate result negative input"
-   │        → pattern: a tax app's "compute total with negative/zero boundary values"
+   │        → top pattern: a tax app's "compute total with negative/zero boundary values"
    ▼
 ⑤ Additional scenarios generated  ──────► designer writes fresh tests for the 2 gaps,
    │                                       inspired by those cross‑app patterns
@@ -353,21 +381,29 @@ SELECT s.run_id, s.file, s.title, s.flow_id, s.tokens,
 _Returns:_ the reusable test modules for this app + whether each last passed.
 This is exactly what `readSpecsForApp` loads before deciding reuse vs new.
 
-**(c) Find the most similar existing test to a planned scenario (semantic)** — `specs.embedding`
+**(c) Find the most similar existing test to a planned scenario (hybrid semantic)** — `specs.title_embedding` + `specs.embedding`
+
+`:query_vec` is the embedding of the **bare scenario title**. We blend the
+title‑only cosine with the title+steps cosine (`SEM_TITLE_WEIGHT = 0.5`), falling
+back to `embedding` when a spec has no `title_embedding`:
 
 ```sql
 SELECT s.file, s.title,
-       1 - (s.embedding <=> :query_vec) AS similarity
+       0.5 * (1 - (COALESCE(s.title_embedding, s.embedding) <=> :query_vec))   -- semTitle
+     + 0.5 * (1 - (s.embedding <=> :query_vec))                                -- semIntent
+         AS similarity
   FROM specs s
  WHERE s.app_id = :app_id
    AND s.reused = false
    AND s.embedding IS NOT NULL
- ORDER BY s.embedding <=> :query_vec      -- nearest first (HNSW index)
+ ORDER BY similarity DESC                  -- HNSW accelerates each term's nearest‑neighbor read
  LIMIT 5;
 ```
 
-_Returns:_ the top‑5 closest prior tests. If the top similarity ≥ 0.82 **and** that
-test last passed, the agent reuses it.
+_Returns:_ the top‑5 closest prior tests. If the top blended similarity ≥ 0.82
+**and** that test last passed, the agent reuses it. (This mirrors `hybridSem` in
+`coverageDecision.ts`; in production the blend is computed in app code over the
+candidate set, not in one SQL pass.)
 
 **(d) Load historical reports** — table `raw_reports`
 
@@ -464,19 +500,19 @@ these and inject them into prompts.)
 
 ## 7. Comparison table
 
-| Category              | App‑Scoped Retrieval                                                        | Global Pattern Retrieval                                                                                           |
-| --------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Purpose**           | Reuse the _exact_ tests already written for _this_ app                      | Borrow _testing ideas_ from similar workflows on _other_ apps                                                      |
-| **Search scope**      | One app only (`WHERE app_id = :app_id`)                                     | All apps except the current one (`WHERE app_id <> :app_id`)                                                        |
-| **Knowledge source**  | This app's `specs`, `runs`, `test_results`, `raw_reports`, `healing_events` | Other apps' abstracted `specs.pattern_embedding` + `playbooks`                                                     |
-| **Algorithm used**    | Hybrid: lexical token overlap **OR** semantic cosine (HNSW)                 | Abstraction → embedding → cross‑app nearest‑neighbor (HNSW); clustering for playbooks                              |
-| **Data stored**       | Concrete `embedding` (real intent text) + tokens + outcomes                 | Abstracted `pattern_embedding` (entities stripped) + distilled principles                                          |
-| **Reusability**       | Whole test files copied forward **verbatim** (code reused)                  | Only _patterns/ideas_ reused — never code                                                                          |
-| **Precision**         | Very high — strict 0.82 threshold + must have passed                        | Looser — 0.70 relevance floor, ranked top‑k                                                                        |
-| **Generalization**    | None — tied to one app's DOM                                                | High — transfers across domains and apps                                                                           |
-| **Example use cases** | "I tested 'Calculate TCO' last week → reuse it"                             | "This form is new here, but 5 other apps tested forms like it"                                                     |
-| **Benefits**          | Fast, deterministic, zero‑cost reuse; rising coverage per app               | Cold‑start help, broader edge‑case coverage, knowledge transfer                                                    |
-| **Limitations**       | Empty for a brand‑new app (nothing to reuse yet)                            | Advisory only; quality depends on pool size; behind a feature flag; needs backfill to include pre‑existing history |
+| Category              | App‑Scoped Retrieval                                                                                | Global Pattern Retrieval                                                                                           |
+| --------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Purpose**           | Reuse the _exact_ tests already written for _this_ app                                              | Borrow _testing ideas_ from similar workflows on _other_ apps                                                      |
+| **Search scope**      | One app only (`WHERE app_id = :app_id`)                                                             | All apps except the current one (`WHERE app_id <> :app_id`)                                                        |
+| **Knowledge source**  | This app's `specs`, `runs`, `test_results`, `raw_reports`, `healing_events`                         | Other apps' abstracted `specs.pattern_embedding` + `playbooks`                                                     |
+| **Algorithm used**    | Hybrid: lexical token overlap **OR** blended semantic cosine — `0.5·title + 0.5·title+steps` (HNSW) | Abstraction → embedding → cross‑app nearest‑neighbor (HNSW); clustering for playbooks                              |
+| **Data stored**       | `embedding` (title + steps) **+** `title_embedding` (title alone) + tokens + outcomes               | Abstracted `pattern_embedding` (entities stripped) + `pattern_text` skeleton + distilled principles                |
+| **Reusability**       | Whole test files copied forward **verbatim** (code reused)                                          | Only _patterns/ideas_ reused — never code                                                                          |
+| **Precision**         | Very high — strict 0.82 threshold + must have passed                                                | Looser — 0.70 relevance floor, single top match per scenario (`PATTERN_K = 1`)                                     |
+| **Generalization**    | None — tied to one app's DOM                                                                        | High — transfers across domains and apps                                                                           |
+| **Example use cases** | "I tested 'Calculate TCO' last week → reuse it"                                                     | "This form is new here, but 5 other apps tested forms like it"                                                     |
+| **Benefits**          | Fast, deterministic, zero‑cost reuse; rising coverage per app                                       | Cold‑start help, broader edge‑case coverage, knowledge transfer                                                    |
+| **Limitations**       | Empty for a brand‑new app (nothing to reuse yet)                                                    | Advisory only; quality depends on pool size; behind a feature flag; needs backfill to include pre‑existing history |
 
 ---
 
@@ -540,8 +576,8 @@ sequenceDiagram
     participant DB as Knowledge DB
     participant Distill as Distillation Job
     Run->>Ingest: RunReport (specs, results, heals)
-    Ingest->>Ingest: extract intent + abstract pattern text
-    Ingest->>Ingest: embed (concrete + pattern), cache by content hash
+    Ingest->>Ingest: extract intent + abstract pattern text + title
+    Ingest->>Ingest: embed (intent + pattern + title), cache by content hash
     Ingest->>DB: persist runs / specs / results / healing_events
     Distill->>DB: read healed episodes since watermark
     Distill->>Distill: cluster by strategy + signature
@@ -571,14 +607,15 @@ src/knowledge/
 │       ├── 0001_init.sql            # apps, runs, specs, results, reports…
 │       ├── 0002_pgvector.sql        # specs.embedding + HNSW (App‑Scoped semantic)
 │       ├── 0003_healing_playbooks.sql  # healing_events, playbooks
-│       └── 0004_pattern_embedding.sql  # specs.pattern_embedding (Global tier)
+│       ├── 0004_pattern_embedding.sql  # specs.pattern_embedding (Global tier)
+│       └── 0005_title_embedding.sql    # specs.title_embedding (hybrid App‑Scoped reuse)
 │
 ├── embeddings/               # ── Turning text into vectors ──
 │   ├── embed.ts              # Local model + cosine similarity
 │   └── abstractIntent.ts     # Strip app‑specific entities → workflow shape
 │
 ├── ingest/                   # ── WRITING new knowledge after a run ──
-│   ├── extract.ts            # RunReport → structured rows + intent/pattern text
+│   ├── extract.ts            # RunReport → structured rows + intent/pattern/title text
 │   └── ingestRun.ts          # Embed + persist (idempotent by run_id)
 │
 ├── retrieve/                 # ── READING knowledge to help generation ──
@@ -648,10 +685,17 @@ periodically writes summary "best‑practice" cards from everything filed.
 - **Patterns sharpen as the pool grows.** The more apps in the database, the
   richer Global Pattern retrieval becomes — which is why, when you enable the
   Global tier, it's worth **backfilling** `pattern_embedding` for historical
-  specs so day‑one transfer isn't limited to brand‑new runs.
-- **Thresholds are calibrated, not guessed.** The reuse threshold (0.82) was
-  tuned against a labeled set; if you change embedding models or the abstraction
-  rules, re‑calibrate.
+  specs (`npm run knowledge:pattern-backfill`) so day‑one transfer isn't limited
+  to brand‑new runs.
+- **Backfill the title embedding after migration 0005.** Specs ingested before
+  0005 have no `title_embedding`, so reuse falls back to `embedding` for both blend
+  terms — which caps exact‑title scenarios at ≈ 0.79 (below 0.82) and silently
+  suppresses reuse. Run `npm run knowledge:title-backfill` to re‑embed stored
+  titles in place (idempotent; reads `specs.title`, no `raw_reports` needed).
+- **Thresholds are calibrated, not guessed.** The reuse threshold (0.82,
+  `SEM_REUSE`) and the title/intent blend weight (`SEM_TITLE_WEIGHT = 0.5`) were
+  tuned against a labeled set (`npm run knowledge:calibrate`); if you change
+  embedding models or the abstraction rules, re‑calibrate.
 
 ---
 
