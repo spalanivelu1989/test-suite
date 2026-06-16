@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import { significantTokens } from "../../coverage/coverage";
+import { norm, significantTokens } from "../../coverage/coverage";
 import { cosineSim } from "../embeddings/embed";
 import { readSpecsForApp, type SpecRow } from "../store/repo";
 import type { CoverageAction, CoverageDecision, ScenarioInput } from "../types";
@@ -115,8 +115,20 @@ export function decideForSpecs(
     // Everything else — no match, a weak match, or a strong match whose prior
     // run failed — is `new`: regenerated from scratch, never silently skipped.
     const confident = bestLex >= REUSE_THRESHOLD || bestSem >= semReuse;
+
+    // Fix 2 — cross-flow guard. A confident TITLE match is not enough if the
+    // scenario and the matched spec belong to DIFFERENT flows/pages: two unrelated
+    // workflows can share a title (a newsletter "Submit form" vs a support "Submit
+    // form"), and reusing the wrong one silently hides a coverage gap. Only blocks
+    // when BOTH flows are known; if either is absent (today's callers) the decision
+    // is unchanged. Compared via the same norm() that produced the spec's flowId.
+    const sameFlow =
+      !sc.flowId ||
+      !bestSpec?.flowId ||
+      norm(sc.flowId) === norm(bestSpec.flowId);
+
     const action: CoverageAction =
-      bestSpec !== null && confident && passed(bestSpec.lastOutcome)
+      bestSpec !== null && confident && passed(bestSpec.lastOutcome) && sameFlow
         ? "reuse"
         : "new";
 

@@ -4,12 +4,16 @@ import { significantTokens } from "../../coverage/coverage";
 import type { SpecRow } from "../store/repo";
 import { decideForSpecs, overlapCoefficient } from "./coverageDecision";
 
-function spec(title: string, outcome: string | null): SpecRow {
+function spec(
+  title: string,
+  outcome: string | null,
+  flowId: string | null = null,
+): SpecRow {
   return {
     runId: "r1",
     file: `${title}.spec.ts`,
     title,
-    flowId: null,
+    flowId,
     tokens: [...significantTokens(title)],
     lastOutcome: outcome,
     embedding: null,
@@ -153,4 +157,51 @@ test("decision is deterministic across repeats (N4)", () => {
   const a = JSON.stringify(decideForSpecs([sc], specs));
   const b = JSON.stringify(decideForSpecs([sc], specs));
   assert.equal(a, b);
+});
+
+// ── Fix 2: cross-flow reuse guard ────────────────────────────────────────────
+// A confident TITLE match must not reuse a spec from a DIFFERENT flow/page — two
+// unrelated workflows can share a title (newsletter "Submit form" vs support
+// "Submit form"). Only fires when both flows are known; unknown → unchanged.
+
+test("Fix 2: same title + SAME flow → reuse", () => {
+  const specs = [spec("Submit the form", "passed", "newsletter")];
+  const [d] = decideForSpecs(
+    [{ name: "Submit the form", flowId: "newsletter" }],
+    specs,
+  );
+  assert.equal(d.action, "reuse");
+});
+
+test("Fix 2: same title + DIFFERENT flow → new (blocks cross-flow reuse)", () => {
+  const specs = [spec("Submit the form", "passed", "newsletter")];
+  const [d] = decideForSpecs(
+    [{ name: "Submit the form", flowId: "support-ticket" }],
+    specs,
+  );
+  assert.equal(d.action, "new"); // identical title, different workflow → regenerate
+});
+
+test("Fix 2: flow compare is norm()-based (case/punctuation insensitive)", () => {
+  const specs = [spec("Submit the form", "passed", "Newsletter Signup")];
+  const [d] = decideForSpecs(
+    [{ name: "Submit the form", flowId: "newsletter-signup" }],
+    specs,
+  );
+  assert.equal(d.action, "reuse"); // "Newsletter Signup" ≡ "newsletter-signup"
+});
+
+test("Fix 2: scenario flow unknown → unchanged (backward compatible)", () => {
+  const specs = [spec("Submit the form", "passed", "newsletter")];
+  const [d] = decideForSpecs([{ name: "Submit the form" }], specs);
+  assert.equal(d.action, "reuse"); // no scenario flow → no cross-flow block
+});
+
+test("Fix 2: spec flow unknown → unchanged (backward compatible)", () => {
+  const specs = [spec("Submit the form", "passed", null)];
+  const [d] = decideForSpecs(
+    [{ name: "Submit the form", flowId: "support-ticket" }],
+    specs,
+  );
+  assert.equal(d.action, "reuse"); // spec has no flow → can't block
 });

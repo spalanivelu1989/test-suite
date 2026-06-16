@@ -11,6 +11,13 @@ export interface ScenarioInput {
   name: string;
   /** Phase 2: semantic embedding of `name` (set by the service at query time). */
   embedding?: number[];
+  /**
+   * The flow/page this scenario belongs to, when the caller knows it. Used to
+   * REFUSE reuse across different flows that happen to share a title (e.g. a
+   * newsletter "Submit form" vs a support "Submit form"). When absent, the reuse
+   * decision is unchanged. Compared with the spec's flowId via the same norm().
+   */
+  flowId?: string;
 }
 
 /** A spec returned by a semantic nearest-neighbor search (Phase 2, R6). */
@@ -262,6 +269,7 @@ export type KnowledgeEvent =
   | { kind: "precedents"; failures: number; matched: number }
   | { kind: "playbooks"; injected: number }
   | { kind: "disabled"; reason: string }
+  | { kind: "skipped"; op: string; reason: string }
   | { kind: "error"; op: string; message: string };
 
 /**
