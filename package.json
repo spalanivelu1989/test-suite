@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx --test \"src/**/*.test.ts\"",
+    "test:unit": "KNOWLEDGE_DATABASE_URL= tsx --test \"src/**/*.test.ts\"",
     "test:db": "node --env-file-if-exists=.env.test --import tsx --test \"src/**/*.test.ts\"",
     "ci": "node --env-file-if-exists=.env.local --import tsx bin/run-ci.ts",
     "render:html": "tsx bin/render-html.ts",

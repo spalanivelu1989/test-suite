@@ -18,6 +18,7 @@ import {
   selectPrecedents,
 } from "./retrieve/healingPrecedents";
 import { withKb } from "./safety";
+import { databaseName, isTestDatabase, isTestRunId } from "./store/testDbGuard";
 import { closePool, getPool } from "./store/db";
 import {
   findGlobalPatternSpecs,
@@ -144,6 +145,20 @@ class PgKnowledgeService implements KnowledgeService {
   }
 
   async ingestRun(report: RunReport): Promise<void> {
+    // Last-line safety: never let a synthetic `test-<uuid>` run land in a real
+    // knowledge DB. `test:unit` carries no env-file isolation, so a unit test
+    // that calls runPipeline() without injecting a no-op service would otherwise
+    // ingest fixtures into whatever KNOWLEDGE_DATABASE_URL is exported. Skip
+    // loudly instead of silently polluting; a *test* DB still ingests freely so
+    // the integration suites keep working.
+    if (isTestRunId(report.runId) && !isTestDatabase(this.url)) {
+      this.onEvent?.({
+        kind: "skipped",
+        op: "ingestRun",
+        reason: `refusing to persist test run "${report.runId}" into non-test database "${databaseName(this.url)}"`,
+      });
+      return;
+    }
     await withKb(
       "ingestRun",
       async () => {

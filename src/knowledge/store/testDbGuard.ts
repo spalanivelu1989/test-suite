@@ -22,6 +22,17 @@ export function isTestDatabase(url: string | undefined): boolean {
 }
 
 /**
+ * True for synthetic run ids minted by the test suite (`test-<uuid>`). Real runs
+ * get a bare UUID from the run store, so this prefix reliably marks a fixture run
+ * that must never be persisted into a production knowledge DB. Used by ingestRun
+ * as a last-line guard against a unit test (which carries no env-file isolation)
+ * writing into whatever KNOWLEDGE_DATABASE_URL happens to be exported.
+ */
+export function isTestRunId(runId: string | undefined): boolean {
+  return !!runId && runId.startsWith("test-");
+}
+
+/**
  * The `skip` value for a node:test integration suite, given the configured DB URL:
  *   - no URL       → skip (unit-test mode, no DB configured)
  *   - non-test DB  → skip LOUDLY (guards against an exported var shadowing .env.test)

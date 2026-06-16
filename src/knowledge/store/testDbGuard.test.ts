@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { databaseName, dbTestSkip, isTestDatabase } from "./testDbGuard";
+import {
+  databaseName,
+  dbTestSkip,
+  isTestDatabase,
+  isTestRunId,
+} from "./testDbGuard";
 
 test("databaseName: extracts the db name from a connection URL", () => {
   assert.equal(
@@ -25,4 +30,13 @@ test("dbTestSkip: skip with reason for missing or non-test DB, run for test DB",
   const reason = dbTestSkip("postgres://u@h:5433/knowledge");
   assert.equal(typeof reason, "string");
   assert.match(reason as string, /non-test database "knowledge"/);
+});
+
+test("isTestRunId: true only for synthetic test-<uuid> run ids", () => {
+  assert.equal(isTestRunId("test-fc70b034-0b82-4207-b7ee-79865e085988"), true);
+  // Real runs get a bare UUID from the run store — never the test- prefix.
+  assert.equal(isTestRunId("fc70b034-0b82-4207-b7ee-79865e085988"), false);
+  assert.equal(isTestRunId("run-123"), false);
+  assert.equal(isTestRunId(undefined), false);
+  assert.equal(isTestRunId(""), false);
 });
