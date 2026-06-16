@@ -209,6 +209,44 @@ reuse  ⟺  ( lexical ≥ 0.80  OR  sem ≥ 0.82 )  AND  last run passed
 new    ⟺  everything else
 ```
 
+#### Two worked examples (with the numbers)
+
+In both, the planned scenario is just a **title** (that's all the planner gives us),
+and we score it against one stored, previously‑passing spec.
+
+**Example 1 — same test → REUSE.**
+The planner proposes **"Add item to cart"**, and we already have a passing spec
+titled **"Add item to cart"** (whose `embedding` also folds in its step comments
+like `// open product`, `// click add-to-cart`, `// assert badge = 1`).
+
+| Signal                                       | How it's computed                                                              | Value     |
+| -------------------------------------------- | ------------------------------------------------------------------------------ | --------- |
+| Word overlap (lexical)                       | tokens `{add, item, cart}` vs `{add, item, cart}` → 3 shared ÷ 3 (smaller set) | **1.00**  |
+| `semTitle` = cos(query, **title_embedding**) | query and the spec's title are the same text → near‑identical vectors          | **1.00**  |
+| `semIntent` = cos(query, **embedding**)      | a bare title vs an embedding diluted by step comments — never quite lines up   | **0.79**  |
+| `sem` (blend)                                | `0.5 × 1.00 + 0.5 × 0.79`                                                      | **0.895** |
+
+Decision: lexical `1.00 ≥ 0.80` **and** `sem 0.895 ≥ 0.82`, last run passed → **REUSE**.
+The point of the blend: on `semIntent` alone you'd score only **0.79** — _below_ 0.82
+— and the semantic path would miss this obvious match. The `semTitle` term lifts it to
+**0.90** so it clears the bar.
+
+**Example 2 — look‑alike but different test → NEW.**
+The planner proposes **"About page scrolls smoothly"**; the nearest stored spec is
+**"Contact page scrolls smoothly"** (its steps assert different links/content).
+
+| Signal                                       | How it's computed                                                                         | Value    |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------- | -------- |
+| Word overlap (lexical)                       | `{about, page, scrolls, smoothly}` vs `{contact, page, scrolls, smoothly}` → 3 shared ÷ 4 | **0.75** |
+| `semTitle` = cos(query, **title_embedding**) | titles differ by one word, so the vectors are close but not equal                         | **0.80** |
+| `semIntent` = cos(query, **embedding**)      | the step comments differ (About vs Contact content), pulling them further apart           | **0.74** |
+| `sem` (blend)                                | `0.5 × 0.80 + 0.5 × 0.74`                                                                 | **0.77** |
+
+Decision: lexical `0.75 < 0.80` **and** `sem 0.77 < 0.82` → **NEW** (generate a fresh
+test). Here the `semIntent` term does the opposite job — the differing _steps_ drag the
+blend below the bar, so two pages that merely sound alike don't get one test reused for
+the other.
+
 > **It fails gracefully.** If embeddings are turned off or the model errors out, the
 > meaning score is just `0` and we fall back to word overlap — same code path, no
 > crash. And a test with **no `title_embedding`** yet (ingested before 0005, or not
