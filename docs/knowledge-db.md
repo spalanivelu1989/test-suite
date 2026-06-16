@@ -38,13 +38,18 @@ years of general experience** from every other project they've worked on.
 
 ## 1. How agents decide the retrieval scope
 
-Two agents are involved, and only the second one touches the knowledge base:
+Two agents are involved, and they touch the knowledge base differently:
 
 - The **Discoverer Agent** explores the target URL and plans the test scenarios.
-  It is **knowledge‑base‑agnostic** — it never queries history.
+  It makes **no reuse/coverage decision** — de‑duplicating against prior runs is the
+  Designer's job alone (ADR‑0003). But it **is** primed with history as
+  _accelerator memory_: the **previous plan for this app** (`getLastPlan` — the most
+  recent `app_id` run's `planMarkdown`, clipped to ~4k tokens), trusted **playbooks**
+  (crawl‑strategy principles), and authored **business context**. It still crawls the
+  live site and must revise/extend that memory, never blindly copy it.
 - The **Designer Agent** takes those planned scenarios and **queries the knowledge
-  base** to decide, _per scenario_, whether to **reuse** an existing test or
-  **generate** a fresh one (with cross‑app patterns as inspiration).
+  base** to make the actual **reuse vs generate** decision, _per scenario_ — reusing
+  an existing test or generating a fresh one (with cross‑app patterns as inspiration).
 
 A common misconception is that the Designer picks _either_ App‑Scoped _or_ Global.
 In reality it's a **cascade gated on whether we've seen this app before**:
@@ -70,7 +75,7 @@ flowchart TD
 
     D -->|No| H
 
-    H --> I["Similar workflow found in 5 other applications — here's what they checked; go write the equivalent for this app."]
+    H --> I["Similar workflow found in other applications — here's what they checked; go write the equivalent for this app."]
 ```
 
 **Reading the gate:** `app_url` "exists" when the knowledge base already holds
