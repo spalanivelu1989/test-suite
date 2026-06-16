@@ -1,6 +1,15 @@
 "use client";
 
-import { Box, Button, Flex, Spinner, Table, Text, Badge, Grid } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Flex,
+  Spinner,
+  Table,
+  Text,
+  Badge,
+  Grid,
+} from "@chakra-ui/react";
 import {
   AlertCircle,
   Check,
@@ -64,9 +73,21 @@ const SCHEMA_TABLES = [
     name: "apps",
     description: "App origins monitored by the test suite.",
     columns: [
-      { name: "app_id", type: "TEXT PRIMARY KEY", desc: "Normalized origin (e.g. https://example.com)" },
-      { name: "first_seen", type: "TIMESTAMPTZ", desc: "First recorded run time" },
-      { name: "last_seen", type: "TIMESTAMPTZ", desc: "Latest recorded run time" },
+      {
+        name: "app_id",
+        type: "TEXT PRIMARY KEY",
+        desc: "Normalized origin (e.g. https://example.com)",
+      },
+      {
+        name: "first_seen",
+        type: "TIMESTAMPTZ",
+        desc: "First recorded run time",
+      },
+      {
+        name: "last_seen",
+        type: "TIMESTAMPTZ",
+        desc: "Latest recorded run time",
+      },
       { name: "run_count", type: "INTEGER", desc: "Total runs completed" },
     ],
   },
@@ -74,41 +95,101 @@ const SCHEMA_TABLES = [
     name: "runs",
     description: "Test suite execution runs.",
     columns: [
-      { name: "run_id", type: "TEXT PRIMARY KEY", desc: "Unique identifier for the execution run" },
-      { name: "app_id", type: "TEXT -> apps(app_id)", desc: "Normalized app origin" },
-      { name: "url", type: "TEXT", desc: "The exact URL that was targeted in the test" },
+      {
+        name: "run_id",
+        type: "TEXT PRIMARY KEY",
+        desc: "Unique identifier for the execution run",
+      },
+      {
+        name: "app_id",
+        type: "TEXT -> apps(app_id)",
+        desc: "Normalized app origin",
+      },
+      {
+        name: "url",
+        type: "TEXT",
+        desc: "The exact URL that was targeted in the test",
+      },
       { name: "status", type: "TEXT", desc: "completed | running | failed" },
       { name: "crawl_mode", type: "TEXT", desc: "Crawler setup / strategy" },
-      { name: "created_at", type: "TIMESTAMPTZ", desc: "Run creation timestamp" },
+      {
+        name: "created_at",
+        type: "TIMESTAMPTZ",
+        desc: "Run creation timestamp",
+      },
     ],
   },
   {
     name: "specs",
     description: "Generated Playwright test files.",
     columns: [
-      { name: "id", type: "BIGSERIAL PRIMARY KEY", desc: "Internal spec identifier" },
-      { name: "run_id", type: "TEXT -> runs(run_id)", desc: "Associated run ID" },
+      {
+        name: "id",
+        type: "BIGSERIAL PRIMARY KEY",
+        desc: "Internal spec identifier",
+      },
+      {
+        name: "run_id",
+        type: "TEXT -> runs(run_id)",
+        desc: "Associated run ID",
+      },
       { name: "app_id", type: "TEXT", desc: "Associated app origin" },
       { name: "file", type: "TEXT", desc: "Playwright test file path" },
       { name: "title", type: "TEXT", desc: "Abstracted test case/flow title" },
-      { name: "flow_id", type: "TEXT", desc: "Logical workspace workflow reference" },
-      { name: "reused", type: "BOOLEAN", desc: "True if spec was copied forward from a prior run" },
-      { name: "tokens", type: "TEXT[]", desc: "Keywords representing user intent" },
-      { name: "pattern_text", type: "TEXT", desc: "Normalized, variable-stripped code skeleton" },
-      { name: "created_at", type: "TIMESTAMPTZ", desc: "Timestamp of generation" },
+      {
+        name: "flow_id",
+        type: "TEXT",
+        desc: "Logical workspace workflow reference",
+      },
+      {
+        name: "reused",
+        type: "BOOLEAN",
+        desc: "True if spec was copied forward from a prior run",
+      },
+      {
+        name: "tokens",
+        type: "TEXT[]",
+        desc: "Keywords representing user intent",
+      },
+      {
+        name: "pattern_text",
+        type: "TEXT",
+        desc: "Normalized, variable-stripped code skeleton",
+      },
+      {
+        name: "created_at",
+        type: "TIMESTAMPTZ",
+        desc: "Timestamp of generation",
+      },
     ],
   },
   {
     name: "test_results",
     description: "Outcome results per workflow flow/file in a run.",
     columns: [
-      { name: "id", type: "BIGSERIAL PRIMARY KEY", desc: "Result entry identifier" },
-      { name: "run_id", type: "TEXT -> runs(run_id)", desc: "Execution run reference" },
+      {
+        name: "id",
+        type: "BIGSERIAL PRIMARY KEY",
+        desc: "Result entry identifier",
+      },
+      {
+        name: "run_id",
+        type: "TEXT -> runs(run_id)",
+        desc: "Execution run reference",
+      },
       { name: "app_id", type: "TEXT", desc: "Associated app origin" },
-      { name: "flow_id", type: "TEXT", desc: "Target workflow flow identifier" },
+      {
+        name: "flow_id",
+        type: "TEXT",
+        desc: "Target workflow flow identifier",
+      },
       { name: "file", type: "TEXT", desc: "Run test filename" },
       { name: "outcome", type: "TEXT", desc: "passed | healed | failed" },
-      { name: "failure_reason", type: "TEXT", desc: "Error messages in case of failure" },
+      {
+        name: "failure_reason",
+        type: "TEXT",
+        desc: "Error messages in case of failure",
+      },
       { name: "created_at", type: "TIMESTAMPTZ", desc: "Timestamp" },
     ],
   },
@@ -116,22 +197,47 @@ const SCHEMA_TABLES = [
     name: "coverage_snapshots",
     description: "Workflow coverage coverage percentage per run.",
     columns: [
-      { name: "run_id", type: "TEXT PRIMARY KEY -> runs(run_id)", desc: "Associated execution run" },
+      {
+        name: "run_id",
+        type: "TEXT PRIMARY KEY -> runs(run_id)",
+        desc: "Associated execution run",
+      },
       { name: "app_id", type: "TEXT", desc: "App origin reference" },
       { name: "curated_total", type: "INTEGER", desc: "Total planned flows" },
-      { name: "tested_count", type: "INTEGER", desc: "Number of flows verified" },
-      { name: "percent", type: "INTEGER", desc: "Coverage percentage (0..100)" },
-      { name: "missing_flows", type: "TEXT[]", desc: "List of untested flow names" },
+      {
+        name: "tested_count",
+        type: "INTEGER",
+        desc: "Number of flows verified",
+      },
+      {
+        name: "percent",
+        type: "INTEGER",
+        desc: "Coverage percentage (0..100)",
+      },
+      {
+        name: "missing_flows",
+        type: "TEXT[]",
+        desc: "List of untested flow names",
+      },
       { name: "created_at", type: "TIMESTAMPTZ", desc: "Creation timestamp" },
     ],
   },
   {
     name: "raw_reports",
-    description: "Full JSON RunReport payloads containing test summaries and logs.",
+    description:
+      "Full JSON RunReport payloads containing test summaries and logs.",
     columns: [
-      { name: "run_id", type: "TEXT PRIMARY KEY -> runs(run_id)", desc: "Execution run reference" },
+      {
+        name: "run_id",
+        type: "TEXT PRIMARY KEY -> runs(run_id)",
+        desc: "Execution run reference",
+      },
       { name: "app_id", type: "TEXT", desc: "App origin reference" },
-      { name: "report", type: "JSONB", desc: "Raw document JSON. report->>'planMarkdown' is the test plan" },
+      {
+        name: "report",
+        type: "JSONB",
+        desc: "Raw document JSON. report->>'planMarkdown' is the test plan",
+      },
       { name: "created_at", type: "TIMESTAMPTZ", desc: "Timestamp" },
     ],
   },
@@ -139,12 +245,28 @@ const SCHEMA_TABLES = [
     name: "healing_events",
     description: "Self-healing logs capturing AI selector repairs.",
     columns: [
-      { name: "id", type: "BIGSERIAL PRIMARY KEY", desc: "Healing case identifier" },
-      { name: "run_id", type: "TEXT -> runs(run_id)", desc: "Execution run reference" },
+      {
+        name: "id",
+        type: "BIGSERIAL PRIMARY KEY",
+        desc: "Healing case identifier",
+      },
+      {
+        name: "run_id",
+        type: "TEXT -> runs(run_id)",
+        desc: "Execution run reference",
+      },
       { name: "app_id", type: "TEXT", desc: "Associated app origin" },
-      { name: "flow_id", type: "TEXT", desc: "Target workflow flow identifier" },
+      {
+        name: "flow_id",
+        type: "TEXT",
+        desc: "Target workflow flow identifier",
+      },
       { name: "file", type: "TEXT", desc: "Repaired test file name" },
-      { name: "failure_signature", type: "TEXT", desc: "Abstracted exception fingerprint" },
+      {
+        name: "failure_signature",
+        type: "TEXT",
+        desc: "Abstracted exception fingerprint",
+      },
       { name: "before_snippet", type: "TEXT", desc: "Failing locator code" },
       { name: "after_snippet", type: "TEXT", desc: "Repaired locator code" },
       { name: "strategy", type: "TEXT", desc: "Heuristic/AI strategy applied" },
@@ -154,25 +276,70 @@ const SCHEMA_TABLES = [
   },
   {
     name: "playbooks",
-    description: "Distilled testing rules and recommendations verified across runs.",
+    description:
+      "Distilled testing rules and recommendations verified across runs.",
     columns: [
       { name: "id", type: "TEXT PRIMARY KEY", desc: "Unique principle ID" },
-      { name: "scope_kind", type: "TEXT", desc: "app | global | componentType" },
-      { name: "scope_key", type: "TEXT", desc: "Context descriptor for applicability" },
+      {
+        name: "scope_kind",
+        type: "TEXT",
+        desc: "app | global | componentType",
+      },
+      {
+        name: "scope_key",
+        type: "TEXT",
+        desc: "Context descriptor for applicability",
+      },
       { name: "principle", type: "TEXT", desc: "Abstracted rule details" },
-      { name: "antipattern", type: "TEXT", desc: "Failing design pattern to avoid" },
+      {
+        name: "antipattern",
+        type: "TEXT",
+        desc: "Failing design pattern to avoid",
+      },
       { name: "recommendation", type: "TEXT", desc: "Alternative solution" },
-      { name: "support_count", type: "INTEGER", desc: "Verification frequency" },
-      { name: "confidence", type: "REAL", desc: "Calculated reliability score" },
+      {
+        name: "support_count",
+        type: "INTEGER",
+        desc: "Verification frequency",
+      },
+      {
+        name: "confidence",
+        type: "REAL",
+        desc: "Calculated reliability score",
+      },
       { name: "status", type: "TEXT", desc: "episodic | trusted" },
       { name: "created_at", type: "TIMESTAMPTZ", desc: "Timestamp" },
     ],
   },
 ];
 
+// Postgres TIMESTAMPTZ values are serialized to UTC ISO strings (…Z) over JSON, so
+// the browser would otherwise show UTC. Match those and render them in IST.
+const ISO_DATETIME =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/;
+
+/** Format an ISO timestamp in India Standard Time (Asia/Kolkata). */
+function formatIST(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return `${d.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  })} IST`;
+}
+
 /** Render any cell value (null, JSON, array, scalar) as a readable string. */
 function formatCell(value: unknown): string {
   if (value === null || value === undefined) return "∅";
+  if (typeof value === "string" && ISO_DATETIME.test(value)) {
+    return formatIST(value);
+  }
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
@@ -180,7 +347,8 @@ function formatCell(value: unknown): string {
 function highlightSQL(code: string, isDark: boolean): React.ReactNode[] {
   if (!code) return [];
 
-  const regex = /(--.*)|('[^']*')|(\b\d+\b)|(\b(?:SELECT|FROM|WHERE|JOIN|LEFT|RIGHT|INNER|OUTER|ON|GROUP\s+BY|ORDER\s+BY|LIMIT|OFFSET|AND|OR|AS|WITH|INSERT|UPDATE|DELETE|CREATE|TABLE|IN|NOT|NULL|IS|TRUE|FALSE|HAVING|UNION|ALL|EXISTS|CASE|WHEN|THEN|ELSE|END|DESC|ASC|COUNT|SUM|AVG|MIN|MAX)\b)|([=<>!+\-*\/%]+)|(\S+)|(\s+)/gi;
+  const regex =
+    /(--.*)|('[^']*')|(\b\d+\b)|(\b(?:SELECT|FROM|WHERE|JOIN|LEFT|RIGHT|INNER|OUTER|ON|GROUP\s+BY|ORDER\s+BY|LIMIT|OFFSET|AND|OR|AS|WITH|INSERT|UPDATE|DELETE|CREATE|TABLE|IN|NOT|NULL|IS|TRUE|FALSE|HAVING|UNION|ALL|EXISTS|CASE|WHEN|THEN|ELSE|END|DESC|ASC|COUNT|SUM|AVG|MIN|MAX)\b)|([=<>!+\-*\/%]+)|(\S+)|(\s+)/gi;
 
   const parts: React.ReactNode[] = [];
 
@@ -201,46 +369,41 @@ function highlightSQL(code: string, isDark: boolean): React.ReactNode[] {
       regex.lastIndex++;
     }
 
-    const [
-      full,
-      comment,
-      string,
-      number,
-      keyword,
-      operator,
-      word,
-      whitespace,
-    ] = match;
+    const [full, comment, string, number, keyword, operator, word, whitespace] =
+      match;
 
     if (comment) {
       parts.push(
-        <span key={key++} style={{ color: colors.comment, fontStyle: "italic" }}>
+        <span
+          key={key++}
+          style={{ color: colors.comment, fontStyle: "italic" }}
+        >
           {comment}
-        </span>
+        </span>,
       );
     } else if (string) {
       parts.push(
         <span key={key++} style={{ color: colors.string }}>
           {string}
-        </span>
+        </span>,
       );
     } else if (number) {
       parts.push(
         <span key={key++} style={{ color: colors.number }}>
           {number}
-        </span>
+        </span>,
       );
     } else if (keyword) {
       parts.push(
         <span key={key++} style={{ color: colors.keyword, fontWeight: "bold" }}>
           {keyword}
-        </span>
+        </span>,
       );
     } else if (operator) {
       parts.push(
         <span key={key++} style={{ color: colors.operator }}>
           {operator}
-        </span>
+        </span>,
       );
     } else if (word) {
       parts.push(<span key={key++}>{word}</span>);
@@ -252,7 +415,10 @@ function highlightSQL(code: string, isDark: boolean): React.ReactNode[] {
   return parts;
 }
 
-function convertToCSV(columns: string[], rows: Record<string, unknown>[]): string {
+function convertToCSV(
+  columns: string[],
+  rows: Record<string, unknown>[],
+): string {
   const header = columns.join(",");
   const body = rows
     .map((row) =>
@@ -287,7 +453,9 @@ export function SqlQuery() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [focusedField, setFocusedField] = useState<"question" | "sql" | null>(null);
+  const [focusedField, setFocusedField] = useState<"question" | "sql" | null>(
+    null,
+  );
 
   // Redesign additions
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -298,8 +466,11 @@ export function SqlQuery() {
   const [execTime, setExecTime] = useState<number | null>(null);
   const [copiedCsv, setCopiedCsv] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
-  const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({ apps: true });
-  const [selectedExampleCategory, setSelectedExampleCategory] = useState<keyof typeof CATEGORIZED_EXAMPLES>("Runs & Status");
+  const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>(
+    { apps: true },
+  );
+  const [selectedExampleCategory, setSelectedExampleCategory] =
+    useState<keyof typeof CATEGORIZED_EXAMPLES>("Runs & Status");
 
   const gutterRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -433,14 +604,16 @@ export function SqlQuery() {
       const start = textareaRef.current.selectionStart;
       const end = textareaRef.current.selectionEnd;
       const currentVal = textareaRef.current.value;
-      const nextVal = currentVal.substring(0, start) + text + currentVal.substring(end);
+      const nextVal =
+        currentVal.substring(0, start) + text + currentVal.substring(end);
       setSql(nextVal);
 
       // Focus back and position cursor after inserted text
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
-          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + text.length;
+          textareaRef.current.selectionStart =
+            textareaRef.current.selectionEnd = start + text.length;
         }
       }, 10);
     } else {
@@ -520,9 +693,14 @@ export function SqlQuery() {
   const editorBg = isDark ? "#1e1e2e" : colors.subBg;
   const editorHeaderBg = isDark ? "#252638" : colors.cardBg;
   const editorText = isDark ? "#cdd6f4" : colors.text;
-  const textareaColor = sql ? "transparent" : (isDark ? "rgba(205, 214, 244, 0.4)" : "rgba(26, 38, 59, 0.4)");
+  const textareaColor = sql
+    ? "transparent"
+    : isDark
+      ? "rgba(205, 214, 244, 0.4)"
+      : "rgba(26, 38, 59, 0.4)";
 
-  const editorFontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace";
+  const editorFontFamily =
+    "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace";
   const editorFontSize = "13.5px";
   const editorLineHeight = "22px";
 
@@ -557,8 +735,7 @@ export function SqlQuery() {
     const q = historySearch.toLowerCase();
     return history.filter(
       (h) =>
-        h.question.toLowerCase().includes(q) ||
-        h.sql.toLowerCase().includes(q),
+        h.question.toLowerCase().includes(q) || h.sql.toLowerCase().includes(q),
     );
   }, [history, historySearch]);
 
@@ -581,7 +758,7 @@ export function SqlQuery() {
         };
       }
       return null;
-    }).filter((t): t is typeof SCHEMA_TABLES[number] => t !== null);
+    }).filter((t): t is (typeof SCHEMA_TABLES)[number] => t !== null);
   }, [schemaSearch]);
 
   const filteredRows = useMemo(() => {
@@ -608,14 +785,23 @@ export function SqlQuery() {
             color={c.sapphire}
             boxShadow={`0 4px 12px ${catppuccinAlpha(c.sapphire, 0.08)}`}
           >
-            <Database size={22} style={{ animation: "pulse-glow 2s infinite" }} />
+            <Database
+              size={22}
+              style={{ animation: "pulse-glow 2s infinite" }}
+            />
           </Box>
           <Box>
-            <Text fontSize="20px" fontWeight="bold" color={colors.text} letterSpacing="-0.3px">
+            <Text
+              fontSize="20px"
+              fontWeight="bold"
+              color={colors.text}
+              letterSpacing="-0.3px"
+            >
               SQL Query Playground
             </Text>
             <Text fontSize="12.5px" color={colors.subtext}>
-              Ask the knowledge layer a question in plain English. The AI drafts the SQL, and you execute it read-only.
+              Ask the knowledge layer a question in plain English. The AI drafts
+              the SQL, and you execute it read-only.
             </Text>
           </Box>
         </Flex>
@@ -649,13 +835,27 @@ export function SqlQuery() {
       </Flex>
 
       {/* Main Workspace Layout */}
-      <Flex gap={6} align="flex-start" direction={{ base: "column", xl: "row" }} width="100%">
+      <Flex
+        gap={6}
+        align="flex-start"
+        direction={{ base: "column", xl: "row" }}
+        width="100%"
+      >
         {/* Left Side: Playground & Results */}
-        <Box flex="1" minW={0} width="100%" display="flex" flexDirection="column" gap={6}>
-
+        <Box
+          flex="1"
+          minW={0}
+          width="100%"
+          display="flex"
+          flexDirection="column"
+          gap={6}
+        >
           {/* Side-by-Side Playground Composer */}
-          <Grid templateColumns={{ base: "1fr", xl: "1fr 1fr" }} gap={5} width="100%">
-
+          <Grid
+            templateColumns={{ base: "1fr", xl: "1fr 1fr" }}
+            gap={5}
+            width="100%"
+          >
             {/* 1. Prompt Composer */}
             <Box
               bg={colors.cardBg}
@@ -667,10 +867,21 @@ export function SqlQuery() {
               overflow="hidden"
             >
               {/* Header */}
-              <Flex align="center" justify="space-between" px={4} py={3} borderBottom={`1px solid ${colors.border}`}>
+              <Flex
+                align="center"
+                justify="space-between"
+                px={4}
+                py={3}
+                borderBottom={`1px solid ${colors.border}`}
+              >
                 <Flex align="center" gap={2}>
                   <Sparkles size={15} color={c.sapphire} />
-                  <Text fontSize="13px" fontWeight="bold" color={colors.text} letterSpacing="0.05em">
+                  <Text
+                    fontSize="13px"
+                    fontWeight="bold"
+                    color={colors.text}
+                    letterSpacing="0.05em"
+                  >
                     1. ASK A QUESTION
                   </Text>
                 </Flex>
@@ -678,14 +889,19 @@ export function SqlQuery() {
 
               {/* Textarea */}
               <Box p={3} flex="1">
-                <Box style={fieldWrap("question")} bg={colors.subBg} border="none">
+                <Box
+                  style={fieldWrap("question")}
+                  bg={colors.subBg}
+                  border="none"
+                >
                   <textarea
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
                     onFocus={() => setFocusedField("question")}
                     onBlur={() => setFocusedField(null)}
                     onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") translate();
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter")
+                        translate();
                     }}
                     placeholder="e.g. List the failed tests in the most recent run, sorted by app..."
                     rows={4}
@@ -696,13 +912,23 @@ export function SqlQuery() {
 
               {/* Examples Categorized List */}
               <Box px={4} pb={4}>
-                <Text fontSize="10.5px" fontWeight="bold" color={colors.subtext} mb={2.5} letterSpacing="0.05em">
+                <Text
+                  fontSize="10.5px"
+                  fontWeight="bold"
+                  color={colors.subtext}
+                  mb={2.5}
+                  letterSpacing="0.05em"
+                >
                   QUICK TEMPLATES
                 </Text>
 
                 {/* Category selectors */}
                 <Flex gap={1.5} mb={2.5} overflowX="auto" pb={1}>
-                  {(Object.keys(CATEGORIZED_EXAMPLES) as Array<keyof typeof CATEGORIZED_EXAMPLES>).map((cat) => (
+                  {(
+                    Object.keys(CATEGORIZED_EXAMPLES) as Array<
+                      keyof typeof CATEGORIZED_EXAMPLES
+                    >
+                  ).map((cat) => (
                     <Box
                       key={cat}
                       as="button"
@@ -711,8 +937,16 @@ export function SqlQuery() {
                       borderRadius="6px"
                       fontSize="10px"
                       fontWeight="700"
-                      bg={selectedExampleCategory === cat ? catppuccinAlpha(c.sapphire, 0.15) : "transparent"}
-                      color={selectedExampleCategory === cat ? c.sapphire : colors.subtext}
+                      bg={
+                        selectedExampleCategory === cat
+                          ? catppuccinAlpha(c.sapphire, 0.15)
+                          : "transparent"
+                      }
+                      color={
+                        selectedExampleCategory === cat
+                          ? c.sapphire
+                          : colors.subtext
+                      }
                       border={`1px solid ${selectedExampleCategory === cat ? catppuccinAlpha(c.sapphire, 0.3) : colors.border}`}
                       onClick={() => setSelectedExampleCategory(cat)}
                       _hover={{ bg: colors.rowHover, color: colors.text }}
@@ -760,7 +994,12 @@ export function SqlQuery() {
                 borderTop={`1px solid ${colors.border}`}
                 bg={colors.subBg}
               >
-                <Flex align="center" gap={1.5} color={colors.subtext} fontSize="11px">
+                <Flex
+                  align="center"
+                  gap={1.5}
+                  color={colors.subtext}
+                  fontSize="11px"
+                >
                   <CornerDownLeft size={12} />
                   <Text>
                     <Text as="span" fontWeight="600">
@@ -810,14 +1049,25 @@ export function SqlQuery() {
               bg={colors.cardBg}
               borderRadius="16px"
               border={`1px solid ${focusedField === "sql" ? c.sapphire : colors.border}`}
-              boxShadow={focusedField === "sql" ? `0 0 0 3px ${catppuccinAlpha(c.sapphire, 0.18)}` : cardShadow}
+              boxShadow={
+                focusedField === "sql"
+                  ? `0 0 0 3px ${catppuccinAlpha(c.sapphire, 0.18)}`
+                  : cardShadow
+              }
               display="flex"
               flexDirection="column"
               overflow="hidden"
               transition="all 0.18s ease"
             >
               {/* Toolbar Header */}
-              <Flex align="center" justify="space-between" px={4} py={3} bg={editorHeaderBg} borderBottom={`1px solid ${colors.border}`}>
+              <Flex
+                align="center"
+                justify="space-between"
+                px={4}
+                py={3}
+                bg={editorHeaderBg}
+                borderBottom={`1px solid ${colors.border}`}
+              >
                 <Flex align="center" gap={3} minW={0}>
                   <Flex gap={1.5} align="center">
                     <Box w="10px" h="10px" borderRadius="full" bg="#ed8796" />
@@ -826,7 +1076,12 @@ export function SqlQuery() {
                   </Flex>
                   <Flex align="center" gap={1.5} ml={2} minW={0}>
                     <Code2 size={14} color={colors.subtext} />
-                    <Text fontSize="12.5px" fontWeight="bold" color={editorText} whiteSpace="nowrap">
+                    <Text
+                      fontSize="12.5px"
+                      fontWeight="bold"
+                      color={editorText}
+                      whiteSpace="nowrap"
+                    >
                       SQL EDITOR
                     </Text>
                   </Flex>
@@ -852,7 +1107,13 @@ export function SqlQuery() {
               </Flex>
 
               {/* Code Editor Body with scrollable gutter & textarea synced */}
-              <Flex flex="1" bg={editorBg} position="relative" height="230px" minHeight="230px">
+              <Flex
+                flex="1"
+                bg={editorBg}
+                position="relative"
+                height="230px"
+                minHeight="230px"
+              >
                 {/* Gutter numbers */}
                 <Box
                   ref={gutterRef}
@@ -879,7 +1140,12 @@ export function SqlQuery() {
                 </Box>
 
                 {/* Editor Container (combines textarea + highlight pre overlay) */}
-                <Box flex="1" position="relative" height="100%" overflow="hidden">
+                <Box
+                  flex="1"
+                  position="relative"
+                  height="100%"
+                  overflow="hidden"
+                >
                   {/* Highlight overlay */}
                   <pre
                     ref={highlightRef}
@@ -992,7 +1258,11 @@ export function SqlQuery() {
                   {running ? (
                     <Spinner size="xs" mr={2} />
                   ) : (
-                    <Play size={13} fill="currentColor" style={{ marginRight: 6 }} />
+                    <Play
+                      size={13}
+                      fill="currentColor"
+                      style={{ marginRight: 6 }}
+                    />
                   )}
                   {running ? "Executing…" : "Run Query"}
                 </Button>
@@ -1018,7 +1288,13 @@ export function SqlQuery() {
                 <Text fontSize="13px" fontWeight="bold" color={c.red} mb={1}>
                   Execution Error
                 </Text>
-                <Text fontSize="12.5px" color={c.red} fontFamily="mono" wordBreak="break-word" whiteSpace="pre-wrap">
+                <Text
+                  fontSize="12.5px"
+                  color={c.red}
+                  fontFamily="mono"
+                  wordBreak="break-word"
+                  whiteSpace="pre-wrap"
+                >
                   {error}
                 </Text>
               </Box>
@@ -1038,27 +1314,60 @@ export function SqlQuery() {
               gap={4}
             >
               {/* Header toolbar */}
-              <Flex align="center" justify="space-between" wrap="wrap" gap={3} borderBottom={`1px solid ${colors.border}`} pb={3.5}>
+              <Flex
+                align="center"
+                justify="space-between"
+                wrap="wrap"
+                gap={3}
+                borderBottom={`1px solid ${colors.border}`}
+                pb={3.5}
+              >
                 <Flex align="center" gap={2.5}>
-                  <Text fontSize="13px" fontWeight="bold" color={colors.text} letterSpacing="0.05em">
+                  <Text
+                    fontSize="13px"
+                    fontWeight="bold"
+                    color={colors.text}
+                    letterSpacing="0.05em"
+                  >
                     QUERY RESULTS
                   </Text>
 
                   {/* Rows Count badge */}
-                  <Badge colorPalette="cyan" variant="solid" borderRadius="full" px={2} py={0.5} fontSize="10px">
+                  <Badge
+                    colorPalette="cyan"
+                    variant="solid"
+                    borderRadius="full"
+                    px={2}
+                    py={0.5}
+                    fontSize="10px"
+                  >
                     {result.rowCount} row{result.rowCount === 1 ? "" : "s"}
                   </Badge>
 
                   {/* Execution speed badge */}
                   {execTime !== null && (
-                    <Badge colorPalette="gray" variant="solid" borderRadius="full" px={2} py={0.5} fontSize="10px">
+                    <Badge
+                      colorPalette="gray"
+                      variant="solid"
+                      borderRadius="full"
+                      px={2}
+                      py={0.5}
+                      fontSize="10px"
+                    >
                       {execTime} ms
                     </Badge>
                   )}
 
                   {/* Truncated flag */}
                   {result.truncated && (
-                    <Badge colorPalette="orange" variant="solid" borderRadius="full" px={2} py={0.5} fontSize="10px">
+                    <Badge
+                      colorPalette="orange"
+                      variant="solid"
+                      borderRadius="full"
+                      px={2}
+                      py={0.5}
+                      fontSize="10px"
+                    >
                       Capped at 500
                     </Badge>
                   )}
@@ -1076,7 +1385,11 @@ export function SqlQuery() {
                     onClick={copyAsCsv}
                     _hover={{ bg: colors.rowHover, color: colors.text }}
                   >
-                    {copiedCsv ? <Check size={12} style={{ marginRight: 4 }} /> : <Copy size={12} style={{ marginRight: 4 }} />}
+                    {copiedCsv ? (
+                      <Check size={12} style={{ marginRight: 4 }} />
+                    ) : (
+                      <Copy size={12} style={{ marginRight: 4 }} />
+                    )}
                     {copiedCsv ? "CSV Copied" : "Copy CSV"}
                   </Button>
                   <Button
@@ -1089,7 +1402,11 @@ export function SqlQuery() {
                     onClick={copyAsJson}
                     _hover={{ bg: colors.rowHover, color: colors.text }}
                   >
-                    {copiedJson ? <Check size={12} style={{ marginRight: 4 }} /> : <Copy size={12} style={{ marginRight: 4 }} />}
+                    {copiedJson ? (
+                      <Check size={12} style={{ marginRight: 4 }} />
+                    ) : (
+                      <Copy size={12} style={{ marginRight: 4 }} />
+                    )}
                     {copiedJson ? "JSON Copied" : "Copy JSON"}
                   </Button>
                   <Button
@@ -1146,7 +1463,8 @@ export function SqlQuery() {
               {/* Filter statistics */}
               {filterText.trim() && (
                 <Text fontSize="11px" color={colors.subtext}>
-                  Showing {filteredRows.length} of {result.rowCount} rows matching &quot;{filterText}&quot;
+                  Showing {filteredRows.length} of {result.rowCount} rows
+                  matching &quot;{filterText}&quot;
                 </Text>
               )}
 
@@ -1252,11 +1570,14 @@ export function SqlQuery() {
                               </Table.Cell>
                               {result.columns.map((col) => {
                                 const text = formatCell(row[col]);
-                                const isNullVal = row[col] === null || row[col] === undefined;
+                                const isNullVal =
+                                  row[col] === null || row[col] === undefined;
                                 return (
                                   <Table.Cell
                                     key={col}
-                                    color={isNullVal ? colors.subtext : colors.text}
+                                    color={
+                                      isNullVal ? colors.subtext : colors.text
+                                    }
                                     fontStyle={isNullVal ? "italic" : "normal"}
                                     fontFamily="mono"
                                     fontSize="12px"
@@ -1310,7 +1631,9 @@ export function SqlQuery() {
                 fontSize="12px"
                 fontWeight="bold"
                 color={sidebarTab === "history" ? c.sapphire : colors.subtext}
-                borderBottom={sidebarTab === "history" ? `2px solid ${c.sapphire}` : "none"}
+                borderBottom={
+                  sidebarTab === "history" ? `2px solid ${c.sapphire}` : "none"
+                }
                 onClick={() => setSidebarTab("history")}
                 _hover={{ color: colors.text }}
                 transition="all 0.15s ease"
@@ -1328,7 +1651,9 @@ export function SqlQuery() {
                 fontSize="12px"
                 fontWeight="bold"
                 color={sidebarTab === "schema" ? c.sapphire : colors.subtext}
-                borderBottom={sidebarTab === "schema" ? `2px solid ${c.sapphire}` : "none"}
+                borderBottom={
+                  sidebarTab === "schema" ? `2px solid ${c.sapphire}` : "none"
+                }
                 onClick={() => setSidebarTab("schema")}
                 _hover={{ color: colors.text }}
                 transition="all 0.15s ease"
@@ -1383,8 +1708,15 @@ export function SqlQuery() {
 
                 <Box flex="1" overflowY="auto" maxH="580px" pr={1}>
                   {filteredHistory.length === 0 ? (
-                    <Text fontSize="12px" color={colors.subtext} py={8} textAlign="center">
-                      {history.length === 0 ? "No logged queries." : "No matching items."}
+                    <Text
+                      fontSize="12px"
+                      color={colors.subtext}
+                      py={8}
+                      textAlign="center"
+                    >
+                      {history.length === 0
+                        ? "No logged queries."
+                        : "No matching items."}
                     </Text>
                   ) : (
                     <Flex direction="column" gap={2}>
@@ -1397,7 +1729,10 @@ export function SqlQuery() {
                           border={`1px solid ${colors.border}`}
                           bg={colors.subBg}
                           transition="all 0.15s ease"
-                          _hover={{ borderColor: c.sapphire, bg: colors.rowHover }}
+                          _hover={{
+                            borderColor: c.sapphire,
+                            bg: colors.rowHover,
+                          }}
                         >
                           <Box
                             as="button"
@@ -1427,7 +1762,10 @@ export function SqlQuery() {
                               {h.sql}
                             </Text>
                             <Text fontSize="9px" color={colors.subtext} mt={1}>
-                              {new Date(h.ranAt).toLocaleTimeString()} · {h.rowCount} row{h.rowCount === 1 ? "" : "s"}
+                              {new Date(h.ranAt).toLocaleTimeString("en-IN", {
+                                timeZone: "Asia/Kolkata",
+                              })}{" "}
+                              · {h.rowCount} row{h.rowCount === 1 ? "" : "s"}
                             </Text>
                           </Box>
 
@@ -1441,7 +1779,10 @@ export function SqlQuery() {
                               p={0}
                               variant="ghost"
                               color={colors.subtext}
-                              _hover={{ color: c.red, bg: "rgba(231,130,132,0.15)" }}
+                              _hover={{
+                                color: c.red,
+                                bg: "rgba(231,130,132,0.15)",
+                              }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteHistoryItem(h.id);
@@ -1484,7 +1825,12 @@ export function SqlQuery() {
 
                 <Box flex="1" overflowY="auto" maxH="580px" pr={1}>
                   {filteredTables.length === 0 ? (
-                    <Text fontSize="12px" color={colors.subtext} py={8} textAlign="center">
+                    <Text
+                      fontSize="12px"
+                      color={colors.subtext}
+                      py={8}
+                      textAlign="center"
+                    >
                       No tables match your search.
                     </Text>
                   ) : (
@@ -1507,12 +1853,21 @@ export function SqlQuery() {
                               w="100%"
                               px={3}
                               py={2}
-                              bg={isExpanded ? catppuccinAlpha(c.sapphire, 0.05) : "transparent"}
+                              bg={
+                                isExpanded
+                                  ? catppuccinAlpha(c.sapphire, 0.05)
+                                  : "transparent"
+                              }
                               onClick={() => toggleTableExpanded(table.name)}
                               _hover={{ bg: colors.rowHover }}
                             >
                               <Flex align="center" gap={1.5} minW={0}>
-                                <Code2 size={13} color={isExpanded ? c.sapphire : colors.subtext} />
+                                <Code2
+                                  size={13}
+                                  color={
+                                    isExpanded ? c.sapphire : colors.subtext
+                                  }
+                                />
                                 <Text
                                   fontSize="12px"
                                   fontWeight="bold"
@@ -1535,7 +1890,9 @@ export function SqlQuery() {
                                 size={14}
                                 color={colors.subtext}
                                 style={{
-                                  transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                                  transform: isExpanded
+                                    ? "rotate(180deg)"
+                                    : "rotate(0deg)",
                                   transition: "transform 0.2s ease",
                                 }}
                               />
@@ -1543,8 +1900,17 @@ export function SqlQuery() {
 
                             {/* Table Info Drawer */}
                             {isExpanded && (
-                              <Box p={3} borderTop={`1px solid ${colors.border}`} bg={colors.cardBg}>
-                                <Text fontSize="11px" color={colors.subtext} mb={3.5} fontStyle="italic">
+                              <Box
+                                p={3}
+                                borderTop={`1px solid ${colors.border}`}
+                                bg={colors.cardBg}
+                              >
+                                <Text
+                                  fontSize="11px"
+                                  color={colors.subtext}
+                                  mb={3.5}
+                                  fontStyle="italic"
+                                >
                                   {table.description}
                                 </Text>
                                 <Flex direction="column" gap={2}>
@@ -1555,24 +1921,42 @@ export function SqlQuery() {
                                       pb={2}
                                       mb={1}
                                     >
-                                      <Flex align="center" justify="space-between" wrap="wrap" gap={1}>
+                                      <Flex
+                                        align="center"
+                                        justify="space-between"
+                                        wrap="wrap"
+                                        gap={1}
+                                      >
                                         <Text
                                           fontSize="11.5px"
                                           fontWeight="600"
                                           fontFamily="mono"
                                           color={colors.text}
                                           cursor="pointer"
-                                          _hover={{ color: c.sapphire, textDecoration: "underline" }}
-                                          onClick={() => insertTextAtCursor(col.name)}
+                                          _hover={{
+                                            color: c.sapphire,
+                                            textDecoration: "underline",
+                                          }}
+                                          onClick={() =>
+                                            insertTextAtCursor(col.name)
+                                          }
                                           title="Click to insert column name"
                                         >
                                           {col.name}
                                         </Text>
-                                        <Badge fontSize="8px" colorPalette="gray" variant="solid">
+                                        <Badge
+                                          fontSize="8px"
+                                          colorPalette="gray"
+                                          variant="solid"
+                                        >
                                           {col.type}
                                         </Badge>
                                       </Flex>
-                                      <Text fontSize="10px" color={colors.subtext} mt={1}>
+                                      <Text
+                                        fontSize="10px"
+                                        color={colors.subtext}
+                                        mt={1}
+                                      >
                                         {col.desc}
                                       </Text>
                                     </Box>
