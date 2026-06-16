@@ -1,7 +1,11 @@
 import { normalizeOrigin } from "@/src/knowledge/appId";
 import { patternTextFor } from "@/src/knowledge/embeddings/abstractIntent";
+import { significantTokens } from "@/src/coverage/coverage";
 import { cosineSim, LocalEmbedder } from "@/src/knowledge/embeddings/embed";
 import {
+  decideForSpecs,
+  overlapCoefficient,
+  REUSE_THRESHOLD,
   SEM_REUSE,
   SEM_TITLE_WEIGHT,
 } from "@/src/knowledge/retrieve/coverageDecision";
@@ -78,6 +82,10 @@ export async function POST(request: Request) {
   // In-app reuse tier: the HYBRID score the real decision uses (coverageDecision)
   // — blend of the title-only cosine and the title+steps cosine, so an exact title
   // scores ~1.0 instead of ~0.79. Falls back to intent-only when un-backfilled.
+  // Lexical token overlap of the seed against each spec — the OTHER half of the
+  // real reuse rule (lexical ≥ 0.80 OR sem ≥ 0.82). Surfacing it keeps the explorer
+  // from under-reporting reuse on exact-token matches the embeddings under-score.
+  const scTokens = significantTokens(seedText);
   const inApp = appSpecs
     .map((s) => {
       const semIntent = s.embedding ? cosineSim(concreteVec, s.embedding) : 0;
@@ -89,6 +97,9 @@ export async function POST(request: Request) {
         runId: s.runId,
         file: s.file,
         title: s.title,
+        flowId: s.flowId,
+        lastOutcome: s.lastOutcome,
+        lexical: overlapCoefficient(scTokens, new Set(s.tokens)),
         semTitle,
         semIntent,
         score: SEM_TITLE_WEIGHT * semTitle + (1 - SEM_TITLE_WEIGHT) * semIntent,
@@ -97,19 +108,44 @@ export async function POST(request: Request) {
     .sort((a, b) => b.score - a.score)
     .slice(0, k);
 
+  // Authoritative reuse|new verdict — the SAME function the pipeline runs, so the
+  // explorer mirrors it exactly: lexical OR semantic, the last-outcome gate, and
+  // the Fix 2 flow guard. The seed carries no flow, so the flow guard stays dormant
+  // here (same as the live pipeline today). Empty appSpecs → "new".
+  const [decision] = decideForSpecs(
+    [{ name: seedText, embedding: concreteVec }],
+    appSpecs,
+  );
+
   return Response.json(
     {
       enabled: true,
       seedText,
       abstracted,
       appId: appId || null,
-      thresholds: { reuse: SEM_REUSE, pattern: PATTERN_RELEVANCE },
+      thresholds: {
+        reuse: SEM_REUSE,
+        lexical: REUSE_THRESHOLD,
+        pattern: PATTERN_RELEVANCE,
+      },
       titleWeight: SEM_TITLE_WEIGHT,
-      // In-app reuse tier: hybrid blend, scoped to appId. Reuse fires at >= reuse threshold.
+      // Authoritative reuse|new decision (mirrors decideForSpecs) — the explorer
+      // should render THIS, not re-derive a verdict from the sem score alone.
+      decision: {
+        action: decision.action,
+        score: decision.score,
+        lastOutcome: decision.lastOutcome ?? null,
+        matchedFile: decision.matchedSpec?.file ?? null,
+      },
+      // In-app reuse tier: hybrid blend, scoped to appId. Now also carries the
+      // lexical score, last outcome, and flow so the UI can explain the decision.
       inApp: inApp.map((r) => ({
         runId: r.runId,
         file: r.file,
         title: r.title,
+        flowId: r.flowId,
+        lastOutcome: r.lastOutcome,
+        lexical: r.lexical,
         score: r.score,
         semTitle: r.semTitle,
         semIntent: r.semIntent,

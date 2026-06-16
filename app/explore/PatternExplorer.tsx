@@ -55,6 +55,12 @@ interface InAppMatch {
   /** Hybrid breakdown (in-app only): the two cosines blended into `score`. */
   semTitle?: number;
   semIntent?: number;
+  /** Lexical token overlap — the OTHER half of the reuse rule. */
+  lexical?: number;
+  /** Last run outcome of this spec — reuse needs passed/healed. */
+  lastOutcome?: string | null;
+  /** Flow/page this spec belongs to (used by the Fix 2 cross-flow guard). */
+  flowId?: string | null;
 }
 interface CrossAppMatch extends InAppMatch {
   appId: string;
@@ -68,7 +74,14 @@ interface ExploreResult {
   seedText: string;
   abstracted: string;
   appId: string | null;
-  thresholds: { reuse: number; pattern: number };
+  thresholds: { reuse: number; lexical?: number; pattern: number };
+  /** Authoritative reuse|new verdict from the pipeline's own decideForSpecs. */
+  decision?: {
+    action: "reuse" | "new";
+    score: number;
+    lastOutcome?: string | null;
+    matchedFile?: string | null;
+  };
   inApp: InAppMatch[];
   crossApp: CrossAppMatch[];
 }
@@ -479,8 +492,13 @@ export function PatternExplorer() {
         </MotionBox>
       </Grid>
 
-            {/* ── Side-by-Side Playground Composer ──────────────────────── */}
-      <Grid templateColumns={{ base: "1fr", xl: "1fr 1fr" }} gap={5} width="100%" mb={6}>
+      {/* ── Side-by-Side Playground Composer ──────────────────────── */}
+      <Grid
+        templateColumns={{ base: "1fr", xl: "1fr 1fr" }}
+        gap={5}
+        width="100%"
+        mb={6}
+      >
         {/* 1. Scenario Input Card */}
         <Box
           bg={colors.cardBg}
@@ -492,10 +510,21 @@ export function PatternExplorer() {
           overflow="hidden"
         >
           {/* Header */}
-          <Flex align="center" justify="space-between" px={4} py={3} borderBottom={`1px solid ${colors.border}`}>
+          <Flex
+            align="center"
+            justify="space-between"
+            px={4}
+            py={3}
+            borderBottom={`1px solid ${colors.border}`}
+          >
             <Flex align="center" gap={2}>
               <Sliders size={15} color={c.sapphire} />
-              <Text fontSize="13px" fontWeight="bold" color={colors.text} letterSpacing="0.05em">
+              <Text
+                fontSize="13px"
+                fontWeight="bold"
+                color={colors.text}
+                letterSpacing="0.05em"
+              >
                 1. SCENARIO INPUT CONSOLE
               </Text>
             </Flex>
@@ -540,7 +569,11 @@ export function PatternExplorer() {
                 color={isKeyboardEnterPressed ? c.sapphire : colors.subtext}
                 fontSize="10px"
                 pointerEvents="none"
-                bg={isKeyboardEnterPressed ? catppuccinAlpha(c.sapphire, 0.15) : "transparent"}
+                bg={
+                  isKeyboardEnterPressed
+                    ? catppuccinAlpha(c.sapphire, 0.15)
+                    : "transparent"
+                }
                 px={2}
                 py={0.5}
                 borderRadius="4px"
@@ -552,7 +585,13 @@ export function PatternExplorer() {
 
           {/* Presets List */}
           <Box px={4} pb={4}>
-            <Text fontSize="10.5px" fontWeight="bold" color={colors.subtext} mb={2.5} letterSpacing="0.05em">
+            <Text
+              fontSize="10.5px"
+              fontWeight="bold"
+              color={colors.subtext}
+              mb={2.5}
+              letterSpacing="0.05em"
+            >
               PRESET SCENARIOS
             </Text>
             <Flex flexWrap="wrap" gap={2}>
@@ -581,7 +620,9 @@ export function PatternExplorer() {
                   textAlign="left"
                   lineHeight="1.4"
                 >
-                  <Text maxW="220px" truncate>{ex}</Text>
+                  <Text maxW="220px" truncate>
+                    {ex}
+                  </Text>
                 </MotionBox>
               ))}
             </Flex>
@@ -589,12 +630,20 @@ export function PatternExplorer() {
 
           {/* Target URL & Controls */}
           <Box px={4} pb={4}>
-            <Grid templateColumns={{ base: "1fr", md: "1fr 120px" }} gap={3} alignContent="end">
+            <Grid
+              templateColumns={{ base: "1fr", md: "1fr 120px" }}
+              gap={3}
+              alignContent="end"
+            >
               <Box>
                 <Flex align="center" justify="space-between" gap={2} mb={1.5}>
                   <Flex align="center" gap={1.5}>
                     <Globe size={12} color={c.sapphire} />
-                    <Text fontSize="10.5px" fontWeight="700" color={colors.subtext}>
+                    <Text
+                      fontSize="10.5px"
+                      fontWeight="700"
+                      color={colors.subtext}
+                    >
                       TARGET URL
                     </Text>
                   </Flex>
@@ -637,7 +686,12 @@ export function PatternExplorer() {
               </Box>
 
               <Box>
-                <Text fontSize="10.5px" fontWeight="700" color={colors.subtext} mb={1.5}>
+                <Text
+                  fontSize="10.5px"
+                  fontWeight="700"
+                  color={colors.subtext}
+                  mb={1.5}
+                >
                   LIMIT (K)
                 </Text>
                 <Input
@@ -661,17 +715,27 @@ export function PatternExplorer() {
             <Flex align="center" gap={1.5} mt={2} fontSize="10px">
               {!appId.trim() ? (
                 <Text color={colors.subtext}>
-                  <Globe size={10} style={{ display: "inline", marginRight: 4 }} />
+                  <Globe
+                    size={10}
+                    style={{ display: "inline", marginRight: 4 }}
+                  />
                   No URL — searches all apps (cross-app only).
                 </Text>
               ) : knownApp ? (
                 <Text color={c.green}>
-                  <Check size={10} style={{ display: "inline", marginRight: 4 }} />
-                  Known app · {knownApp.specCount} specs — local reuse available.
+                  <Check
+                    size={10}
+                    style={{ display: "inline", marginRight: 4 }}
+                  />
+                  Known app · {knownApp.specCount} specs — local reuse
+                  available.
                 </Text>
               ) : (
                 <Text color={c.mauve}>
-                  <Sparkles size={10} style={{ display: "inline", marginRight: 4 }} />
+                  <Sparkles
+                    size={10}
+                    style={{ display: "inline", marginRight: 4 }}
+                  />
                   New app — goes straight to cross-app patterns.
                 </Text>
               )}
@@ -687,7 +751,12 @@ export function PatternExplorer() {
             borderTop={`1px solid ${colors.border}`}
             bg={colors.subBg}
           >
-            <Flex align="center" gap={1.5} color={colors.subtext} fontSize="11px">
+            <Flex
+              align="center"
+              gap={1.5}
+              color={colors.subtext}
+              fontSize="11px"
+            >
               <CornerDownLeft size={12} />
               <Text>
                 <Text as="span" fontWeight="600">
@@ -699,7 +768,9 @@ export function PatternExplorer() {
             <HStack gap={2}>
               <Button
                 onClick={clearAll}
-                disabled={!seedText.trim() && !appId.trim() && !result && !error}
+                disabled={
+                  !seedText.trim() && !appId.trim() && !result && !error
+                }
                 variant="outline"
                 borderColor={c.red}
                 color={c.red}
@@ -779,7 +850,14 @@ export function PatternExplorer() {
           overflow="hidden"
         >
           {/* Header */}
-          <Flex align="center" justify="space-between" px={4} py={3} bg={isDark ? "#252638" : colors.cardBg} borderBottom={`1px solid ${colors.border}`}>
+          <Flex
+            align="center"
+            justify="space-between"
+            px={4}
+            py={3}
+            bg={isDark ? "#252638" : colors.cardBg}
+            borderBottom={`1px solid ${colors.border}`}
+          >
             <Flex align="center" gap={3} minW={0}>
               <Flex gap={1.5} align="center">
                 <Box w="10px" h="10px" borderRadius="full" bg="#ed8796" />
@@ -788,7 +866,12 @@ export function PatternExplorer() {
               </Flex>
               <Flex align="center" gap={1.5} ml={2} minW={0}>
                 <Wand2 size={14} color={colors.subtext} />
-                <Text fontSize="12.5px" fontWeight="bold" color={colors.text} whiteSpace="nowrap">
+                <Text
+                  fontSize="12.5px"
+                  fontWeight="bold"
+                  color={colors.text}
+                  whiteSpace="nowrap"
+                >
                   PATTERN COMPILER --LIVE
                 </Text>
               </Flex>
@@ -811,7 +894,14 @@ export function PatternExplorer() {
           </Flex>
 
           {/* Compiler Body */}
-          <Box p={4} flex="1" display="flex" flexDirection="column" gap={4} bg={isDark ? "#1e1e2e" : colors.subBg}>
+          <Box
+            p={4}
+            flex="1"
+            display="flex"
+            flexDirection="column"
+            gap={4}
+            bg={isDark ? "#1e1e2e" : colors.subBg}
+          >
             {!seedText.trim() ? (
               <Flex
                 direction="column"
@@ -826,18 +916,30 @@ export function PatternExplorer() {
                 <Text fontSize="xs" fontWeight="bold">
                   Waiting for scenario description...
                 </Text>
-                <Text fontSize="2xs" maxW="280px" textAlign="center" lineHeight="1.4">
-                  Describe a scenario in the console on the left. The live compiler will tokenize and abstract it here.
+                <Text
+                  fontSize="2xs"
+                  maxW="280px"
+                  textAlign="center"
+                  lineHeight="1.4"
+                >
+                  Describe a scenario in the console on the left. The live
+                  compiler will tokenize and abstract it here.
                 </Text>
               </Flex>
             ) : (
               <Flex direction="column" gap={4} h="100%">
                 {/* 2a. Live Tokenizer Stream */}
                 <Box>
-                  <Text fontSize="10px" fontWeight="bold" color={colors.subtext} mb={2} letterSpacing="0.05em">
+                  <Text
+                    fontSize="10px"
+                    fontWeight="bold"
+                    color={colors.subtext}
+                    mb={2}
+                    letterSpacing="0.05em"
+                  >
                     LIVE TOKENIZER STREAM
                   </Text>
-                  
+
                   <AnimatePresence>
                     {showRulesTable && (
                       <MotionBox
@@ -886,7 +988,13 @@ export function PatternExplorer() {
 
                 {/* 2b. Abstracted Playbook Shape */}
                 <Box flex="1" display="flex" flexDirection="column">
-                  <Text fontSize="10px" fontWeight="bold" color={colors.subtext} mb={2} letterSpacing="0.05em">
+                  <Text
+                    fontSize="10px"
+                    fontWeight="bold"
+                    color={colors.subtext}
+                    mb={2}
+                    letterSpacing="0.05em"
+                  >
                     ABSTRACTED PLAYBOOK SHAPE
                   </Text>
                   <Box
@@ -905,7 +1013,9 @@ export function PatternExplorer() {
                     {loading ? (
                       <Flex align="center" gap={2} color={colors.subtext}>
                         <Spinner size="xs" color={c.mauve} />
-                        <Text fontSize="11px">Compiling and running vector search...</Text>
+                        <Text fontSize="11px">
+                          Compiling and running vector search...
+                        </Text>
                       </Flex>
                     ) : result ? (
                       <Flex align="center" gap={2}>
@@ -913,7 +1023,8 @@ export function PatternExplorer() {
                       </Flex>
                     ) : (
                       <Text color={colors.subtext} fontStyle="italic">
-                        Click "Search" to view the finalized abstraction shape used for matching.
+                        Click "Search" to view the finalized abstraction shape
+                        used for matching.
                       </Text>
                     )}
                   </Box>
@@ -972,8 +1083,12 @@ export function PatternExplorer() {
                 size="sm"
                 h="32px"
                 borderRadius="8px"
-                bg={isSelected ? catppuccinAlpha(c.sapphire, 0.08) : "transparent"}
-                borderColor={isSelected ? catppuccinAlpha(c.sapphire, 0.3) : "transparent"}
+                bg={
+                  isSelected ? catppuccinAlpha(c.sapphire, 0.08) : "transparent"
+                }
+                borderColor={
+                  isSelected ? catppuccinAlpha(c.sapphire, 0.3) : "transparent"
+                }
                 color={isSelected ? c.sapphire : colors.subtext}
                 fontWeight="bold"
                 transition="all 0.15s ease"
@@ -988,7 +1103,11 @@ export function PatternExplorer() {
                     ml={1.5}
                     px={1.5}
                     py={0.25}
-                    bg={isSelected ? catppuccinAlpha(c.sapphire, 0.12) : colors.subBg}
+                    bg={
+                      isSelected
+                        ? catppuccinAlpha(c.sapphire, 0.12)
+                        : colors.subBg
+                    }
                     borderRadius="full"
                     fontSize="9px"
                     fontFamily="mono"
@@ -1032,8 +1151,13 @@ export function PatternExplorer() {
                 (() => {
                   const hasHistory = result.inApp.length > 0;
                   const inAppTop = result.inApp[0]?.score ?? 0;
-                  const reuseFires =
-                    hasHistory && inAppTop >= result.thresholds.reuse;
+                  // Mirror the REAL pipeline verdict (decideForSpecs): this already
+                  // accounts for lexical-OR-semantic, the last-outcome gate, and the
+                  // Fix 2 flow guard — not just the top sem score. Fall back to the
+                  // old sem-only heuristic only if the API didn't send a decision.
+                  const reuseFires = result.decision
+                    ? result.decision.action === "reuse"
+                    : hasHistory && inAppTop >= result.thresholds.reuse;
                   const branch: "reuse" | "fallback" | "new-app" = !hasHistory
                     ? "new-app"
                     : reuseFires
@@ -1252,9 +1376,7 @@ export function PatternExplorer() {
                                     fontSize="xs"
                                     fontWeight="bold"
                                     color={
-                                      isExpanded
-                                        ? colors.text
-                                        : colors.subtext
+                                      isExpanded ? colors.text : colors.subtext
                                     }
                                     truncate
                                   >
@@ -1298,10 +1420,7 @@ export function PatternExplorer() {
                                         borderRadius="md"
                                         bg={
                                           isSelected
-                                            ? catppuccinAlpha(
-                                                c.sapphire,
-                                                0.12,
-                                              )
+                                            ? catppuccinAlpha(c.sapphire, 0.12)
                                             : "transparent"
                                         }
                                         borderLeft="2px solid"
@@ -1319,9 +1438,7 @@ export function PatternExplorer() {
                                           bg: colors.rowHover,
                                           color: colors.text,
                                         }}
-                                        onClick={() =>
-                                          setSelectedDbSpec(spec)
-                                        }
+                                        onClick={() => setSelectedDbSpec(spec)}
                                       >
                                         <FileCode2
                                           size={12}
@@ -1398,8 +1515,8 @@ export function PatternExplorer() {
                       textAlign="center"
                       lineHeight="1.4"
                     >
-                      Select a test specification from the tree explorer on
-                      the left to inspect its Playwright source code.
+                      Select a test specification from the tree explorer on the
+                      left to inspect its Playwright source code.
                     </Text>
                   </Flex>
                 ) : loadingDbSpecCode ? (
@@ -1427,16 +1544,41 @@ export function PatternExplorer() {
                     >
                       <Flex align="center" gap={2.5} minW={0} flex="1">
                         <Flex gap={1.5} align="center">
-                          <Box w="8px" h="8px" borderRadius="full" bg="#ed8796" />
-                          <Box w="8px" h="8px" borderRadius="full" bg="#eed49f" />
-                          <Box w="8px" h="8px" borderRadius="full" bg="#a6da95" />
+                          <Box
+                            w="8px"
+                            h="8px"
+                            borderRadius="full"
+                            bg="#ed8796"
+                          />
+                          <Box
+                            w="8px"
+                            h="8px"
+                            borderRadius="full"
+                            bg="#eed49f"
+                          />
+                          <Box
+                            w="8px"
+                            h="8px"
+                            borderRadius="full"
+                            bg="#a6da95"
+                          />
                         </Flex>
                         <Flex align="center" gap={1.5} ml={2} minW={0}>
                           <FileCode2 size={13} color={colors.subtext} />
-                          <Text fontSize="11.5px" fontWeight="bold" color={colors.text} truncate>
+                          <Text
+                            fontSize="11.5px"
+                            fontWeight="bold"
+                            color={colors.text}
+                            truncate
+                          >
                             {selectedDbSpec.title ?? "(untitled)"}
                           </Text>
-                          <Text fontSize="10px" color={colors.subtext} truncate display={{ base: "none", md: "block" }}>
+                          <Text
+                            fontSize="10px"
+                            color={colors.subtext}
+                            truncate
+                            display={{ base: "none", md: "block" }}
+                          >
                             · {selectedDbSpec.file}
                           </Text>
                         </Flex>
@@ -1576,7 +1718,7 @@ export function PatternExplorer() {
           )}
         </Box>
       </Box>
-{/* ── Interactive Spec Code Viewer Modal ────────────────────── */}
+      {/* ── Interactive Spec Code Viewer Modal ────────────────────── */}
       <AnimatePresence>
         {viewingSpec && (
           <Box
