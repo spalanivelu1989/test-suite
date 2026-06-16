@@ -95,6 +95,7 @@ export function ConsoleLayout({
   const bottomNavItems = [
     { id: "sql-query", label: "SQL Query", icon: Terminal },
     { id: "explore", label: "Pattern Explorer", icon: DatabaseZap },
+    { id: "matching-works", label: "Matching Visualizer", icon: Workflow },
   ];
 
   const renderNavItem = (item: { id: string; label: string; icon: any; badge?: number }) => {
@@ -379,6 +380,7 @@ export function ConsoleLayout({
             {activeTab === "security-groups" && "Security Groups"}
             {activeTab === "key-pairs" && "Key Pairs (API Keys)"}
             {activeTab === "explore" && "Pattern Explorer"}
+            {activeTab === "matching-works" && "Matching Visualizer"}
           </Text>
         </Flex>
 

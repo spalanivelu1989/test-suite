@@ -33,6 +33,7 @@ import { getAWSColors, AWS_COLORS } from "@/app/theme/aws";
 import { ConsoleLayout } from "@/app/components/ConsoleLayout";
 import { PatternExplorer } from "@/app/explore/PatternExplorer";
 import { SqlQuery } from "@/app/sql-query/SqlQuery";
+import { MatchingVisualizer } from "@/app/components/MatchingVisualizer";
 import { LaunchWizard } from "@/app/components/LaunchWizard";
 import { TestRunsTable } from "@/app/components/TestRunsTable";
 import { TestReportView } from "@/app/components/TestReportView";
@@ -60,6 +61,7 @@ export default function HomePage() {
         "key-pairs",
         "explore",
         "sql-query",
+        "matching-works",
       ].includes(tab)
     ) {
       setActiveTab(tab);
@@ -593,6 +595,11 @@ export default function HomePage() {
       {/* ==================== SQL QUERY TAB ==================== */}
       <Box display={activeTab === "sql-query" ? "block" : "none"} width="100%">
         <SqlQuery />
+      </Box>
+
+      {/* ==================== MATCHING VISUALIZER TAB ==================== */}
+      <Box display={activeTab === "matching-works" ? "block" : "none"} width="100%">
+        <MatchingVisualizer />
       </Box>
 
       {/* ==================== SECURITY GROUPS TAB ==================== */}
