@@ -1,11 +1,5 @@
 # Knowledge Retrieval Architecture — A Beginner's Guide
 
-> **Who is this for?** New contributors (technical _and_ non-technical) who want to
-> understand how our test‑generation agents remember what they've done before and
-> reuse that knowledge to write better tests, faster.
-
----
-
 ## The big idea in one paragraph
 
 Every time we run our AI testing tool against a web app, it learns something:
@@ -44,33 +38,67 @@ years of general experience** from every other project they've worked on.
 
 ## 1. How agents decide the retrieval scope
 
-A common misconception is that the agent picks _either_ App‑Scoped _or_ Global.
-In reality it's a **cascade** — the two tiers run one after another, and each
-scenario flows through both:
+Two agents are involved, and only the second one touches the knowledge base:
 
-```
-For each planned test scenario:
-  STEP 1 (always):  App‑Scoped  → "Do I already have a passing test for this on THIS app?"
-                                     ├─ YES, confident → REUSE the old test (copy it, no AI needed)
-                                     └─ NO            → mark scenario as "new" (must generate)
+- The **Discoverer Agent** explores the target URL and plans the test scenarios.
+  It is **knowledge‑base‑agnostic** — it never queries history.
+- The **Designer Agent** takes those planned scenarios and **queries the knowledge
+  base** to decide, _per scenario_, whether to **reuse** an existing test or
+  **generate** a fresh one (with cross‑app patterns as inspiration).
 
-  STEP 2 (for "new" scenarios only, if enabled):
-                    Global Pattern → "How was a similar workflow tested on OTHER apps?"
-                                     → attach those as hints to inspire generation
+A common misconception is that the Designer picks _either_ App‑Scoped _or_ Global.
+In reality it's a **cascade gated on whether we've seen this app before**:
+
+```mermaid
+flowchart TD
+    A[User provides Target URL]
+    B[Discoverer Agent plans test case scenario]
+    C[Designer Agent queries the knowledge base]
+    D{Does app_url exist?}
+
+    A --> B
+    B --> C
+    C --> D
+
+    D -->|Yes| E[Designer Agent performs in-app semantic search on existing test cases]
+
+    E --> F{Similarity score ≥ 0.82?}
+
+    F -->|Yes| G[Reuse existing test]
+
+    F -->|No| H[Designer Agent performs cross-app semantic search on global test cases]
+
+    D -->|No| H
+
+    H --> I["Similar workflow found in 5 other applications — here's what they checked; go write the equivalent for this app."]
 ```
+
+**Reading the gate:** `app_url` "exists" when the knowledge base already holds
+prior specs for this app's `app_id` (`readSpecsForApp` returns rows). A
+**brand‑new app** has none, so there's nothing to reuse — every scenario skips the
+in‑app search and goes straight to the cross‑app global tier. For a **known app**,
+each scenario first tries an in‑app match; only the scenarios that _don't_ clear
+the reuse bar fall through to the global tier.
+
+> The `≥ 0.82` shown on the gate is the **semantic** reuse threshold. In code the
+> in‑app decision also accepts a strong **lexical** match (token overlap ≥ 0.80),
+> and a match is only reused when that test **last passed** — see §2. The cross‑app
+> tier is additionally behind the `KNOWLEDGE_GLOBAL_PATTERNS=true` flag — see §3.
 
 ### When does it choose App‑Scoped retrieval?
 
-**Always, first.** App‑Scoped is the high‑precision, high‑trust tier. It is tried
-for _every_ scenario because reusing an exact, previously‑passing test is the
-cheapest and safest outcome.
+**First, whenever the app already exists in the knowledge base.** App‑Scoped is the
+high‑precision, high‑trust tier, so it's tried for _every_ scenario of a known app —
+reusing an exact, previously‑passing test is the cheapest and safest outcome. For a
+**brand‑new app** there are no prior specs, so this tier is skipped entirely.
 
 ### When does it choose Global Pattern retrieval?
 
-**Only for the leftovers** — scenarios that App‑Scoped could _not_ confidently
-match (the "new" ones), and only when the feature flag
-`KNOWLEDGE_GLOBAL_PATTERNS=true` is set. It never _replaces_ an App‑Scoped reuse;
-it only helps with the gaps.
+**For the leftovers** — every scenario the App‑Scoped tier could _not_ confidently
+match (the "new" ones), _plus_ **all** scenarios when the app itself is brand‑new
+(nothing to reuse). It runs only when the feature flag
+`KNOWLEDGE_GLOBAL_PATTERNS=true` is set, and it never _replaces_ an App‑Scoped
+reuse — it only fills the gaps.
 
 ### What information drives the decision?
 
@@ -522,16 +550,18 @@ these and inject them into prompts.)
 
 ```mermaid
 flowchart TD
-    A[Agent: new test run on a URL] --> B[Normalize URL → app_id]
-    B --> C{Scope decision<br/>per scenario}
+    A[Discoverer Agent: explore URL<br/>and plan scenarios] --> B[Designer Agent:<br/>normalize URL → app_id]
+    B --> C{Does app_url exist?<br/>prior specs for app_id}
 
-    C -->|always first| D[App Knowledge Store]
+    C -->|Yes| D[In-app hybrid match<br/>per scenario]
     D --> D1[runs / specs / test_results<br/>raw_reports / healing_events]
-    D1 --> E{Confident match<br/>to a PASSING spec?}
+    D1 --> E{Confident & PASSING?<br/>sem ≥ 0.82 or lexical ≥ 0.80}
     E -->|Yes| F[REUSE: copy spec code forward<br/>no AI]
     E -->|No → 'new'| G{Global flag on?}
 
-    G -->|Yes| H[Global Pattern Store]
+    C -->|No → all 'new'| G
+
+    G -->|Yes| H[Global Pattern Store<br/>cross-app search]
     H --> H1[other apps' pattern_embedding<br/>+ trusted playbooks]
     H1 --> I[Attach cross‑app hints]
     G -->|No| J[No hints]
@@ -550,20 +580,20 @@ flowchart TD
 flowchart LR
     subgraph AppScoped[App‑Scoped Memory · 'this project']
       direction TB
-      S1[specs.embedding<br/>concrete intent]
+      S1[specs.embedding · title+steps<br/>+ specs.title_embedding · title alone<br/>hybrid blend, 0.5/0.5]
       S2[test_results<br/>outcomes]
       S3[healing_events]
     end
     subgraph Global[Global Pattern Memory · 'general experience']
       direction TB
-      G1[specs.pattern_embedding<br/>abstracted intent]
+      G1[specs.pattern_embedding<br/>abstracted intent + pattern_text skeleton]
       G2[playbooks<br/>distilled principles]
     end
-    Q[Planned scenario] -->|same app, strict| AppScoped
+    Q[Planned scenario] -->|same app exists, strict| AppScoped
     Q -->|other apps, advisory| Global
     AppScoped --> R[Reuse decision]
     Global --> H[Inspiration hints]
-    R --> Designer[Test Designer Agent]
+    R --> Designer[Designer Agent]
     H --> Designer
 ```
 
