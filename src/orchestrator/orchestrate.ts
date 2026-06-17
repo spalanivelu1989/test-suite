@@ -164,7 +164,11 @@ export async function runPipeline(
   const auth = loadAuthFromEnv();
   const ws = await (
     deps.makeWorkspace ??
-    ((id: string) => createWorkspace(id, undefined, { authEnabled: !!auth }))
+    ((id: string) =>
+      createWorkspace(id, undefined, {
+        authEnabled: !!auth,
+        entryUrl: config.url,
+      }))
   )(runId);
   if (auth)
     emit(

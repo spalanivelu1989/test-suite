@@ -28,12 +28,57 @@ test("loadAuthFromEnv reads credentials and optional login url", () => {
     username: "user@example.com",
     password: "secret",
     loginUrl: "https://app.test/login",
+    idp: undefined,
   });
 });
 
 test("loadAuthFromEnv leaves loginUrl undefined when unset", () => {
   const auth = loadAuthFromEnv({ TARGET_USERNAME: "u", TARGET_PASSWORD: "p" });
   assert.equal(auth?.loginUrl, undefined);
+});
+
+test("loadAuthFromEnv reads the optional TARGET_IDP hint", () => {
+  const auth = loadAuthFromEnv({
+    TARGET_USERNAME: "S0016367636",
+    TARGET_PASSWORD: "p",
+    TARGET_IDP: " Default Identity Provider ",
+  });
+  assert.equal(auth?.idp, "Default Identity Provider");
+  // Unset → undefined (no IDP pinned).
+  assert.equal(
+    loadAuthFromEnv({ TARGET_USERNAME: "u", TARGET_PASSWORD: "p" })?.idp,
+    undefined,
+  );
+});
+
+test("discoverer preamble pins the IDP by exact label when TARGET_IDP is set", () => {
+  const preamble = buildDiscovererAuthPreamble(
+    {
+      username: "S0016367636",
+      password: "p",
+      idp: "Default Identity Provider",
+    },
+    "https://app.test",
+    "/s.json",
+  );
+  assert.match(
+    preamble,
+    /Identity provider to choose: "Default Identity Provider"/,
+  );
+  assert.match(preamble, /labelled EXACTLY "Default Identity Provider"/);
+});
+
+test("discoverer preamble covers IDP chooser, two-step, and lockout safety", () => {
+  const preamble = buildDiscovererAuthPreamble(
+    { username: "u", password: "p" },
+    "https://app.test",
+    "/s.json",
+  );
+  assert.match(preamble, /IDENTITY.PROVIDER CHOOSER/i); // chooser handling present
+  assert.match(preamble, /TWO.STEP/i); // username-first / continue → password
+  assert.match(preamble, /can LOCK the account/i); // don't cycle providers / hammer
+  // With no pin, it explains how to infer the provider (S-user example).
+  assert.match(preamble, /Default Identity Provider/);
 });
 
 test("discoverer preamble references env vars and the state-save path", () => {

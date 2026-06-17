@@ -23,6 +23,14 @@ export interface AuthCredentials {
    * URL itself (most apps redirect an unauthenticated visit to their login form).
    */
   loginUrl?: string;
+  /**
+   * Optional identity-provider name to choose when the login screen shows an IDP
+   * chooser (e.g. SAP BTP offers "Default Identity Provider" vs a corporate IDP).
+   * From TARGET_IDP. When unset, the agent infers the provider from the username
+   * and is told NOT to cycle through providers (wrong-provider attempts lock SSO
+   * accounts). Match the IDP label exactly as shown on the chooser.
+   */
+  idp?: string;
 }
 
 /**
@@ -37,12 +45,15 @@ export function loadAuthFromEnv(
   const password = env.TARGET_PASSWORD?.trim();
   if (!username || !password) return null;
   const loginUrl = env.TARGET_LOGIN_URL?.trim() || undefined;
-  return { username, password, loginUrl };
+  const idp = env.TARGET_IDP?.trim() || undefined;
+  return { username, password, loginUrl, idp };
 }
 
 /** Env-var names the credentials are exposed under in the Discoverer's shell. */
 export const AUTH_USERNAME_ENV = "TARGET_USERNAME";
 export const AUTH_PASSWORD_ENV = "TARGET_PASSWORD";
+/** Identity-provider hint (plain text — not a secret, goes in the prompt). */
+export const AUTH_IDP_ENV = "TARGET_IDP";
 
 /**
  * Discoverer preamble: log in FIRST, confirm it worked, then `state-save` the
@@ -70,6 +81,14 @@ export function buildDiscovererAuthPreamble(
   authStatePath: string,
 ): string {
   const startUrl = auth.loginUrl ?? entryUrl;
+  // How to handle an identity-provider chooser (SAP BTP & many SSO portals show
+  // one BEFORE the username/password form). A wrong provider can't authenticate
+  // the account AND repeated wrong-provider attempts LOCK it — so pick exactly one.
+  const idpGuidance = auth.idp
+    ? `select the identity provider labelled EXACTLY "${auth.idp}" (do not pick any other).`
+    : "pick the ONE provider that matches this account and do NOT cycle through the others — " +
+      'an SAP S-user (an id like "S" followed by digits) authenticates via the "Default Identity Provider" / SAP ID service; ' +
+      "a corporate email (name@company) uses that company's own provider.";
   return [
     "🔐 AUTHENTICATION REQUIRED — this app is behind a login screen. You MUST log in BEFORE exploring,",
     "or every snapshot will only show the login page and your plan will be empty/wrong.",
@@ -78,6 +97,7 @@ export function buildDiscovererAuthPreamble(
     "not printed here):",
     `- $${AUTH_USERNAME_ENV} — the login username/email${auth.username.includes("@") ? ` (it is ${auth.username})` : ""}`,
     `- $${AUTH_PASSWORD_ENV} — the password`,
+    ...(auth.idp ? [`- Identity provider to choose: "${auth.idp}"`] : []),
     `- Start at: ${startUrl}`,
     "",
     "⚠️ CRITICAL: pass the credentials to playwright-cli by REFERENCING these variables inside DOUBLE quotes,",
@@ -88,16 +108,26 @@ export function buildDiscovererAuthPreamble(
     "",
     "Login procedure — do this FIRST, before any exploration or planning:",
     `1. Open the browser: npx playwright-cli open ${startUrl} -s=session1`,
-    "2. Snapshot to find the username/email field, password field, and submit button: npx playwright-cli snapshot",
-    `3. Fill the username field: npx playwright-cli fill <ref> "$${AUTH_USERNAME_ENV}"`,
-    `4. Fill the password field, submitting in the same step: npx playwright-cli fill <ref> "$${AUTH_PASSWORD_ENV}" --submit`,
-    "   (or fill it and then click the login button).",
-    "5. Snapshot again and CONFIRM you are logged in (you should see the app, not the login form).",
-    `   If you still see the login form or an "invalid email or password" message, re-check which element ref is the`,
-    "   email vs the password field and retry — do not give up after one attempt.",
-    "6. Persist the authenticated session so the generated tests can reuse it (exact path):",
-    `   npx playwright-cli state-save ${authStatePath}`,
-    "7. ONLY THEN begin exploring the authenticated app and writing the plan.",
+    "2. Snapshot the page: npx playwright-cli snapshot",
+    `3. IDENTITY‑PROVIDER CHOOSER: if the page shows a "Login with …" button and/or a list of identity`,
+    `   providers (instead of a username field), ${idpGuidance}`,
+    "   Then snapshot again so you see that provider's actual login form. If there is no chooser, skip this.",
+    "4. Snapshot to locate the username/email field, the password field (if shown yet), and the submit button.",
+    `5. Fill the username field: npx playwright-cli fill <ref> "$${AUTH_USERNAME_ENV}"`,
+    "6. TWO‑STEP forms: many SSO logins (including SAP) ask for the username FIRST. If you do NOT see a",
+    "   password field yet, click Continue/Next (or add --submit to the username fill), THEN snapshot again —",
+    "   the password field appears on the next page.",
+    `7. Fill the password field, submitting in the same step: npx playwright-cli fill <ref> "$${AUTH_PASSWORD_ENV}" --submit`,
+    "   (or fill it and then click the Log On / Sign In button).",
+    "8. Snapshot again and CONFIRM you are logged in (you should see the app, not a login form).",
+    '9. If it still shows a login form or an "invalid credentials" message: re-check which ref is the username',
+    "   vs the password field and retry ON THE SAME identity provider. Do NOT switch to a different identity",
+    "   provider, and do NOT retry many times — repeated failures can LOCK the account. If the correct provider",
+    "   keeps rejecting the credentials, STOP and report it (most likely an expired or wrong password), do not",
+    "   keep trying other providers.",
+    "10. Persist the authenticated session so the generated tests can reuse it (exact path):",
+    `    npx playwright-cli state-save ${authStatePath}`,
+    "11. ONLY THEN begin exploring the authenticated app and writing the plan.",
     "",
     "Do NOT create a login or logout scenario in the plan — authentication is handled automatically by the test",
     "harness (every generated test starts already logged in via a saved storage state). Plan only the authenticated flows.",

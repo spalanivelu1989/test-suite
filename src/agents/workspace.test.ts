@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { rm, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -14,6 +14,46 @@ test("createWorkspace builds an isolated run dir with seed + config", async () =
     assert.ok(existsSync(ws.configPath));
     assert.ok(existsSync(ws.specsDir));
     assert.ok(existsSync(ws.testsDir));
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("no auth → no globalSetup / global-setup.ts (unchanged behaviour)", async () => {
+  const id = `test-${randomUUID()}`;
+  const ws = await createWorkspace(id);
+  try {
+    const config = await readFile(ws.configPath, "utf8");
+    assert.ok(!config.includes("globalSetup"));
+    assert.ok(!existsSync(join(ws.root, "global-setup.ts")));
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("auth → generates a globalSetup that re-logs-in fresh from the entry URL", async () => {
+  const id = `test-${randomUUID()}`;
+  const ws = await createWorkspace(id, undefined, {
+    authEnabled: true,
+    entryUrl: "https://app.test/single",
+  });
+  try {
+    const config = await readFile(ws.configPath, "utf8");
+    assert.match(config, /globalSetup: '\.\/global-setup\.ts'/);
+    assert.match(config, /storageState: '\.auth\/storageState\.json'/);
+
+    const setup = await readFile(join(ws.root, "global-setup.ts"), "utf8");
+    assert.match(setup, /export default async function globalSetup/);
+    assert.match(setup, /https:\/\/app\.test\/single/); // entry URL baked in
+    assert.match(setup, /TARGET_USERNAME/); // creds read from env at run time
+    assert.match(setup, /TARGET_IDP/); // IDP chooser support
+    assert.match(setup, /storageState\(\{ path: STATE_PATH \}\)/); // writes fresh state
+    assert.match(setup, /waitForURL\(\(u\) => u\.hostname === appHost/); // waits to land back on app host
+    assert.match(setup, /domainMatchesApp/); // guards on an app-domain cookie
+    assert.match(setup, /auth did not complete/); // aborts the run when login didn't close
+    assert.match(setup, /name: idp, exact: true/); // picks the IdP by exact label (no wrong-provider lockout)
+    assert.match(setup, /passField\(\)\.waitFor\(\{ timeout: 20000 \}\)/); // two-step: waits for password to render
+    assert.match(setup, /networkidle', \{ timeout: 7000 \}/); // bounded idle, no 30s stalls
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
