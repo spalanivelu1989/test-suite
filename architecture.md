@@ -289,7 +289,7 @@ diagram in `docs/kb_arch.md`:
 
 ```mermaid
 flowchart TD
-    A[User provides Target URL] --> B[Discoverer explores app<br/>& writes plan.md]
+    A["User provides Target URL"] --> B["Discoverer explores app<br/>& writes plan.md"]
     B --> C[Designer asks KnowledgeService<br/>assembleContext url, scenarios]
     C --> D{Does this app exist<br/>in the knowledge DB?}
 
@@ -586,12 +586,12 @@ share one source of truth for the budget.
 ```mermaid
 flowchart TB
     subgraph Sources["Sources assembled into a report"]
-        R1[TestResult[] — runner verdicts]
-        R2[CoverageSummary — coverage/coverage.ts]
-        R3[ValidationReport]
-        R4[flakeRate · healSuccessRate · healProvenance]
-        R5[generatedSpecs + plan.md]
-        R6[screenshots/*.png]
+        R1["TestResult[] — runner verdicts"]
+        R2["CoverageSummary — coverage/coverage.ts"]
+        R3["ValidationReport"]
+        R4["flakeRate · healSuccessRate · healProvenance"]
+        R5["generatedSpecs + plan.md"]
+        R6["screenshots/*.png"]
         R7[Claude narrative:<br/>summary, issues, fixPrompts, recommendations]
     end
 
