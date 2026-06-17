@@ -6,16 +6,23 @@ import { type Embedder, LocalEmbedder } from "./embeddings/embed";
 import { ingestRun as doIngest } from "./ingest/ingestRun";
 import { signatureTokens } from "./heal/signature";
 import { getAppProfile, getCoverageMap } from "./retrieve/appProfile";
-import { decideForSpecs } from "./retrieve/coverageDecision";
+import {
+  decideForSpecs,
+  REUSE_THRESHOLD,
+  SEM_REUSE,
+} from "./retrieve/coverageDecision";
 import {
   mergePatternHints,
   scenariosNeedingPatterns,
   selectGlobalPatterns,
+  PATTERN_BUDGET,
   PATTERN_K,
+  PATTERN_RELEVANCE,
 } from "./retrieve/globalPatterns";
 import {
   deriveLocatorHints,
   selectPrecedents,
+  PRECEDENT_THRESHOLD,
 } from "./retrieve/healingPrecedents";
 import { withKb } from "./safety";
 import { databaseName, isTestDatabase, isTestRunId } from "./store/testDbGuard";
@@ -65,6 +72,14 @@ function tally(decisions: CoverageDecision[]) {
   for (const d of decisions) t[d.action]++;
   return t;
 }
+
+// ── Span-IO helpers ──────────────────────────────────────────────────────────
+// Keep retrieval-span input/output payload-safe: round scores, clip free text,
+// and cap how many matched rows we attach (IDs + scores only, never bodies).
+const SPAN_MATCH_CAP = 8;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const clip = (s: string, max = 80) =>
+  s.length <= max ? s : s.slice(0, max) + "…";
 
 class DisabledKnowledgeService implements KnowledgeService {
   readonly enabled = false;
@@ -188,7 +203,11 @@ class PgKnowledgeService implements KnowledgeService {
       "getLastPlan",
       () => readLastPlan(this.pool, normalizeOrigin(url)),
       null,
-      { onError: this.onError },
+      {
+        onError: this.onError,
+        input: { tier: "plan-memory", appId: normalizeOrigin(url) },
+        summarize: (plan) => ({ found: !!plan, chars: plan ? plan.length : 0 }),
+      },
     );
   }
 
@@ -217,8 +236,30 @@ class PgKnowledgeService implements KnowledgeService {
       newDecisions(scenarios),
       {
         onError: this.onError,
-        input: { appId, scenarios: scenarios.length },
-        summarize: (decisions) => tally(decisions),
+        input: {
+          tier: "app-scoped-reuse",
+          appId,
+          scenarios: scenarios.length,
+          topK: "all",
+          matching: this.embedder ? "hybrid(semantic+lexical)" : "lexical-only",
+          thresholds: { semantic: SEM_REUSE, lexical: REUSE_THRESHOLD },
+        },
+        summarize: (decisions) => ({
+          ...tally(decisions),
+          decision: decisions.some((d) => d.action === "reuse")
+            ? "REUSE"
+            : "none",
+          matches: decisions
+            .filter((d) => d.action === "reuse")
+            .slice(0, SPAN_MATCH_CAP)
+            .map((d) => ({
+              scenario: clip(d.scenario),
+              score: round2(d.score),
+              file: d.matchedSpec?.file ?? null,
+              runId: d.matchedSpec?.runId ?? null,
+              lastOutcome: d.lastOutcome ?? null,
+            })),
+        }),
       },
     );
   }
@@ -273,15 +314,37 @@ class PgKnowledgeService implements KnowledgeService {
       {
         onError: this.onError,
         input: {
+          tier: "app-scoped-reuse",
           appId: normalizeOrigin(url),
           scenarios: scenarios?.length ?? 0,
+          topK: "all",
+          matching: this.embedder ? "hybrid(semantic+lexical)" : "lexical-only",
+          thresholds: { semantic: SEM_REUSE, lexical: REUSE_THRESHOLD },
+          globalPatternsEnabled:
+            process.env.KNOWLEDGE_GLOBAL_PATTERNS === "true",
         },
-        summarize: (pack) => ({
-          ...tally(pack.designer?.decisions ?? []),
-          locatorHints: pack.designer?.locatorHints?.length ?? 0,
-          patterns: pack.designer?.patterns?.length ?? 0,
-          playbooks: pack.playbooks?.length ?? 0,
-        }),
+        summarize: (pack) => {
+          const decisions = pack.designer?.decisions ?? [];
+          return {
+            ...tally(decisions),
+            decision: decisions.some((d) => d.action === "reuse")
+              ? "REUSE"
+              : "NEW",
+            locatorHints: pack.designer?.locatorHints?.length ?? 0,
+            patterns: pack.designer?.patterns?.length ?? 0,
+            playbooks: pack.playbooks?.length ?? 0,
+            matches: decisions
+              .filter((d) => d.action === "reuse")
+              .slice(0, SPAN_MATCH_CAP)
+              .map((d) => ({
+                scenario: clip(d.scenario),
+                score: round2(d.score),
+                file: d.matchedSpec?.file ?? null,
+                runId: d.matchedSpec?.runId ?? null,
+                lastOutcome: d.lastOutcome ?? null,
+              })),
+          };
+        },
       },
     );
   }
@@ -334,7 +397,27 @@ class PgKnowledgeService implements KnowledgeService {
         return hints;
       },
       [],
-      { onError: this.onError },
+      {
+        onError: this.onError,
+        input: {
+          tier: "global-pattern",
+          excludeAppId: appId,
+          scenarios: targets.length,
+          topKPerScenario: PATTERN_K,
+          budget: PATTERN_BUDGET,
+          threshold: PATTERN_RELEVANCE,
+        },
+        summarize: (hints) => ({
+          hints: hints.length,
+          decision: hints.length ? "PATTERN" : "none",
+          matches: hints.slice(0, SPAN_MATCH_CAP).map((h) => ({
+            scenario: clip(h.scenario),
+            patternTitle: clip(h.patternTitle),
+            sourceApp: h.sourceApp,
+            score: round2(h.score),
+          })),
+        }),
+      },
     );
   }
 
@@ -377,8 +460,20 @@ class PgKnowledgeService implements KnowledgeService {
       [],
       {
         onError: this.onError,
-        input: { appId, queryChars: query.length, k },
-        summarize: (matches) => ({ matches: matches.length }),
+        input: {
+          tier: "semantic-search",
+          appId,
+          k,
+          query: clip(query, 200),
+        },
+        summarize: (matches) => ({
+          matches: matches.length,
+          top: matches.slice(0, SPAN_MATCH_CAP).map((m) => ({
+            file: m.file,
+            score: round2(m.score),
+            runId: m.runId,
+          })),
+        }),
       },
     );
   }
@@ -413,8 +508,24 @@ class PgKnowledgeService implements KnowledgeService {
       [],
       {
         onError: this.onError,
-        input: { appId: failure.appId, k },
-        summarize: (precedents) => ({ precedents: precedents.length }),
+        input: {
+          tier: "healing-precedent",
+          appId: failure.appId,
+          k,
+          threshold: PRECEDENT_THRESHOLD,
+          matching: this.embedder ? "hybrid(semantic+lexical)" : "lexical-only",
+          signature: clip(failure.signature, 200),
+        },
+        summarize: (precedents) => ({
+          precedents: precedents.length,
+          decision: precedents.length ? "PRECEDENT" : "none",
+          matches: precedents.slice(0, SPAN_MATCH_CAP).map((p) => ({
+            file: p.file,
+            flowId: p.flowId,
+            strategy: p.strategy,
+            score: round2(p.score),
+          })),
+        }),
       },
     );
   }
@@ -426,8 +537,13 @@ class PgKnowledgeService implements KnowledgeService {
       [],
       {
         onError: this.onError,
-        input: { scope: `${scope.kind}:${scope.key}` },
-        summarize: (playbooks) => ({ playbooks: playbooks.length }),
+        input: { tier: "playbook", scope: `${scope.kind}:${scope.key}` },
+        summarize: (playbooks) => ({
+          playbooks: playbooks.length,
+          principles: playbooks
+            .slice(0, SPAN_MATCH_CAP)
+            .map((p) => clip(p.principle, 100)),
+        }),
       },
     );
   }

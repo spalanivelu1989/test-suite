@@ -1,7 +1,6 @@
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { LangfuseSpanProcessor } from "@langfuse/otel";
 import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation-anthropic";
-import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import Anthropic from "@anthropic-ai/sdk";
 
 /**
@@ -14,9 +13,15 @@ import Anthropic from "@anthropic-ai/sdk";
  *  - The Claude Agent SDK subprocess (Discoverer/Designer/Evolver) — its LLM calls
  *    happen out-of-process and cannot be auto-instrumented, so `runAgent` wraps
  *    each run in a manual "agent" observation (see src/agents/runtime.ts).
- *  - The Knowledge Layer's Postgres queries — auto-instrumented by
- *    {@link PgInstrumentation}; each SQL statement nests under the `kb:<op>` span
- *    that `withKb` opens (see src/knowledge/safety.ts).
+ *  - The Knowledge Layer's Postgres queries — each retrieval read opens its own
+ *    `db:query` span via `tracedQuery` (see src/knowledge/store/trace.ts), nested
+ *    under the `kb:<op>` span that `withKb` opens (src/knowledge/safety.ts).
+ *    NOTE: we do NOT use `@opentelemetry/instrumentation-pg`. Its spans carry the
+ *    scope `@opentelemetry/instrumentation-pg`, which is neither a Langfuse span
+ *    nor a known LLM instrumentor, so LangfuseSpanProcessor's default
+ *    `shouldExportSpan` filter silently DROPS them — the DB round trip would
+ *    never reach Langfuse. The Langfuse-scoped `db:query` span we open ourselves
+ *    survives the filter and carries rowCount / latency / a param fingerprint.
  *
  * Tracing is OPT-IN via credentials, mirroring the Knowledge Layer's graceful
  * degradation (KNOWLEDGE_DATABASE_URL): with no LANGFUSE_* keys the OTel SDK is
@@ -61,13 +66,6 @@ export function initObservability(opts: InitObservabilityOptions = {}): void {
   const instrumentation = new AnthropicInstrumentation();
   instrumentation.manuallyInstrument(Anthropic);
 
-  // Auto-instrument the `pg` driver so every SQL query the Knowledge Layer issues
-  // becomes a span nested under its `kb:<op>` parent (withKb makes that span the
-  // active OTel context for the duration of the call). `requireParentSpan` keeps
-  // connection-setup / idle pool queries that run outside a traced operation from
-  // cluttering traces — we only want the queries that belong to a KB op.
-  const pgInstrumentation = new PgInstrumentation({ requireParentSpan: true });
-
   processor = new LangfuseSpanProcessor({
     exportMode: opts.exportMode ?? "batched",
     // Tag traces by deploy environment so prod/dev/test are filterable in the UI.
@@ -79,7 +77,7 @@ export function initObservability(opts: InitObservabilityOptions = {}): void {
 
   sdk = new NodeSDK({
     spanProcessors: [processor],
-    instrumentations: [instrumentation, pgInstrumentation],
+    instrumentations: [instrumentation],
   });
   sdk.start();
   enabled = true;

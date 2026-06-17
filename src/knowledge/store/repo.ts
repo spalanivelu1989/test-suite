@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from "pg";
+import { tracedQuery } from "./trace";
 import type { RunReport } from "../../types";
 import type { EpisodeInput } from "../distill/cluster";
 import { signatureTokens } from "../heal/signature";
@@ -364,7 +365,7 @@ export async function readSpecsForApp(
   pool: Pool,
   appId: string,
 ): Promise<SpecRow[]> {
-  const res = await pool.query<{
+  const res = await tracedQuery<{
     run_id: string;
     file: string;
     title: string | null;
@@ -374,6 +375,8 @@ export async function readSpecsForApp(
     embedding: string | null;
     title_embedding: string | null;
   }>(
+    pool,
+    { op: "readSpecsForApp", table: "specs" },
     `SELECT s.run_id, s.file, s.title, s.flow_id, s.tokens, s.embedding::text AS embedding,
             s.title_embedding::text AS title_embedding,
             (SELECT tr.outcome FROM test_results tr
@@ -458,12 +461,14 @@ export async function findNearestSpecs(
 > {
   const q = toSqlVector(queryEmbedding);
   if (!q) return [];
-  const res = await pool.query<{
+  const res = await tracedQuery<{
     run_id: string;
     file: string;
     title: string | null;
     dist: string;
   }>(
+    pool,
+    { op: "findNearestSpecs", table: "specs", detail: { ordering: "hnsw", k } },
     `SELECT s.run_id, s.file, s.title, (s.embedding <=> $2::vector) AS dist
        FROM specs s
       WHERE s.app_id = $1 AND s.reused = false AND s.embedding IS NOT NULL
@@ -518,7 +523,7 @@ export async function findGlobalPatternSpecs(
 > {
   const q = toSqlVector(queryEmbedding);
   if (!q) return [];
-  const res = await pool.query<{
+  const res = await tracedQuery<{
     app_id: string;
     run_id: string;
     file: string;
@@ -527,6 +532,12 @@ export async function findGlobalPatternSpecs(
     dist: string;
     pattern_text: string | null;
   }>(
+    pool,
+    {
+      op: "findGlobalPatternSpecs",
+      table: "specs",
+      detail: { ordering: "hnsw", k, crossApp: true },
+    },
     `SELECT s.app_id, s.run_id, s.file, s.title, s.flow_id, s.pattern_text,
             (s.pattern_embedding <=> $2::vector) AS dist
        FROM specs s
@@ -560,7 +571,9 @@ export async function readSpecCode(
   runId: string,
   file: string,
 ): Promise<string | null> {
-  const res = await pool.query<{ report: RunReport }>(
+  const res = await tracedQuery<{ report: RunReport }>(
+    pool,
+    { op: "readSpecCode", table: "raw_reports" },
     `SELECT report FROM raw_reports WHERE run_id = $1`,
     [runId],
   );
@@ -576,7 +589,9 @@ export async function readLastPlan(
   pool: Pool,
   appId: string,
 ): Promise<string | null> {
-  const res = await pool.query<{ plan: string | null }>(
+  const res = await tracedQuery<{ plan: string | null }>(
+    pool,
+    { op: "readLastPlan", table: "raw_reports" },
     `SELECT report->>'planMarkdown' AS plan
        FROM raw_reports
       WHERE app_id = $1 AND report->>'planMarkdown' IS NOT NULL
@@ -599,7 +614,7 @@ export async function readHealProvenanceTrend(
   appId: string,
   limit = 50,
 ): Promise<HealTrendPoint[]> {
-  const res = await pool.query<{
+  const res = await tracedQuery<{
     run_id: string;
     at: string;
     hdr_rate: string | null;
@@ -607,6 +622,8 @@ export async function readHealProvenanceTrend(
     template_directed: string | null;
     blind: string | null;
   }>(
+    pool,
+    { op: "readHealProvenanceTrend", table: "raw_reports", detail: { limit } },
     `SELECT rr.run_id,
             r.created_at::text                                    AS at,
             rr.report->'healProvenance'->>'hdrRate'               AS hdr_rate,
@@ -644,12 +661,14 @@ export async function readKnowledgeReuseTrend(
   appId: string,
   limit = 50,
 ): Promise<KnowledgeReuseTrendPoint[]> {
-  const res = await pool.query<{
+  const res = await tracedQuery<{
     run_id: string;
     at: string;
     total: string | number;
     reused: string | number;
   }>(
+    pool,
+    { op: "readKnowledgeReuseTrend", table: "specs", detail: { limit } },
     `SELECT r.run_id,
             r.created_at::text                        AS at,
             count(s.*)::int                           AS total,
@@ -705,7 +724,7 @@ export async function readSuccessfulHealingEvents(
     : `ORDER BY created_at DESC`;
   const params: unknown[] = q ? [appId, q, limit] : [appId, limit];
   const limitParam = q ? "$3" : "$2";
-  const res = await pool.query<{
+  const res = await tracedQuery<{
     run_id: string;
     file: string;
     flow_id: string | null;
@@ -715,6 +734,12 @@ export async function readSuccessfulHealingEvents(
     after_snippet: string;
     embedding: string | null;
   }>(
+    pool,
+    {
+      op: "readSuccessfulHealingEvents",
+      table: "healing_events",
+      detail: { ordering: q ? "hnsw" : "recency", limit },
+    },
     `SELECT run_id, file, flow_id, failure_signature, strategy,
             before_snippet, after_snippet, failure_embedding::text AS embedding
        FROM healing_events
@@ -743,7 +768,7 @@ export async function readTrustedPlaybooks(
   pool: Pool,
   scope: PlaybookScope,
 ): Promise<Playbook[]> {
-  const res = await pool.query<{
+  const res = await tracedQuery<{
     id: string;
     scope_kind: string;
     scope_key: string;
@@ -754,6 +779,8 @@ export async function readTrustedPlaybooks(
     support_count: number;
     confidence: number;
   }>(
+    pool,
+    { op: "readTrustedPlaybooks", table: "playbooks" },
     `SELECT id, scope_kind, scope_key, principle, antipattern, recommendation,
             evidence_run_ids, support_count, confidence
        FROM playbooks
