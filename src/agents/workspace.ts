@@ -46,7 +46,7 @@ export interface Workspace {
    */
   authStatePath: string;
   /** Run the generated suite in this workspace and return Playwright's raw JSON report. */
-  runSuite(): Promise<PlaywrightJsonReport>;
+  runSuite(signal?: AbortSignal): Promise<PlaywrightJsonReport>;
   /** Write (or overwrite) the Markdown plan the Designer will read. */
   writePlan(markdown: string): Promise<void>;
 }
@@ -64,6 +64,14 @@ export interface WorkspaceOptions {
    * in from (TARGET_LOGIN_URL overrides it at run time). Only used when authEnabled.
    */
   entryUrl?: string;
+  /**
+   * Run the suite serially (one worker, no parallelism). Required for apps that
+   * persist state per user (e.g. a logged-in account whose settings are saved
+   * server-side): parallel specs would mutate that one shared state concurrently
+   * and corrupt each other. Migration checks default this on, since they always
+   * replay a real app's flows against a single authenticated account.
+   */
+  serial?: boolean;
 }
 
 const SEED = `import { test, expect } from '@playwright/test';
@@ -77,7 +85,7 @@ test.describe('Test group', () => {
 
 /** Build the workspace Playwright config. When auth is enabled, every test loads
  * the saved storage state so it runs already logged in. */
-function buildConfig(authEnabled: boolean): string {
+function buildConfig(authEnabled: boolean, serial = false): string {
   const storageStateLine = authEnabled
     ? `\n    storageState: '${AUTH_STATE_REL_PATH}',`
     : "";
@@ -85,9 +93,12 @@ function buildConfig(authEnabled: boolean): string {
   const globalSetupLine = authEnabled
     ? `\n  globalSetup: './${GLOBAL_SETUP_REL_PATH}',`
     : "";
+  // Serial runs pin to one worker so specs can't trample a shared, server-persisted
+  // session state in parallel (see WorkspaceOptions.serial).
+  const serialLines = serial ? `\n  workers: 1,\n  fullyParallel: false,` : "";
   return `import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
-  testDir: './tests',${globalSetupLine}
+  testDir: './tests',${globalSetupLine}${serialLines}
   reporter: [['json', { outputFile: '${RESULTS_FILE}' }], ['line']],
   use: {
     headless: true,
@@ -151,6 +162,26 @@ export default async function globalSetup(_config: FullConfig) {
     const d = rawDomain.replace(/^\\./, '');
     return appHost === d || appHost.endsWith('.' + d);
   };
+  // Edge/CDN/bot-protection and analytics cookies are seeded on the app host on the
+  // FIRST page load — before, and regardless of, login. Their presence proves we
+  // reached the host, NOT that we authenticated, so they must NOT satisfy the guard
+  // below. Without this, a Cloudflare-fronted app (which sets __cf_bm / cf_clearance
+  // and a __dpl deploy cookie on the bare app domain) fakes a logged-in state and
+  // every test then runs against the login page. Match by exact reserved name.
+  const NON_AUTH_COOKIE =
+    /^(__cf_bm|cf_clearance|__cflb|__cfruid|__cfwaitingroom|__cfduid|__dpl|__Secure-__dpl|_ga|_gid|_gat|_gcl_au|_fbp|ai_user|ai_session)$/i;
+  // A cookie counts as proof of a session only if it is on the app host AND is not a
+  // known infrastructure/analytics cookie.
+  const isAppSessionCookie = (c) =>
+    domainMatchesApp(c.domain) && !NON_AUTH_COOKIE.test(c.name);
+  // Many SPA logins keep NO session cookie at all — they store a JWT in
+  // localStorage and send it as a bearer header (e.g. Supabase 'sb-<ref>-auth-token',
+  // Firebase, generic access/auth tokens). Playwright's storageState captures
+  // localStorage too, and use.storageState restores it, so such a session is fully
+  // reusable — we just have to RECOGNISE it. Note: pre-login anonymous keys (e.g.
+  // '__lovable_session') must NOT match, or we'd accept a logged-out state.
+  const AUTH_LOCALSTORAGE =
+    /(^sb-.*-auth-token$)|access[_-]?token|auth[_-]?token|id[_-]?token|supabase|firebase:authuser/i;
 
   const browser = await chromium.launch();
   const context = await browser.newContext();
@@ -210,23 +241,55 @@ export default async function globalSetup(_config: FullConfig) {
     await passField().waitFor({ timeout: 15000 });
     await passField().fill(password);
 
-    // (4) Submit and wait to actually land back on the app host — not the IdP. A
-    //     networkidle + fixed sleep resolves mid-redirect, so wait explicitly for
-    //     the OAuth round-trip to close (multi-hop: app -> BTP -> IdP -> back).
+    // (4) Submit, then wait for an authenticated session to actually MATERIALISE.
+    //     Two shapes, handled by one poll:
+    //       - redirect SSO (SAP BTP/XSUAA): multi-hop app -> BTP -> IdP -> back, the
+    //         session lands as a COOKIE on the app host.
+    //       - SPA login (e.g. Supabase/Lovable): an XHR sets a JWT in localStorage
+    //         with NO navigation, so a waitForURL(appHost) check is a no-op that
+    //         resolves before the token is written — snapshotting too early.
+    //     Polling the real session state (cookie OR localStorage token) covers both
+    //     and waits as long as either takes.
     const submit = page
       .getByRole('button', { name: /log on|sign in|log ?in|continue|submit/i })
       .or(page.locator('input[type="submit"], button[type="submit"]'));
     if (await submit.count()) await submit.first().click(); else await passField().press('Enter');
-    await page.waitForURL((u) => u.hostname === appHost, { timeout: 30000 });
+
+    const hasSessionNow = async () => {
+      const cookieOk = (await context.cookies()).some(isAppSessionCookie);
+      if (cookieOk) return true;
+      const lsKeys = await page
+        .evaluate(() => { try { return Object.keys(localStorage); } catch { return []; } })
+        .catch(() => []);
+      return lsKeys.some((k) => AUTH_LOCALSTORAGE.test(k));
+    };
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      if (await hasSessionNow()) break;
+      await page.waitForTimeout(500);
+    }
     await idle();
 
-    // (5) Guard: only persist a state that the app will actually treat as logged in.
+    // (5) Guard: only persist a state the app will actually treat as logged in —
+    //     a real session cookie (NOT a CDN/bot cookie; see NON_AUTH_COOKIE) OR a
+    //     localStorage auth token (see AUTH_LOCALSTORAGE).
     const state = await context.storageState({ path: STATE_PATH });
-    landed = (state.cookies || []).some((c) => domainMatchesApp(c.domain));
+    const sessionCookies = (state.cookies || []).filter(isAppSessionCookie);
+    const lsAuthKeys = (state.origins || [])
+      .flatMap((o) => (o.localStorage || []).map((l) => l.name))
+      .filter((k) => AUTH_LOCALSTORAGE.test(k));
+    landed = sessionCookies.length > 0 || lsAuthKeys.length > 0;
     if (landed) {
-      console.log('[global-setup] fresh auth state saved ->', STATE_PATH, '| final url:', page.url());
+      console.log('[global-setup] fresh auth state saved ->', STATE_PATH,
+        '| session cookie(s):', sessionCookies.map((c) => c.name).join(', ') || '(none)',
+        '| localStorage token(s):', lsAuthKeys.join(', ') || '(none)',
+        '| final url:', page.url());
     } else {
-      console.error('[global-setup] back on app host but no app-domain cookie in state | final url:', page.url());
+      const cookieNames = (state.cookies || []).map((c) => c.name).join(', ') || '(none)';
+      const lsNames = (state.origins || []).flatMap((o) => (o.localStorage || []).map((l) => l.name)).join(', ') || '(none)';
+      console.error('[global-setup] login did not complete — no session cookie and no localStorage auth token. ' +
+        'cookies:', cookieNames, '| localStorage:', lsNames,
+        '| (wrong credentials, or the login flow was not recognised) | final url:', page.url());
     }
   } catch (err) {
     console.error('[global-setup] login failed:', err instanceof Error ? err.message : String(err), '| final url:', page.url());
@@ -237,7 +300,7 @@ export default async function globalSetup(_config: FullConfig) {
   // Abort the whole run rather than execute a suite that would test the login page.
   if (!landed) {
     throw new Error(
-      '[global-setup] auth did not complete — no session cookie for app host ' + appHost +
+      '[global-setup] auth did not complete — no session cookie or localStorage token for app host ' + appHost +
       '. Aborting instead of running tests against the login page. ' +
       'Check TARGET_USERNAME/TARGET_PASSWORD/TARGET_IDP and the login flow.'
     );
@@ -258,15 +321,48 @@ const EMPTY_AUTH_STATE = JSON.stringify({ cookies: [], origins: [] });
  * config already declares `['json', { outputFile: '${RESULTS_FILE}' }]`, so
  * letting it apply is what actually produces the results file on disk.
  */
-async function runSuiteAt(root: string): Promise<PlaywrightJsonReport> {
+async function runSuiteAt(
+  root: string,
+  signal?: AbortSignal,
+): Promise<PlaywrightJsonReport> {
   await new Promise<void>((resolve) => {
+    // With a signal (migration "stop"), run detached so we can kill the whole
+    // process group (playwright + its browsers), not just the npx shim.
     const child = spawn("npx", ["playwright", "test"], {
       cwd: root,
       env: { ...process.env },
+      ...(signal ? { detached: true } : {}),
     });
     child.stdout.on("data", () => {});
     child.stderr.on("data", () => {});
-    child.on("close", () => resolve());
+    let onAbort: (() => void) | undefined;
+    const cleanup = () => {
+      if (signal && onAbort) signal.removeEventListener("abort", onAbort);
+    };
+    if (signal) {
+      const kill = () => {
+        try {
+          if (child.pid) process.kill(-child.pid, "SIGTERM");
+        } catch {
+          try {
+            child.kill("SIGTERM");
+          } catch {
+            /* already gone */
+          }
+        }
+      };
+      if (signal.aborted) kill();
+      onAbort = kill;
+      signal.addEventListener("abort", onAbort);
+    }
+    child.on("error", () => {
+      cleanup();
+      resolve();
+    });
+    child.on("close", () => {
+      cleanup();
+      resolve();
+    });
   });
   try {
     const raw = await readFile(join(root, RESULTS_FILE), "utf8");
@@ -292,7 +388,11 @@ export async function createWorkspace(
   const configPath = join(root, "playwright.config.ts");
   const authStatePath = join(root, AUTH_STATE_REL_PATH);
   await writeFile(seedPath, SEED, "utf8");
-  await writeFile(configPath, buildConfig(!!options.authEnabled), "utf8");
+  await writeFile(
+    configPath,
+    buildConfig(!!options.authEnabled, !!options.serial),
+    "utf8",
+  );
   // Pre-create a placeholder auth state so the suite config can load it even if
   // the Discoverer has not yet logged in (avoids a confusing "file not found").
   if (options.authEnabled) {
@@ -313,7 +413,7 @@ export async function createWorkspace(
     seedPath,
     configPath,
     authStatePath,
-    runSuite: () => runSuiteAt(root),
+    runSuite: (signal?: AbortSignal) => runSuiteAt(root, signal),
     writePlan: (markdown: string) =>
       writeFile(join(specsDir, PLAN_FILE), markdown, "utf8"),
   };

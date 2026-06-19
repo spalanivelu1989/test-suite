@@ -1,0 +1,129 @@
+{
+  "cookies": [
+    {
+      "name": "btproicalc_refresh_token",
+      "value": "eb1b5d64f0f7fb0ac8fdc1852316726c8047582457ffcd3e338bec7b505241be8588756c017142e59ddd8d39247d75b2",
+      "domain": "sapbtp-roi-calculator-stage.cfapps.eu10-004.hana.ondemand.com",
+      "path": "/api/auth",
+      "expires": 1782463665.006543,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "X-Uaa-Csrf",
+      "value": "4pkCZ5SWhu-yafpn9fjGaX",
+      "domain": "tarentobtp.authentication.eu10.hana.ondemand.com",
+      "path": "/",
+      "expires": 1781945256.598444,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__VCAP_ID__",
+      "value": "b165e52f-4782-46c9-428c-d3f6",
+      "domain": "tarentobtp.authentication.eu10.hana.ondemand.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__VCAP_ID_META__",
+      "value": "secure&samesite=none",
+      "domain": "tarentobtp.authentication.eu10.hana.ondemand.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__HOST-authIdentifierDataTemporary",
+      "value": "AAAADFrX8fn%2BLMSFxC4pHSD5i%2BeYhR39RFgcTneqqrVqxacM%2FA8pUw9QmA%3D%3D",
+      "domain": "accounts.sap.com",
+      "path": "/",
+      "expires": 1781858923.265696,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "IDP_USER",
+      "value": "NzY0OTYwMzY0NjEyNjczNzM2MTEyNGJhOWEyM2NjMDQ%3D",
+      "domain": ".accounts.sap.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__HOST-IDP_J_COOKIE",
+      "value": "S-IDP-ee928ecd-a651-420c-b14b-a4c195fae951",
+      "domain": "accounts.sap.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "IDP_SESSION_MARKER_accounts",
+      "value": "eyJhbGciOiJFQ0RILUVTK0EyNTZLVyIsImVuYyI6IkExMjhDQkMtSFMyNTYiLCJraWQiOm51bGwsImN0eSI6IkpXVCIsImVwayI6eyJrdHkiOiJFQyIsIngiOiJ3VC14OTZwREFydmpESmtTcUpPZE1HVEprbDN2RWJ5alAwX2dNbXI3b0pVIiwieSI6Ii0taDN3TGVMdjFiQS1nSE1ic2hhRVhJXzBuejM5aHRaSnVNcVZxWERNdzQiLCJjcnYiOiJQLTI1NiJ9fQ.MbxV8ojVcu14tNQEP-EvoMzN73vzkRoRWL0J8mEg6rdFzhBckIOgzg.BTe5k7l4cBFQ6u0B-P_PsA.DE9EXHmM2rlqtN-j1CLG221JRqF6fb6SLb6koC29pJ_qW8NhZcCaEe8C5NfWSCy7MdvzVt2z21-tDIWAkXfOMGp6To-p67FtAJKjbb3JRmFSmiaGCIvAaXxAvbp9F6wIiUeABEgFOiIarnjL9yv6xgpL2menliNS7I3JAe0G2K2l5M7uaUSBJIqNznpQpbakXTG4Hsxd3cEQRfhQY7JrtKmXAZDb0rwPeVqtn-Gw_WR1_paV-NvBx-IvSFsINRdDry6jUptp0xx2VLAOiKT0P_Iqu8mvgIJLhb72BlnqM5-4X3cHUEVG-hTvFoXzYfbR9vDhtgcEa4GvNSt3hDpgJakncUdweXnXOPQc_wZiVvkrpTr_kKIRaS1bdhEiknMM8zNcN-ahOz3DVhr4OPngjhNmUi4FZceKkPyPN6jOK_AYQjovZU1VY441CZujnxEwXk0TsW7yjkg6EUpQ34yOAlTXv-LegvYBlunqHrpb9JLBF0HBDnfdDkhCEkYG1JbDYF4ooRG9iATTrhvNn_UVr8rQbjM9bQVSlcTqxrMe4tpe1IFwxqG-Q4Q6C6DCnOBDsavnXH0lSiHYI-49kENvB0SjHPnWgLSML8B3Ff3iDaW78miF1mzFw-_WKeogmQY-ZOGNmTMFsYX2QtTsncNwSeojaWleg1MFKeZpKlwL4O-Sjm1Ucny1zQi00V2u0zBz.ayFdUbRXS-08iqBgU95FlA",
+      "domain": ".sap.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__HOST-XSRF_COOKIE",
+      "value": "FMMq-fPjs7rVevWKmhYY9wPa-U79cwxDqsTMsWM0zSQ6MTc4MTg1ODg2MzEzMw",
+      "domain": "accounts.sap.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__HOST-authIdentifierData",
+      "value": "AAAADMZMcViyuOrvi2b%2F8NqN9yx2CudHLXJIPuFF6evQpznmxl4TdjKi8A%3D%3D",
+      "domain": "accounts.sap.com",
+      "path": "/",
+      "expires": 1816418863.265804,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "JSESSIONID",
+      "value": "267E81CB887B7252A797987931B7A497",
+      "domain": "tarentobtp.authentication.eu10.hana.ondemand.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://sapbtp-roi-calculator-stage.cfapps.eu10-004.hana.ondemand.com",
+      "localStorage": [
+        {
+          "name": "btproicalc_auth_token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMGIwZDA1Zi1lYTVmLTQ3MDktOTIwMS0wMjgwZDUxODJkZjkiLCJlbWFpbCI6InNhbmplZXYuY2hhbmRyYXNla2FyYW5AdGFyZW50by5jb20iLCJkaXNwbGF5TmFtZSI6IlNhbmplZXYgQ2hhbmRyYXNla2FyYW4iLCJnaXZlbk5hbWUiOiJTYW5qZWV2IiwiZmFtaWx5TmFtZSI6IkNoYW5kcmFzZWthcmFuIiwic2lkIjoiOWFjM2Q5YzctZWZhYS00NjY5LWEzNGUtMDc0MzNjMDNkNTFmIiwicm9sZXMiOltdLCJzY29wZXMiOlsib3BlbmlkIl0sImlhdCI6MTc4MTg1ODg2NCwiZXhwIjoxNzgxODU5NzY0fQ.tEGCaq0noU3fzCmxUlj0LI9ufHUvlEtCEUyPAKOcQyM"
+        },
+        {
+          "name": "btproicalc_auth_user",
+          "value": "{\"id\":\"c0b0d05f-ea5f-4709-9201-0280d5182df9\",\"email\":\"sanjeev.chandrasekaran@tarento.com\",\"displayName\":\"Sanjeev Chandrasekaran\",\"givenName\":\"Sanjeev\",\"familyName\":\"Chandrasekaran\",\"roles\":[\"Admin\"],\"scopes\":[\"openid\",\"btp-roi-calculator.Admin\"]}"
+        }
+      ]
+    }
+  ]
+}

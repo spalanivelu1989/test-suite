@@ -369,6 +369,9 @@ export function TestReportView({
   const [selectedLightboxImage, setSelectedLightboxImage] = useState<
     string | null
   >(null);
+  const [selectedLightboxIndex, setSelectedLightboxIndex] = useState<
+    number | null
+  >(null);
   const [selectedSpec, setSelectedSpec] = useState<{
     file: string;
     code: string;
@@ -413,6 +416,32 @@ export function TestReportView({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (selectedLightboxIndex === null || !report || !report.screenshots) return;
+    const screenshots = report.screenshots;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "ArrowLeft") {
+        setSelectedLightboxIndex((prev) =>
+          prev !== null
+            ? (prev - 1 + screenshots.length) % screenshots.length
+            : null
+        );
+      } else if (event.key === "ArrowRight") {
+        setSelectedLightboxIndex((prev) =>
+          prev !== null
+            ? (prev + 1) % screenshots.length
+            : null
+        );
+      } else if (event.key === "Escape") {
+        setSelectedLightboxIndex(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedLightboxIndex, report]);
 
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -2243,7 +2272,7 @@ export function TestReportView({
                     <div
                       key={idx}
                       className="screenshot-card"
-                      onClick={() => setSelectedLightboxImage(imgUrl)}
+                      onClick={() => setSelectedLightboxIndex(idx)}
                     >
                       <div className="screenshot-img-container">
                         <img
@@ -2314,23 +2343,56 @@ export function TestReportView({
       </div>
 
       {/* Lightbox Modal */}
-      {selectedLightboxImage && (
+      {selectedLightboxIndex !== null && report && report.screenshots && report.screenshots[selectedLightboxIndex] && (
         <div
           className="lightbox-overlay active"
-          onClick={() => setSelectedLightboxImage(null)}
+          onClick={() => setSelectedLightboxIndex(null)}
         >
+          <button
+            className="lightbox-prev"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedLightboxIndex((prev) =>
+                prev !== null && report.screenshots
+                  ? (prev - 1 + report.screenshots.length) % report.screenshots.length
+                  : null
+              );
+            }}
+            aria-label="Previous image"
+          >
+            <ChevronLeft size={28} />
+          </button>
+
           <div
             className="lightbox-content"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               className="lightbox-close"
-              onClick={() => setSelectedLightboxImage(null)}
+              onClick={() => setSelectedLightboxIndex(null)}
             >
               ×
             </button>
-            <img src={selectedLightboxImage} alt="Enlarged screenshot" />
+            <img
+              src={`data:image/png;base64,${report.screenshots[selectedLightboxIndex].base64}`}
+              alt="Enlarged screenshot"
+            />
           </div>
+
+          <button
+            className="lightbox-next"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedLightboxIndex((prev) =>
+                prev !== null && report.screenshots
+                  ? (prev + 1) % report.screenshots.length
+                  : null
+              );
+            }}
+            aria-label="Next image"
+          >
+            <ChevronRight size={28} />
+          </button>
         </div>
       )}
 

@@ -1,0 +1,55 @@
+{
+  "id": "mig-b5590d67-de3f-49b0-8523-117311ba3bdf",
+  "sourceUrl": "https://sapbtp-roi.tarento-ivolve.com/single",
+  "targetUrl": "https://sapbtp-roi-calculator-stage.cfapps.eu10-004.hana.ondemand.com/single",
+  "startedAt": "2026-06-19T08:46:14.569Z",
+  "status": "completed",
+  "finishedAt": "2026-06-19T08:48:57.981Z",
+  "events": [
+    {
+      "at": "2026-06-19T08:46:14.570Z",
+      "step": "resolve",
+      "message": "Looking up the source app's existing tests…"
+    },
+    {
+      "at": "2026-06-19T08:46:14.627Z",
+      "step": "resolve",
+      "message": "Selected 18 test(s) to carry over."
+    },
+    {
+      "at": "2026-06-19T08:46:14.627Z",
+      "step": "prepare",
+      "message": "Preparing workspace and pointing 18 test(s) at the target (with login)…"
+    },
+    {
+      "at": "2026-06-19T08:46:14.634Z",
+      "step": "run",
+      "message": "Running 18 test(s) on the target — 2 pass(es) for flake detection. This can take a few minutes…"
+    },
+    {
+      "at": "2026-06-19T08:48:52.699Z",
+      "step": "run",
+      "message": "Tests finished: 18 passing, 0 regression(s), 0 infra, 0 flaky."
+    },
+    {
+      "at": "2026-06-19T08:48:52.699Z",
+      "step": "fingerprint",
+      "message": "Verifying it's the same build…"
+    },
+    {
+      "at": "2026-06-19T08:48:57.980Z",
+      "step": "fingerprint",
+      "message": "Fingerprint: mismatch."
+    },
+    {
+      "at": "2026-06-19T08:48:57.980Z",
+      "step": "report",
+      "message": "Compiling the migration report…"
+    },
+    {
+      "at": "2026-06-19T08:48:57.981Z",
+      "step": "done",
+      "message": "Migration check complete."
+    }
+  ]
+}

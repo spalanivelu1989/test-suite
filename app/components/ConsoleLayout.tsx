@@ -27,6 +27,7 @@ import {
   ClipboardList,
   DatabaseZap,
   Terminal,
+  GitCompare,
 } from "lucide-react";
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors, SIDEBAR_GRADIENT } from "@/app/theme/aws";
@@ -89,6 +90,7 @@ export function ConsoleLayout({
       badge: runningCount > 0 ? runningCount : undefined,
     },
     { id: "test-report", label: "Test Report", icon: ClipboardList },
+    { id: "migration-check", label: "Migration Check", icon: GitCompare },
   ];
 
   // Developer utility tools (bottom of sidebar)
@@ -98,7 +100,12 @@ export function ConsoleLayout({
     { id: "matching-works", label: "Matching Visualizer", icon: Workflow },
   ];
 
-  const renderNavItem = (item: { id: string; label: string; icon: any; badge?: number }) => {
+  const renderNavItem = (item: {
+    id: string;
+    label: string;
+    icon: any;
+    badge?: number;
+  }) => {
     const isActive = activeTab === item.id;
     const Icon = item.icon;
     return (
@@ -377,6 +384,7 @@ export function ConsoleLayout({
             {activeTab === "dashboard" && "Dashboard"}
             {activeTab === "test-runs" && "Test Runs"}
             {activeTab === "test-report" && "Test Report"}
+            {activeTab === "migration-check" && "Migration Check"}
             {activeTab === "security-groups" && "Security Groups"}
             {activeTab === "key-pairs" && "Key Pairs (API Keys)"}
             {activeTab === "explore" && "Pattern Explorer"}

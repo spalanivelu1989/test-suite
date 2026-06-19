@@ -289,7 +289,7 @@ export function MatchingVisualizer() {
   const [patternK, setPatternK] = useState(1);
   const [patternBudget, setPatternBudget] = useState(8);
   const [globalPatternsEnabled, setGlobalPatternsEnabled] = useState(true);
-  const [currentApp, setCurrentApp] = useState("https://shop.example");
+  const [currentApp, setCurrentApp] = useState("");
 
   // State: Knowledge Base & Scenarios
   const [knowledgeBase, setKnowledgeBase] = useState<Spec[]>(
@@ -323,8 +323,7 @@ export function MatchingVisualizer() {
 
   // Real DB mode states
   const [isRealDbMode, setIsRealDbMode] = useState<boolean>(true);
-  const [scenarioInput, setScenarioInput] =
-    useState<string>("Add item to cart");
+  const [scenarioInput, setScenarioInput] = useState<string>("");
   const [apiResult, setApiResult] = useState<any>(null);
   const [isLoadingPatterns, setIsLoadingPatterns] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -393,10 +392,16 @@ export function MatchingVisualizer() {
     setPatternK(1);
     setPatternBudget(8);
     setGlobalPatternsEnabled(true);
-    setCurrentApp("https://shop.example");
     setKnowledgeBase(INITIAL_KNOWLEDGE_BASE);
     setScenarios(INITIAL_SCENARIOS);
     setSelectedScenarioId("sc-1");
+    // Real DB query console returns to its empty / greyed-out state. Mock
+    // Sandbox still needs the demo origin to show in-app reuse.
+    setScenarioInput("");
+    setApiResult(null);
+    setApiError(null);
+    setSelectedSpecMathId(null);
+    setCurrentApp(isRealDbMode ? "" : "https://shop.example");
   };
 
   // Run Calculations
@@ -740,6 +745,106 @@ export function MatchingVisualizer() {
     }
   }, [isRealDbMode, realDbResult, simulationResults, selectedScenarioId]);
 
+  // Verdict + ordered pipeline steps powering the "Decision Verdict & Pipeline
+  // Flow" panel. Each step carries a status the stepper renders consistently.
+  const pipeline = useMemo(() => {
+    if (!selectedResult) return null;
+    const r = selectedResult;
+    const hasApp = !!currentApp;
+    const reuse = r.decision === "REUSE";
+    const borrowed = r.decision === "NEW" && !!r.globalHint;
+    const reuseBar = Math.min(reuseThreshold, semReuse);
+
+    const verdict = reuse
+      ? {
+          kind: "reuse" as const,
+          title: "Local Specification Reuse",
+          badge: "REUSE",
+          accent: "green" as const,
+          description: `Clears the bar on the target URL. The engine copies the passing spec "${r.bestInApp?.title}" forward and skips generating new tests.`,
+        }
+      : borrowed
+        ? {
+            kind: "borrow" as const,
+            title: "Cross-Application Hint Borrowed",
+            badge: "NEW · HINT",
+            accent: "yellow" as const,
+            description: `No local match. The engine borrows the workflow skeleton of "${r.globalHint.title}" (from ${r.globalHint.app}) to compile a fresh script for the target URL.`,
+          }
+        : {
+            kind: "cold" as const,
+            title: "Cold Script Generation",
+            badge: "NEW",
+            accent: "red" as const,
+            description: `No local match and no cross-app pattern clears the relevance floor of ${patternRelevance}. A fresh test script is generated from scratch.`,
+          };
+
+    const steps = [
+      {
+        key: "input",
+        title: "Input Context",
+        status: "info" as const,
+        badge: hasApp ? "In-App Analysis" : "Cross-App Routing",
+        detail: hasApp
+          ? `Target: ${currentApp.replace(/^https?:\/\//, "")}`
+          : "No target URL — direct routing.",
+      },
+      {
+        key: "inapp",
+        title: "In-App Memory",
+        status: !hasApp ? "skip" : reuse ? "pass" : "fail",
+        badge: !hasApp
+          ? "Skipped"
+          : reuse
+            ? "Clears bar"
+            : r.bestInApp
+              ? "Below bar"
+              : "No memory",
+        detail: !hasApp
+          ? "No target URL provided."
+          : r.bestInApp
+            ? `Best local score ${r.bestInApp.combined.toFixed(3)} vs bar ${reuseBar}`
+            : "No prior local specs found.",
+      },
+      {
+        key: "crossapp",
+        title: "Cross-App Transfer",
+        status: reuse ? "skip" : borrowed ? "pass" : "fail",
+        badge: reuse
+          ? "Skipped"
+          : borrowed
+            ? "Hint borrowed"
+            : "No eligible pattern",
+        detail: reuse
+          ? "Local reuse already succeeded."
+          : borrowed
+            ? `${r.globalHint.title} · score ${r.globalHint.score.toFixed(3)}`
+            : `No pattern ≥ ${patternRelevance}.`,
+      },
+      {
+        key: "outcome",
+        title: "Outcome",
+        status: reuse
+          ? ("pass" as const)
+          : borrowed
+            ? ("active" as const)
+            : ("fail" as const),
+        badge: reuse
+          ? "Reuse spec"
+          : borrowed
+            ? "Borrow & build"
+            : "Generate fresh",
+        detail: reuse
+          ? "Copy passing spec forward."
+          : borrowed
+            ? "Compile from skeleton."
+            : "Build from scratch.",
+      },
+    ];
+
+    return { verdict, steps };
+  }, [selectedResult, currentApp, reuseThreshold, semReuse, patternRelevance]);
+
   // Sync selectedSpecMathId when selectedScenarioId changes
   useEffect(() => {
     if (selectedResult) {
@@ -1082,7 +1187,12 @@ export function MatchingVisualizer() {
                   : "transparent"
               }
               color={!isRealDbMode ? colors.text : colors.subtext}
-              onClick={() => setIsRealDbMode(false)}
+              onClick={() => {
+                setIsRealDbMode(false);
+                // Mock sandbox needs an origin to demo in-app reuse; restore the
+                // demo app if the Real DB target URL was left blank.
+                if (!currentApp.trim()) setCurrentApp("https://shop.example");
+              }}
               cursor="pointer"
               fontWeight="semibold"
               h="24px"
@@ -2001,57 +2111,7 @@ export function MatchingVisualizer() {
             </Box>
           )}
 
-          {isRealDbMode && !apiResult && (
-            <Box
-              bg={colors.cardBg}
-              border="1px dashed"
-              borderColor={colors.border}
-              borderRadius="xl"
-              p={8}
-              textAlign="center"
-              display="flex"
-              flexDirection="column"
-              alignItems="center"
-              justifyContent="center"
-              minH="350px"
-              gap={3}
-            >
-              <Box
-                p={3}
-                borderRadius="full"
-                bg={isDark ? "white/5" : "gray.100"}
-              >
-                <Database size={32} color={isDark ? c.sapphire : "#1d4ed8"} />
-              </Box>
-              <Heading size="md" color={colors.text}>
-                Real Database Matching Analyzer
-              </Heading>
-              <Text
-                fontSize="xs"
-                color={colors.subtext}
-                maxW="450px"
-                lineHeight="1.5"
-              >
-                Run semantic matching and lexical overlap calculations against
-                live test specifications stored in your database. Enter a test
-                scenario query and optional Target URL to view detailed scoring
-                formulas in real-time.
-              </Text>
-              <Button
-                size="xs"
-                colorPalette="blue"
-                onClick={fetchRealDbPatterns}
-                disabled={isLoadingPatterns || !scenarioInput.trim()}
-                mt={2}
-                cursor="pointer"
-              >
-                <Play size={12} style={{ marginRight: 6 }} /> Run Initial Match
-                Simulation
-              </Button>
-            </Box>
-          )}
-
-          {isRealDbMode && selectedResult && (
+          {isRealDbMode && (
             <Box
               bg={colors.cardBg}
               border="1px solid"
@@ -2070,217 +2130,374 @@ export function MatchingVisualizer() {
                 Decision Verdict & Pipeline Flow
               </Heading>
 
-              <Grid
-                templateColumns={{ base: "1fr", md: "1fr auto 1fr" }}
-                gap={4}
-                p={3}
-                bg={colors.subBg}
-                borderRadius="lg"
-                border="1px solid"
-                borderColor={colors.border}
-              >
-                {/* Panel 1: Target URL context */}
-                <VStack align="start" gap={1} fontSize="xs">
-                  <Text fontWeight="semibold" color={colors.text}>
-                    1. Input Context
-                  </Text>
-                  <Text fontSize="10px" color={colors.subtext} mb={2}>
-                    Target App:{" "}
-                    <strong>
-                      {currentApp
-                        ? currentApp.replace(/^https?:\/\//, "")
-                        : "None"}
-                    </strong>
-                  </Text>
-                  {currentApp ? (
-                    <Badge colorPalette="blue" size="xs">
-                      In-App Analysis Checked
-                    </Badge>
-                  ) : (
-                    <Badge colorPalette="yellow" size="xs">
-                      Cross-App Direct Routing
-                    </Badge>
-                  )}
-                </VStack>
+              {pipeline ? (
+                (() => {
+                  const accentColor =
+                    pipeline.verdict.accent === "green"
+                      ? c.green
+                      : pipeline.verdict.accent === "yellow"
+                        ? c.yellow
+                        : c.red;
 
-                {/* Arrow */}
-                <Flex
-                  align="center"
-                  justify="center"
-                  display={{ base: "none", md: "flex" }}
-                >
-                  <ArrowRight size={16} color={colors.subtext} />
-                </Flex>
+                  const VerdictIcon =
+                    pipeline.verdict.kind === "reuse"
+                      ? CheckCircle
+                      : pipeline.verdict.kind === "borrow"
+                        ? Sparkles
+                        : Info;
 
-                {/* Panel 2: In-App Reuse Check */}
-                <VStack
-                  align="start"
-                  gap={1}
-                  fontSize="xs"
-                  opacity={currentApp ? 1 : 0.4}
-                >
-                  <Text fontWeight="semibold" color={colors.text}>
-                    2. In-App Memory check
-                  </Text>
-                  {currentApp ? (
-                    selectedResult.bestInApp ? (
-                      <>
-                        <Text fontSize="10px" color={colors.subtext}>
-                          Best local score:{" "}
-                          <strong>
-                            {selectedResult.bestInApp.combined.toFixed(3)}
-                          </strong>
-                        </Text>
-                        <Badge
-                          colorPalette={
-                            selectedResult.decision === "REUSE"
-                              ? "green"
-                              : "red"
-                          }
-                          size="xs"
-                        >
-                          {selectedResult.decision === "REUSE"
-                            ? `REUSE Clears Bar (>= ${Math.min(reuseThreshold, semReuse)})`
-                            : `Below Reuse Bars (< ${Math.min(reuseThreshold, semReuse)})`}
-                        </Badge>
-                      </>
-                    ) : (
-                      <>
-                        <Text fontSize="10px" color={colors.subtext}>
-                          No prior local specifications found.
-                        </Text>
-                        <Badge colorPalette="red" size="xs">
-                          No Memory
-                        </Badge>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <Text fontSize="10px" color={colors.subtext}>
-                        Skipped (no target URL provided).
-                      </Text>
-                      <Badge colorPalette="gray" size="xs">
-                        Skipped
-                      </Badge>
-                    </>
-                  )}
-                </VStack>
+                  const styleFor = (status: string) => {
+                    switch (status) {
+                      case "pass":
+                        return {
+                          color: c.green,
+                          palette: "green",
+                          icon: <CheckCircle size={16} color={c.green} />,
+                        };
+                      case "fail":
+                        return {
+                          color: c.red,
+                          palette: "red",
+                          icon: <XCircle size={16} color={c.red} />,
+                        };
+                      case "active":
+                        return {
+                          color: c.yellow,
+                          palette: "yellow",
+                          icon: <Sparkles size={16} color={c.yellow} />,
+                        };
+                      case "skip":
+                        return {
+                          color: c.overlay0,
+                          palette: "gray",
+                          icon: (
+                            <Box
+                              w="7px"
+                              h="2px"
+                              borderRadius="full"
+                              bg={c.overlay0}
+                            />
+                          ),
+                        };
+                      default:
+                        return {
+                          color: c.sapphire,
+                          palette: "blue",
+                          icon: <Database size={15} color={c.sapphire} />,
+                        };
+                    }
+                  };
 
-                {/* Line breaks/dividers for mobile */}
-                <Separator
-                  display={{ base: "block", md: "none" }}
-                  borderColor={colors.border}
-                />
-
-                {/* Arrow */}
-                <Flex
-                  align="center"
-                  justify="center"
-                  display={{ base: "none", md: "flex" }}
-                  opacity={selectedResult.decision === "NEW" ? 1 : 0.3}
-                >
-                  <ArrowRight size={16} color={colors.subtext} />
-                </Flex>
-
-                {/* Panel 3: Cross-App suggestion */}
-                <VStack
-                  align="start"
-                  gap={1}
-                  fontSize="xs"
-                  opacity={selectedResult.decision === "NEW" ? 1 : 0.4}
-                >
-                  <Text fontWeight="semibold" color={colors.text}>
-                    3. Cross-App pattern transfer
-                  </Text>
-                  {selectedResult.decision === "NEW" ? (
-                    selectedResult.globalHint ? (
-                      <>
-                        <Text fontSize="10px" color={colors.subtext}>
-                          Best pattern:{" "}
-                          <strong>{selectedResult.globalHint.title}</strong>
-                        </Text>
-                        <Badge colorPalette="green" size="xs">
-                          Hint Borrowed (score:{" "}
-                          {selectedResult.globalHint.score.toFixed(3)})
-                        </Badge>
-                      </>
-                    ) : (
-                      <>
-                        <Text fontSize="10px" color={colors.subtext}>
-                          No pattern similarity &gt;= {patternRelevance}.
-                        </Text>
-                        <Badge colorPalette="gray" size="xs">
-                          Cold Generation
-                        </Badge>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <Text fontSize="10px" color={colors.subtext}>
-                        Skipped (local reuse succeeded).
-                      </Text>
-                      <Badge colorPalette="gray" size="xs">
-                        Skipped
-                      </Badge>
-                    </>
-                  )}
-                </VStack>
-              </Grid>
-
-              {/* Summary Sentence Banner */}
-              <Box
-                mt={3}
-                p={3}
-                bg={
-                  selectedResult.decision === "REUSE"
-                    ? "rgba(46,194,113,0.1)"
-                    : selectedResult.globalHint
-                      ? "rgba(229,200,144,0.15)"
-                      : "rgba(239,68,68,0.06)"
-                }
-                border="1px solid"
-                borderColor={
-                  selectedResult.decision === "REUSE"
-                    ? "green.600"
-                    : selectedResult.globalHint
-                      ? "yellow.600"
-                      : "red.600"
-                }
-                borderRadius="md"
-              >
-                <HStack gap={2} align="start">
-                  <Box mt="2px">
-                    {selectedResult.decision === "REUSE" ? (
-                      <CheckCircle size={14} color="#16a34a" />
-                    ) : selectedResult.globalHint ? (
-                      <Sparkles size={14} color="#dd6b20" />
-                    ) : (
-                      <Info size={14} color="#ef4444" />
-                    )}
-                  </Box>
-                  <VStack align="start" gap={0.5}>
-                    <Text fontSize="11px" fontWeight="bold" color={colors.text}>
-                      Verdict:{" "}
-                      {selectedResult.decision === "REUSE"
-                        ? "Local Specification Reuse"
-                        : selectedResult.globalHint
-                          ? "Cross-Application Hint Borrowed"
-                          : "Cold Script Generation"}
-                    </Text>
-                    <Text
-                      fontSize="10.5px"
-                      color={colors.subtext}
-                      lineHeight="1.4"
+                  return (
+                    <Box
+                      p={4}
+                      bg={colors.subBg}
+                      borderRadius="lg"
+                      border="1px solid"
+                      borderColor={colors.border}
                     >
-                      {selectedResult.decision === "REUSE"
-                        ? `Clears bar on target URL. The AI engine copies the passing spec "${selectedResult.bestInApp?.title}" forward, skipping execution of new tests.`
-                        : selectedResult.globalHint
-                          ? `No local match found. The AI engine borrows the workflow skeleton of "${selectedResult.globalHint.title}" (from app origin ${selectedResult.globalHint.app}) to compile a fresh script for the target URL.`
-                          : `No local match and no eligible cross-app patterns clear the relevance floor of ${patternRelevance}. A fresh test script will be generated from scratch.`}
-                    </Text>
-                  </VStack>
-                </HStack>
-              </Box>
+                      {/* Verdict hero — the answer, up front */}
+                      <Flex
+                        gap={3}
+                        align="flex-start"
+                        p={3}
+                        mb={4}
+                        borderRadius="md"
+                        bg={catppuccinAlpha(accentColor, 0.12)}
+                        border="1px solid"
+                        borderColor={catppuccinAlpha(accentColor, 0.4)}
+                      >
+                        <Flex
+                          w="36px"
+                          h="36px"
+                          flexShrink={0}
+                          borderRadius="full"
+                          align="center"
+                          justify="center"
+                          bg={catppuccinAlpha(accentColor, 0.18)}
+                        >
+                          <VerdictIcon size={18} color={accentColor} />
+                        </Flex>
+                        <VStack align="start" gap={1} flex="1">
+                          <HStack gap={2} flexWrap="wrap">
+                            <Text
+                              fontSize="13px"
+                              fontWeight="bold"
+                              color={colors.text}
+                            >
+                              {pipeline.verdict.title}
+                            </Text>
+                            <Badge
+                              colorPalette={pipeline.verdict.accent}
+                              variant="solid"
+                              size="xs"
+                            >
+                              {pipeline.verdict.badge}
+                            </Badge>
+                          </HStack>
+                          <Text
+                            fontSize="11px"
+                            color={colors.subtext}
+                            lineHeight="1.5"
+                          >
+                            {pipeline.verdict.description}
+                          </Text>
+                        </VStack>
+                      </Flex>
+
+                      {/* Stepper — how the engine got there */}
+                      <Text
+                        fontSize="9px"
+                        textTransform="uppercase"
+                        letterSpacing="0.08em"
+                        fontWeight="semibold"
+                        color={colors.subtext}
+                        mb={3}
+                      >
+                        How the engine decided
+                      </Text>
+                      <Flex
+                        direction={{ base: "column", md: "row" }}
+                        align="stretch"
+                      >
+                        {pipeline.steps.map((step, i) => {
+                          const st = styleFor(step.status);
+                          const isLast = i === pipeline.steps.length - 1;
+                          const next = !isLast ? pipeline.steps[i + 1] : null;
+                          const nextColor = next
+                            ? styleFor(next.status).color
+                            : colors.border;
+                          const connectorColor =
+                            next &&
+                            (next.status === "pass" ||
+                              next.status === "active" ||
+                              next.status === "fail")
+                              ? catppuccinAlpha(nextColor, 0.6)
+                              : colors.border;
+
+                          return (
+                            <React.Fragment key={step.key}>
+                              <VStack
+                                flex="1"
+                                align="center"
+                                textAlign="center"
+                                gap={1.5}
+                                px={2}
+                                pb={{ base: 2, md: 0 }}
+                                opacity={step.status === "skip" ? 0.6 : 1}
+                              >
+                                <Flex
+                                  w="34px"
+                                  h="34px"
+                                  flexShrink={0}
+                                  borderRadius="full"
+                                  align="center"
+                                  justify="center"
+                                  bg={catppuccinAlpha(st.color, 0.14)}
+                                  border="1.5px solid"
+                                  borderColor={catppuccinAlpha(st.color, 0.5)}
+                                >
+                                  {st.icon}
+                                </Flex>
+                                <Text
+                                  fontSize="11px"
+                                  fontWeight="semibold"
+                                  color={colors.text}
+                                >
+                                  {step.title}
+                                </Text>
+                                <Badge
+                                  colorPalette={st.palette}
+                                  variant="subtle"
+                                  size="xs"
+                                >
+                                  {step.badge}
+                                </Badge>
+                                <Text
+                                  fontSize="9.5px"
+                                  color={colors.subtext}
+                                  lineHeight="1.4"
+                                  maxW="170px"
+                                >
+                                  {step.detail}
+                                </Text>
+                              </VStack>
+
+                              {!isLast && (
+                                <Flex
+                                  flexShrink={0}
+                                  align="center"
+                                  justify="center"
+                                  alignSelf={{
+                                    base: "center",
+                                    md: "flex-start",
+                                  }}
+                                  mt={{ base: 0, md: "17px" }}
+                                  mb={{ base: 1, md: 0 }}
+                                >
+                                  <Box
+                                    display={{ base: "none", md: "block" }}
+                                    h="2px"
+                                    w="22px"
+                                    borderRadius="full"
+                                    bg={connectorColor}
+                                  />
+                                  <Box
+                                    display={{ base: "block", md: "none" }}
+                                    transform="rotate(90deg)"
+                                  >
+                                    <ArrowRight
+                                      size={14}
+                                      color={colors.subtext}
+                                    />
+                                  </Box>
+                                </Flex>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </Flex>
+                    </Box>
+                  );
+                })()
+              ) : (
+                /* Greyed empty state — shown until the user runs a query */
+                <Box
+                  p={4}
+                  bg={colors.subBg}
+                  borderRadius="lg"
+                  border="1px dashed"
+                  borderColor={colors.border}
+                  opacity={0.6}
+                >
+                  <Flex
+                    gap={3}
+                    align="center"
+                    p={3}
+                    mb={4}
+                    borderRadius="md"
+                    bg={isDark ? "white/5" : "gray.100"}
+                  >
+                    <Flex
+                      w="36px"
+                      h="36px"
+                      flexShrink={0}
+                      borderRadius="full"
+                      align="center"
+                      justify="center"
+                      bg={isDark ? "white/5" : "gray.200"}
+                    >
+                      <Database size={18} color={colors.subtext} />
+                    </Flex>
+                    <VStack align="start" gap={1} flex="1">
+                      <Text
+                        fontSize="13px"
+                        fontWeight="bold"
+                        color={colors.subtext}
+                      >
+                        Awaiting query
+                      </Text>
+                      <Text
+                        fontSize="11px"
+                        color={colors.subtext}
+                        lineHeight="1.5"
+                      >
+                        Enter a Test Scenario Description and/or Target App URL
+                        above, then click{" "}
+                        <strong>Search &amp; Match Database</strong> to see the
+                        decision verdict and pipeline flow.
+                      </Text>
+                    </VStack>
+                  </Flex>
+
+                  <Text
+                    fontSize="9px"
+                    textTransform="uppercase"
+                    letterSpacing="0.08em"
+                    fontWeight="semibold"
+                    color={colors.subtext}
+                    mb={3}
+                  >
+                    How the engine decides
+                  </Text>
+                  <Flex
+                    direction={{ base: "column", md: "row" }}
+                    align="stretch"
+                  >
+                    {[
+                      "Input Context",
+                      "In-App Memory",
+                      "Cross-App Transfer",
+                      "Outcome",
+                    ].map((title, i, arr) => (
+                      <React.Fragment key={title}>
+                        <VStack
+                          flex="1"
+                          align="center"
+                          textAlign="center"
+                          gap={1.5}
+                          px={2}
+                          pb={{ base: 2, md: 0 }}
+                        >
+                          <Flex
+                            w="34px"
+                            h="34px"
+                            flexShrink={0}
+                            borderRadius="full"
+                            align="center"
+                            justify="center"
+                            bg={isDark ? "white/5" : "gray.200"}
+                            border="1.5px dashed"
+                            borderColor={colors.border}
+                          >
+                            <Box
+                              w="7px"
+                              h="7px"
+                              borderRadius="full"
+                              bg={colors.border}
+                            />
+                          </Flex>
+                          <Text
+                            fontSize="11px"
+                            fontWeight="semibold"
+                            color={colors.subtext}
+                          >
+                            {title}
+                          </Text>
+                          <Text fontSize="9.5px" color={colors.subtext}>
+                            —
+                          </Text>
+                        </VStack>
+
+                        {i < arr.length - 1 && (
+                          <Flex
+                            flexShrink={0}
+                            align="center"
+                            justify="center"
+                            alignSelf={{ base: "center", md: "flex-start" }}
+                            mt={{ base: 0, md: "17px" }}
+                            mb={{ base: 1, md: 0 }}
+                          >
+                            <Box
+                              display={{ base: "none", md: "block" }}
+                              h="2px"
+                              w="22px"
+                              borderRadius="full"
+                              bg={colors.border}
+                            />
+                            <Box
+                              display={{ base: "block", md: "none" }}
+                              transform="rotate(90deg)"
+                            >
+                              <ArrowRight size={14} color={colors.subtext} />
+                            </Box>
+                          </Flex>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </Flex>
+                </Box>
+              )}
             </Box>
           )}
 
@@ -2369,18 +2586,6 @@ export function MatchingVisualizer() {
                           )
                         </Text>
                       </VStack>
-                      <Badge
-                        colorPalette={
-                          selectedSpecMath.app === currentApp
-                            ? "blue"
-                            : "yellow"
-                        }
-                        size="xs"
-                      >
-                        {selectedSpecMath.app === currentApp
-                          ? "In-App Match"
-                          : "Cross-App Match"}
-                      </Badge>
                     </Flex>
 
                     <VStack align="stretch" gap={4} fontSize="11px">

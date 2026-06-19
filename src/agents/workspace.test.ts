@@ -26,6 +26,19 @@ test("no auth → no globalSetup / global-setup.ts (unchanged behaviour)", async
     const config = await readFile(ws.configPath, "utf8");
     assert.ok(!config.includes("globalSetup"));
     assert.ok(!existsSync(join(ws.root, "global-setup.ts")));
+    assert.ok(!config.includes("workers: 1")); // parallel by default
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
+test("serial option pins the suite to one worker (stateful apps)", async () => {
+  const id = `test-${randomUUID()}`;
+  const ws = await createWorkspace(id, undefined, { serial: true });
+  try {
+    const config = await readFile(ws.configPath, "utf8");
+    assert.match(config, /workers: 1/);
+    assert.match(config, /fullyParallel: false/);
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
@@ -48,8 +61,10 @@ test("auth → generates a globalSetup that re-logs-in fresh from the entry URL"
     assert.match(setup, /TARGET_USERNAME/); // creds read from env at run time
     assert.match(setup, /TARGET_IDP/); // IDP chooser support
     assert.match(setup, /storageState\(\{ path: STATE_PATH \}\)/); // writes fresh state
-    assert.match(setup, /waitForURL\(\(u\) => u\.hostname === appHost/); // waits to land back on app host
-    assert.match(setup, /domainMatchesApp/); // guards on an app-domain cookie
+    assert.match(setup, /isAppSessionCookie/); // guards on a real session cookie, not CDN/bot cookies
+    assert.match(setup, /NON_AUTH_COOKIE/); // excludes __cf_bm/__dpl etc. from the session check
+    assert.match(setup, /AUTH_LOCALSTORAGE/); // also accepts a localStorage JWT (Supabase/SPA logins)
+    assert.match(setup, /while \(Date\.now\(\) < deadline\)/); // polls for the session to materialise (SPA XHR has no redirect)
     assert.match(setup, /auth did not complete/); // aborts the run when login didn't close
     assert.match(setup, /name: idp, exact: true/); // picks the IdP by exact label (no wrong-provider lockout)
     assert.match(setup, /passField\(\)\.waitFor\(\{ timeout: 20000 \}\)/); // two-step: waits for password to render

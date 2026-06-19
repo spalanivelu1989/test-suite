@@ -105,8 +105,11 @@ export function parsePlaywrightResults(
 }
 
 /** Run the healed suite in the workspace and parse results (T9). */
-export async function captureResults(ws: Workspace): Promise<TestResult[]> {
-  const report = await ws.runSuite();
+export async function captureResults(
+  ws: Workspace,
+  signal?: AbortSignal,
+): Promise<TestResult[]> {
+  const report = await ws.runSuite(signal);
   return parsePlaywrightResults(report);
 }
 
@@ -141,10 +144,12 @@ export function reconcileHealing(
 export async function assessSuiteFlakiness(
   ws: Workspace,
   reruns = 3,
+  signal?: AbortSignal,
 ): Promise<{ results: TestResult[]; flakeRate: number }> {
   const runs: TestResult[][] = [];
   for (let i = 0; i < Math.max(1, reruns); i++) {
-    runs.push(await captureResults(ws));
+    if (signal?.aborted) break;
+    runs.push(await captureResults(ws, signal));
   }
   return detectFlakes(runs);
 }

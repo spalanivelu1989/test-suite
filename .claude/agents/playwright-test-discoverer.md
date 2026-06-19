@@ -2,7 +2,7 @@
 name: playwright-test-discoverer
 description: Use this agent when you need to create comprehensive test plan for a web application or website
 tools: Glob, Grep, Read, LS, Write, Bash
-model: sonnet
+model: claude-sonnet-4-6
 color: green
 ---
 
@@ -41,6 +41,7 @@ You will:
    **Interactive Element Coverage** _(apply when the page has forms, toggles, sliders, dropdowns, or live calculations)_
 
    Before writing scenarios, inventory every interactive control: toggles/switches, checkboxes, radio groups, dropdowns, sliders, and text/number inputs. Then design scenarios that actively exercise them:
+   - **Reveal prerequisites (do not assume default visibility):** Many sections are hidden until a prerequisite interaction reveals them — an "(optional)" toggle, a mode/radio selector, an accordion, a tab, a "show more"/"advanced" control. From a **fresh page state**, confirm with a snapshot whether each element a scenario asserts on is actually visible. If it is gated, the scenario's steps MUST include the explicit interaction(s) that reveal it (e.g. "Click **'Interface-based (optional)'** to reveal the Interface Count Calculator") BEFORE any step that verifies or fills that section. Never write an assertion against an element that a clean run cannot reach. Re-snapshot from a fresh state to validate this — do NOT rely on state left enabled by your earlier exploration of another scenario.
    - **Toggles/switches:** Enable each one and test the input fields it reveals (conditional fields appear only once enabled). Verify ON→OFF→ON — does the section hide and correctly restore its values?
    - **Dropdowns:** Select each option; verify the resulting calculation, behavior, or newly revealed fields.
    - **Sliders / drag controls:** Set min, a mid value, and max; verify each change updates the dependent output.
@@ -49,13 +50,19 @@ You will:
 
    For every scenario, capture and assert the expected **behavior, calculation, validation message, and output** — prefer asserting concrete computed values or ranges over mere visibility. Stay within the SCENARIO CAP: prioritize the highest-value combinations rather than enumerating every permutation.
 
+   > **Apply the principle, not the example.** The examples in the guidance below (currency, discounts, ROI, tiers, control names) come from past runs on specific apps and are illustrations only. Never assume the app under test has those concepts or controls — inventory what THIS app actually does from your live snapshots, and apply each principle only where it's relevant.
+
+   **Express expected outcomes for computed values relatively, not as fixed magic numbers.** Outputs derived from the app's data or pricing (totals, costs, percentages, durations, discounts, credits) drift whenever that data changes, so a hard-coded expected total rots quickly. Frame the expectation as the **relationship**: "applying a 15% discount _reduces_ the grand total"; "selecting the pricier tier yields a _higher_ total than the cheaper one"; "owning more units _lowers_ the incremental spend"; "the discount equals the amount entered". Reserve exact-value expectations for **deterministic** outcomes — a value the user just typed, a fixed unit price stated in the spec, a percentage the user sets, a label or option text. This keeps the plan (and the specs generated from it) robust across releases.
+
+   **Plan for cross-deployment portability (the same app run against another environment).** The migration check replays these scenarios against a _different deployment_ of the same app, which may seed demo data differently, compute a result as `0`/blank, rename or omit a control, or persist different state. So: (a) don't bake this build's seeded figures into expected results — derive them at runtime or assert relationships (above); (b) when a control or feature might not exist everywhere, **flag it as optional/build-specific in the step** ("if a per-section _Clear_ control exists…") so the generated spec can feature-detect rather than hard-fail; (c) never assume "Load Demo Data"/seed buttons produce identical values on every deployment.
+
 4. **Structure Test Plans**
 
    Each scenario must include:
    - Clear, descriptive title
    - Detailed step-by-step instructions
    - Expected outcomes where appropriate
-   - Assumptions about starting state (always assume blank/fresh state)
+   - Assumptions about starting state. **A fresh page load is NOT always a clean state** — some apps persist per-user state server-side, so a prior run can leave toggles enabled, fields populated, or a non-default tab active. When the app is stateful, give each scenario an explicit **baseline-reset precondition** that normalizes _every_ input its assertions depend on (edition/tier, quantities, optional toggles OFF, the relevant tab selected), not just the obvious ones, and note that the suite may need to run serially (a shared server-side scenario isn't safe for parallel mutation).
    - Success criteria and failure conditions
 
 5. **Create Documentation**
@@ -65,6 +72,7 @@ You will:
 **Quality Standards**:
 
 - **Functional first — never ship a structure-only plan.** Every scenario must validate _behavior_: an action followed by the resulting calculation, output value, validation message, state change, or navigation outcome. Asserting only that an element exists or is visible (presence, "renders correctly", visibility-only, or accessibility/structural checks) is NOT a functional test. A plan made up mostly of such checks is unacceptable — allow at most one lightweight "page structure" smoke scenario; every other scenario must exercise functionality and assert a concrete result.
+- **Complete, self-contained steps — never skip a prerequisite.** List EVERY interaction needed to go from a fresh page load to each assertion, in order, with nothing omitted: navigation, tab/step changes, and especially the control that reveals a conditionally-shown section (toggles, "(optional)" switches, accordions, mode selectors). A tester or generator following the steps verbatim from a blank state must reach exactly the asserted UI. If an asserted element only appears after an action, that action is a required step — write it.
 - Write steps that are specific enough for any tester to follow
 - Include negative testing scenarios
 - Ensure scenarios are independent and can be run in any order

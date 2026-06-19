@@ -1,0 +1,15 @@
+[
+  {
+    "id": "https-sapbtp-roi-tarento-ivolve-com-sap-btp-roi",
+    "label": "SAP BTP ROI",
+    "sourceAppId": "https://sapbtp-roi.tarento-ivolve.com",
+    "targetUrl": "https://sapbtp-roi-calculator-stage.cfapps.eu10-004.hana.ondemand.com/single",
+    "idp": "Default Identity Provider"
+  },
+  {
+    "id": "https-sapbtp-roi-tarento-ivolve-com-roi",
+    "label": "ROI",
+    "sourceAppId": "https://sapbtp-roi.tarento-ivolve.com",
+    "targetUrl": "https://sapbtp-roi.tarento-ivolve.com/single"
+  }
+]

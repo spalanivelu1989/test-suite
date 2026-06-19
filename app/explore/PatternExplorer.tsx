@@ -39,7 +39,7 @@ import {
   Workflow,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { getCatppuccinColors, catppuccinAlpha } from "../theme/catppuccin";
 import { getAWSColors } from "../theme/aws";
 import { useThemeMode } from "../providers";
@@ -75,6 +75,8 @@ interface ExploreResult {
   abstracted: string;
   appId: string | null;
   thresholds: { reuse: number; lexical?: number; pattern: number };
+  /** Blend weight w in sem = w·semTitle + (1−w)·semIntent (SEM_TITLE_WEIGHT). */
+  titleWeight?: number;
   /** Authoritative reuse|new verdict from the pipeline's own decideForSpecs. */
   decision?: {
     action: "reuse" | "new";
@@ -1164,6 +1166,20 @@ export function PatternExplorer() {
                       ? "reuse"
                       : "fallback";
 
+                  // The reuse decision selects the spec maximizing max(lex, sem),
+                  // which need NOT be inApp[0] (sorted by sem alone). Resolve the
+                  // ACTUAL matched row so the verdict and the "sent" marker explain
+                  // the real signal — a lexically-driven reuse (sem < 0.82) must not
+                  // claim "sem ≥ 0.82" nor leave every row unmarked.
+                  const matchedRow =
+                    (result.decision?.matchedFile
+                      ? result.inApp.find(
+                          (r) => r.file === result.decision!.matchedFile,
+                        )
+                      : null) ??
+                    result.inApp[0] ??
+                    null;
+
                   const InApp = (
                     <TierPanel
                       icon={<Building2 size={14} />}
@@ -1174,15 +1190,23 @@ export function PatternExplorer() {
                           ? `Scoped to ${appLabel(result.appId)}`
                           : "Select context origin app"
                       }
-                      thresholdLabel={`reuse ≥ ${result.thresholds.reuse.toFixed(2)}`}
+                      thresholdLabel={`lex ≥ ${(
+                        result.thresholds.lexical ?? result.thresholds.reuse
+                      ).toFixed(2)} · sem ≥ ${result.thresholds.reuse.toFixed(
+                        2,
+                      )}`}
                       rows={result.inApp}
                       threshold={result.thresholds.reuse}
+                      lexicalThreshold={
+                        result.thresholds.lexical ?? result.thresholds.reuse
+                      }
                       c={c}
                       colors={colors}
                       queryText={seedText}
                       isAppScoped={true}
                       empty="No local memory matches."
                       markTopSent={branch === "reuse"}
+                      sentFile={matchedRow?.file ?? null}
                     />
                   );
                   const CrossApp = (
@@ -1207,10 +1231,17 @@ export function PatternExplorer() {
                     <VStack align="stretch" gap={5}>
                       <DecisionVerdict
                         branch={branch}
-                        inAppTop={inAppTop}
+                        inAppTop={matchedRow?.score ?? inAppTop}
+                        inAppLex={matchedRow?.lexical}
+                        semTitle={matchedRow?.semTitle}
+                        semIntent={matchedRow?.semIntent}
                         reuseThreshold={result.thresholds.reuse}
+                        lexicalThreshold={
+                          result.thresholds.lexical ?? result.thresholds.reuse
+                        }
+                        titleWeight={result.titleWeight}
                         appId={result.appId}
-                        matchedTitle={result.inApp[0]?.title ?? null}
+                        matchedTitle={matchedRow?.title ?? null}
                         c={c}
                         colors={colors}
                       />
@@ -2016,7 +2047,12 @@ function TransformBanner({
 function DecisionVerdict({
   branch,
   inAppTop,
+  inAppLex,
+  semTitle,
+  semIntent,
   reuseThreshold,
+  lexicalThreshold,
+  titleWeight = 0.5,
   appId,
   matchedTitle,
   c,
@@ -2024,12 +2060,50 @@ function DecisionVerdict({
 }: {
   branch: "reuse" | "fallback" | "new-app";
   inAppTop: number;
+  inAppLex?: number;
+  semTitle?: number;
+  semIntent?: number;
   reuseThreshold: number;
+  lexicalThreshold?: number;
+  titleWeight?: number;
   appId: string | null;
   matchedTitle: string | null;
   c: Palette;
   colors: any;
 }) {
+  const [showMath, setShowMath] = useState(false);
+  // Reuse fires on lexical ≥ lexicalThreshold OR semantic ≥ reuseThreshold — name
+  // whichever actually cleared the bar. Naively claiming "sem ≥ 0.82" was wrong
+  // when reuse was driven by token overlap and the sem score is below 0.82.
+  const semClears = inAppTop >= reuseThreshold;
+  const lexClears =
+    inAppLex != null &&
+    lexicalThreshold != null &&
+    inAppLex >= lexicalThreshold;
+  const sem = (
+    <>
+      semantic match <b style={{ color: c.green }}>{inAppTop.toFixed(3)}</b> ≥{" "}
+      {reuseThreshold.toFixed(2)}
+    </>
+  );
+  const lex = (
+    <>
+      lexical overlap{" "}
+      <b style={{ color: c.green }}>{(inAppLex ?? 0).toFixed(3)}</b> ≥{" "}
+      {(lexicalThreshold ?? reuseThreshold).toFixed(2)}
+    </>
+  );
+  const signal =
+    semClears && lexClears ? (
+      <>
+        {sem} and {lex}
+      </>
+    ) : lexClears ? (
+      lex
+    ) : (
+      sem
+    );
+
   const cfg =
     branch === "reuse"
       ? {
@@ -2038,9 +2112,7 @@ function DecisionVerdict({
           title: "Reuse the existing test",
           body: (
             <>
-              In-app match{" "}
-              <b style={{ color: c.green }}>{inAppTop.toFixed(3)}</b> ≥{" "}
-              {reuseThreshold.toFixed(2)} — the Designer copies{" "}
+              In-app {signal} — the Designer copies{" "}
               {matchedTitle ? <b>“{matchedTitle}”</b> : "the prior test"}{" "}
               forward.{" "}
               <Text as="span" color={colors.subtext}>
@@ -2133,47 +2205,322 @@ function DecisionVerdict({
     );
   };
 
-  return (
-    <Flex
-      align="center"
-      justify="space-between"
-      gap={4}
-      flexWrap="wrap"
-      bg={colors.cardBg}
-      border={`1px solid ${colors.border}`}
-      borderRadius="14px"
-      p={4}
-      boxShadow="sm"
+  // Per-spec score breakdown for the matched in-app row — the numbers the reuse
+  // rule is computed from, laid out as Component · Formula · Score · Reuse bar.
+  // Hidden on new-app (no in-app history to score). Combined = max(lexical,
+  // blended) is the value the decision actually thresholds.
+  const combined = inAppLex != null ? Math.max(inAppLex, inAppTop) : inAppTop;
+  const lexBar = lexicalThreshold ?? reuseThreshold;
+  const w = titleWeight;
+  type ScoreRow = {
+    label: string;
+    formula: string;
+    value?: number;
+    bar?: number;
+    cleared?: boolean;
+    result?: boolean;
+  };
+  const scoreRows: ScoreRow[] = [
+    {
+      label: "Lexical",
+      formula: "|A ∩ B| / min(|A|, |B|)",
+      value: inAppLex,
+      bar: lexBar,
+      cleared: lexClears,
+    },
+    { label: "semTitle", formula: "cos(q, title)", value: semTitle },
+    { label: "semIntent", formula: "cos(q, intent)", value: semIntent },
+    {
+      label: "Blended",
+      formula: `${w.toFixed(2)}·semTitle + ${(1 - w).toFixed(2)}·semIntent`,
+      value: inAppTop,
+      bar: reuseThreshold,
+      cleared: semClears,
+    },
+    {
+      label: "Combined",
+      formula: "max(Lexical, Blended)",
+      value: combined,
+      result: true,
+    },
+  ];
+
+  const headerCell = (text: string, align: "left" | "right" = "left") => (
+    <Text
+      fontSize="9px"
+      fontWeight="700"
+      letterSpacing="0.06em"
+      textTransform="uppercase"
+      color={colors.subtext}
+      textAlign={align}
     >
-      <Box flex="1" minW="240px">
+      {text}
+    </Text>
+  );
+
+  const barLabel = (row: ScoreRow) => {
+    if (row.result) {
+      return (
+        <Text
+          fontSize="xs"
+          fontWeight="700"
+          fontFamily="mono"
+          color={cfg.accent}
+          textAlign="right"
+        >
+          {branch === "reuse" ? "→ reuse" : "→ new"}
+        </Text>
+      );
+    }
+    if (row.bar == null) {
+      return (
+        <Text fontSize="xs" color={colors.subtext} textAlign="right">
+          input
+        </Text>
+      );
+    }
+    return (
+      <Text
+        fontSize="xs"
+        fontWeight="700"
+        fontFamily="mono"
+        color={row.cleared ? c.green : colors.subtext}
+        textAlign="right"
+      >
+        {`${row.cleared ? "≥" : "<"} ${row.bar.toFixed(2)}`}
+      </Text>
+    );
+  };
+
+  const scoreStrip =
+    branch === "new-app" ? null : (
+      <Box
+        mt={4}
+        bg={colors.subBg}
+        border={`1px solid ${colors.border}`}
+        borderRadius="12px"
+        px={4}
+        py={3}
+      >
         <Text
           fontSize="10px"
           fontWeight="700"
           letterSpacing="0.06em"
           textTransform="uppercase"
           color={colors.subtext}
+          mb={2.5}
         >
-          Designer decision
+          Score breakdown
         </Text>
-        <Text fontSize="md" fontWeight="700" color={colors.text} mt={0.5}>
-          {cfg.title}
-        </Text>
-        <Text fontSize="sm" color={colors.text} mt={1} lineHeight="1.5">
-          {cfg.body}
-        </Text>
-      </Box>
+        <Box
+          display="grid"
+          gridTemplateColumns="minmax(74px, auto) 1fr auto auto"
+          columnGap={5}
+          rowGap={2}
+          alignItems="center"
+        >
+          {headerCell("Component")}
+          {headerCell("Formula")}
+          {headerCell("Score", "right")}
+          {headerCell("Reuse bar", "right")}
 
-      {/* Highlighted route: which tier answered — in-app vs cross-app */}
-      <Flex align="center" gap={2} flexShrink={0}>
-        {chip("IN-APP", inAppSub, inAppState, c.sapphire)}
-        <ArrowRight
-          size={16}
-          color={crossState === "active" ? c.mauve : colors.subtext}
-          style={{ opacity: crossState === "active" ? 1 : 0.4 }}
-        />
-        {chip("CROSS-APP", crossSub, crossState, c.mauve)}
+          {scoreRows.map((row) => {
+            const sep = row.result
+              ? {
+                  borderTop: `1px solid ${colors.border}`,
+                  pt: 2,
+                  mt: -0.5,
+                }
+              : {};
+            const valueColor = row.result
+              ? cfg.accent
+              : row.cleared
+                ? c.green
+                : colors.text;
+            return (
+              <Fragment key={row.label}>
+                <Text
+                  fontSize="xs"
+                  fontWeight={row.result ? "800" : "700"}
+                  color={colors.text}
+                  {...sep}
+                >
+                  {row.label}
+                </Text>
+                <Text
+                  fontFamily="mono"
+                  fontSize="xs"
+                  color={colors.subtext}
+                  whiteSpace="nowrap"
+                  overflow="hidden"
+                  textOverflow="ellipsis"
+                  {...sep}
+                >
+                  {row.formula}
+                </Text>
+                <Text
+                  fontFamily="mono"
+                  fontSize="sm"
+                  fontWeight="800"
+                  color={valueColor}
+                  textAlign="right"
+                  {...sep}
+                >
+                  {row.value != null ? row.value.toFixed(3) : "—"}
+                </Text>
+                <Box textAlign="right" {...sep}>
+                  {barLabel(row)}
+                </Box>
+              </Fragment>
+            );
+          })}
+        </Box>
+      </Box>
+    );
+
+  // Plain-language layer — what happened and why, in everyday words. This leads;
+  // the numeric scoring sits behind a toggle for anyone who wants the detail.
+  const plain =
+    branch === "reuse"
+      ? {
+          title: "Reusing an existing test",
+          body: "This step already has a test we wrote earlier, so the Designer copies it instead of writing a new one.",
+          why:
+            lexClears && semClears
+              ? "Both the wording and the meaning closely match a test we already have."
+              : lexClears
+                ? "Its title uses the same words as a test we already have."
+                : "It means almost the same thing as a test we already have.",
+        }
+      : branch === "fallback"
+        ? {
+            title: "Writing a new test",
+            body: "No earlier test in this app is close enough to reuse, so the Designer writes a fresh one — using similar workflows from other apps as a guide.",
+            why: "The closest earlier test only partly matches.",
+          }
+        : {
+            title: "Writing a new test",
+            body: "This app has no earlier tests yet, so the Designer writes one from scratch — using similar workflows from other apps as a guide.",
+            why: null as string | null,
+          };
+
+  const hasMath = branch !== "new-app";
+
+  return (
+    <Box
+      bg={colors.cardBg}
+      border={`1px solid ${colors.border}`}
+      borderRadius="14px"
+      p={4}
+      boxShadow="sm"
+    >
+      {/* Plain-language summary */}
+      <Flex align="flex-start" gap={3}>
+        <Flex
+          align="center"
+          justify="center"
+          w="30px"
+          h="30px"
+          borderRadius="9px"
+          flexShrink={0}
+          bg={catppuccinAlpha(cfg.accent, 0.15)}
+          color={cfg.accent}
+        >
+          {cfg.icon}
+        </Flex>
+        <Box flex="1" minW={0}>
+          <Text
+            fontSize="10px"
+            fontWeight="700"
+            letterSpacing="0.06em"
+            textTransform="uppercase"
+            color={colors.subtext}
+          >
+            Designer decision
+          </Text>
+          <Text fontSize="md" fontWeight="800" color={colors.text} mt={0.5}>
+            {plain.title}
+          </Text>
+          <Text fontSize="sm" color={colors.text} mt={1} lineHeight="1.55">
+            {plain.body}
+          </Text>
+          {plain.why && (
+            <Flex mt={2} gap={1.5} align="baseline" flexWrap="wrap">
+              <Text
+                fontSize="xs"
+                fontWeight="800"
+                color={cfg.accent}
+                flexShrink={0}
+              >
+                Why?
+              </Text>
+              <Text fontSize="xs" color={colors.subtext} lineHeight="1.5">
+                {plain.why}
+              </Text>
+            </Flex>
+          )}
+        </Box>
       </Flex>
-    </Flex>
+
+      {hasMath && (
+        <>
+          <Button
+            size="xs"
+            variant="ghost"
+            mt={3}
+            px={2}
+            color={colors.subtext}
+            _hover={{ bg: colors.subBg, color: colors.text }}
+            onClick={() => setShowMath((v) => !v)}
+          >
+            {showMath ? (
+              <ChevronUp size={13} style={{ marginRight: 4 }} />
+            ) : (
+              <ChevronDown size={13} style={{ marginRight: 4 }} />
+            )}
+            {showMath ? "Hide the scoring details" : "Show the scoring details"}
+          </Button>
+
+          {showMath && (
+            <Box mt={2}>
+              {/* Plain bridge into the numbers */}
+              <Text
+                fontSize="xs"
+                color={colors.subtext}
+                lineHeight="1.55"
+                mb={3}
+              >
+                A test is reused when it clears{" "}
+                <b style={{ color: colors.text }}>either</b> bar: its title
+                shares almost the same words (
+                <b style={{ color: colors.text }}>lexical</b>
+                ), or it means almost the same thing (
+                <b style={{ color: colors.text }}>semantic</b>). Here is how
+                this match scored.
+              </Text>
+
+              {/* Technical one-liner: which signal fired */}
+              <Text fontSize="sm" color={colors.text} mb={3} lineHeight="1.5">
+                {cfg.body}
+              </Text>
+
+              {/* Route: which tier answered — in-app vs cross-app */}
+              <Flex align="center" gap={2} mb={1}>
+                {chip("IN-APP", inAppSub, inAppState, c.sapphire)}
+                <ArrowRight
+                  size={16}
+                  color={crossState === "active" ? c.mauve : colors.subtext}
+                  style={{ opacity: crossState === "active" ? 1 : 0.4 }}
+                />
+                {chip("CROSS-APP", crossSub, crossState, c.mauve)}
+              </Flex>
+
+              {scoreStrip}
+            </Box>
+          )}
+        </>
+      )}
+    </Box>
   );
 }
 
@@ -2244,6 +2591,7 @@ function TierPanel({
   thresholdLabel,
   rows,
   threshold,
+  lexicalThreshold,
   showApp = false,
   c,
   colors,
@@ -2252,6 +2600,7 @@ function TierPanel({
   empty,
   flex,
   markTopSent = false,
+  sentFile,
 }: {
   icon?: React.ReactNode;
   accent: string;
@@ -2260,6 +2609,12 @@ function TierPanel({
   thresholdLabel: string;
   rows: (InAppMatch | CrossAppMatch)[];
   threshold: number;
+  /**
+   * Lexical reuse bar. When set (in-app tier), a row clears the reuse bar on
+   * EITHER lexical ≥ lexicalThreshold OR sem ≥ threshold — mirroring the real
+   * decision. Omitted on cross-app, where only the semantic bar applies.
+   */
+  lexicalThreshold?: number;
   showApp?: boolean;
   c: Palette;
   colors: any;
@@ -2269,14 +2624,43 @@ function TierPanel({
   flex?: string;
   /** Mark the single match actually sent to the generator (top one ≥ threshold). */
   markTopSent?: boolean;
+  /**
+   * File of the row the pipeline ACTUALLY matched. Takes precedence over the
+   * sem-threshold heuristic so a lexically-driven reuse (sem < threshold) still
+   * marks the copied-forward row instead of marking nothing.
+   */
+  sentFile?: string | null;
 }) {
-  const top = rows[0]?.score ?? 0;
-  const aboveBar = rows.filter((r) => r.score >= threshold).length;
-  // Rows arrive sorted by score desc, so the first one ≥ threshold is "the" match
-  // the generator would receive (PATTERN_K = 1). -1 when none clears the floor.
-  const sentIdx = markTopSent
-    ? rows.findIndex((r) => r.score >= threshold)
-    : -1;
+  // Combined reuse score of a row — max(lexical, sem) on the in-app tier, plain
+  // sem on cross-app (no lexicalThreshold). This is the number the reuse rule and
+  // the gauge actually use, so the header stats agree with the per-row display.
+  const combinedOf = (r: InAppMatch | CrossAppMatch) => {
+    const lex = (r as InAppMatch).lexical;
+    return lexicalThreshold != null && lex != null
+      ? Math.max(r.score, lex)
+      : r.score;
+  };
+  // Top reuse score across rows — not rows[0].score, since rows are sorted by sem
+  // alone and a lexical-only match can outscore the top semantic row.
+  const top = rows.reduce((m, r) => Math.max(m, combinedOf(r)), 0);
+  // A row clears the reuse bar on lexical OR semantic (in-app); cross-app has no
+  // lexicalThreshold, so it reduces to the semantic check alone.
+  const rowClears = (r: InAppMatch | CrossAppMatch) => {
+    const lex = (r as InAppMatch).lexical;
+    return (
+      r.score >= threshold ||
+      (lexicalThreshold != null && lex != null && lex >= lexicalThreshold)
+    );
+  };
+  const aboveBar = rows.filter(rowClears).length;
+  // Prefer the authoritative matched row; fall back to the first one clearing the
+  // bar. Rows arrive sorted by score desc, so that first one is "the" match the
+  // generator would receive (PATTERN_K = 1). -1 when neither resolves.
+  const sentIdx = !markTopSent
+    ? -1
+    : sentFile
+      ? rows.findIndex((r) => r.file === sentFile)
+      : rows.findIndex(rowClears);
 
   return (
     <Box
@@ -2331,12 +2715,14 @@ function TierPanel({
               c={c}
               colors={colors}
             />
-            <Stat
-              label="Threshold Limit"
-              value={thresholdLabel}
-              c={c}
-              colors={colors}
-            />
+            {!isAppScoped && (
+              <Stat
+                label="Threshold Limit"
+                value={thresholdLabel}
+                c={c}
+                colors={colors}
+              />
+            )}
           </Flex>
         )}
       </Box>
@@ -2364,6 +2750,8 @@ function TierPanel({
               file={r.file}
               score={r.score}
               threshold={threshold}
+              lexical={(r as InAppMatch).lexical}
+              lexicalThreshold={lexicalThreshold}
               accent={accent}
               app={showApp ? appLabel((r as CrossAppMatch).appId) : undefined}
               appId={showApp ? (r as CrossAppMatch).appId : null}
@@ -2492,6 +2880,8 @@ function HighlightedTitle({
 function EngineSimulator({
   score,
   threshold,
+  lexical,
+  lexicalThreshold,
   isAppScoped,
   c,
   colors,
@@ -2499,6 +2889,8 @@ function EngineSimulator({
 }: {
   score: number;
   threshold: number;
+  lexical?: number;
+  lexicalThreshold?: number;
   isAppScoped: boolean;
   c: Palette;
   colors: any;
@@ -2506,6 +2898,10 @@ function EngineSimulator({
 }) {
   const [step, setStep] = useState(0);
   const [running, setRunning] = useState(false);
+
+  const lexClears =
+    lexical != null && lexicalThreshold != null && lexical >= lexicalThreshold;
+  const semClears = score >= threshold;
 
   const steps = [
     {
@@ -2516,8 +2912,16 @@ function EngineSimulator({
     },
     { label: "Retrieving intent tokens & strips...", delay: 600 },
     { label: "Generating vector search query...", delay: 700 },
+    ...(lexicalThreshold != null
+      ? [
+          {
+            label: `Lexical overlap: ${(lexical ?? 0).toFixed(3)} vs bar ${lexicalThreshold.toFixed(2)} ${lexClears ? "✓" : "✗"}`,
+            delay: 600,
+          },
+        ]
+      : []),
     {
-      label: `Cosine similarity calculation: ${score.toFixed(3)} vs threshold ${threshold.toFixed(2)}`,
+      label: `Cosine similarity calculation: ${score.toFixed(3)} vs threshold ${threshold.toFixed(2)} ${semClears ? "✓" : "✗"}`,
       delay: 600,
     },
   ];
@@ -2539,7 +2943,9 @@ function EngineSimulator({
     return () => clearTimeout(timer);
   }, [running, step]);
 
-  const meetsBar = score >= threshold;
+  // In-app reuse fires on lexical OR semantic; cross-app (no lexicalThreshold)
+  // is semantic-only, so this reduces to the cosine check there.
+  const meetsBar = semClears || lexClears;
 
   return (
     <Box
@@ -2661,6 +3067,8 @@ function MatchRowInteractive({
   file,
   score,
   threshold,
+  lexical,
+  lexicalThreshold,
   accent,
   app,
   appId = null,
@@ -2679,6 +3087,8 @@ function MatchRowInteractive({
   file: string;
   score: number;
   threshold: number;
+  lexical?: number;
+  lexicalThreshold?: number;
   accent: string;
   app?: string;
   appId?: string | null;
@@ -2697,9 +3107,16 @@ function MatchRowInteractive({
   const [copied, setCopied] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
 
+  // `clears` is the semantic-only check (the cosine gauge metric). `eligible`
+  // is the real reuse rule — lexical OR semantic — used for the pass/fail UI so
+  // a lexically-driven reuse (sem < bar) still reads as "clears the reuse bar".
   const clears = score >= threshold;
-  const near = !clears && score >= threshold - 0.05;
-  const barColor = clears ? c.green : near ? c.yellow : c.overlay0;
+  const lexClears =
+    lexical != null && lexicalThreshold != null && lexical >= lexicalThreshold;
+  const eligible = clears || lexClears;
+  const combined = lexical != null ? Math.max(score, lexical) : score;
+  const near = !eligible && score >= threshold - 0.05;
+  const barColor = eligible ? c.green : near ? c.yellow : c.overlay0;
 
   // In-app rows carry the hybrid breakdown: score = 0.5·title + 0.5·intent.
   const hasBreakdown =
@@ -2806,26 +3223,106 @@ function MatchRowInteractive({
             </Text>
           </Flex>
           {hasBreakdown && (
-            <Flex align="center" gap={1.5} mt={1} flexWrap="wrap">
-              <ScorePill
-                label="title"
-                value={semTitle as number}
-                color={c.sapphire}
-                colors={colors}
-              />
-              <Text fontSize="10px" color={colors.subtext} fontWeight="bold">
-                +
+            <Box
+              mt={1.5}
+              display="grid"
+              gridTemplateColumns="auto 1fr"
+              columnGap={2.5}
+              rowGap={1.5}
+              alignItems="center"
+              w="fit-content"
+            >
+              <Text
+                fontSize="9px"
+                fontWeight="700"
+                textTransform="uppercase"
+                letterSpacing="0.05em"
+                color={colors.subtext}
+              >
+                Blend
               </Text>
-              <ScorePill
-                label="intent"
-                value={semIntent as number}
-                color={c.mauve}
-                colors={colors}
-              />
-              <Text fontSize="10px" color={colors.subtext}>
-                → blend {score.toFixed(3)}
-              </Text>
-            </Flex>
+              <Flex align="center" gap={1.5} flexWrap="wrap">
+                <ScorePill
+                  label="title"
+                  value={semTitle as number}
+                  color={c.sapphire}
+                  colors={colors}
+                />
+                <Text fontSize="10px" color={colors.subtext} fontWeight="bold">
+                  +
+                </Text>
+                <ScorePill
+                  label="intent"
+                  value={semIntent as number}
+                  color={c.mauve}
+                  colors={colors}
+                />
+                <Text fontSize="10px" color={colors.subtext} fontWeight="bold">
+                  =
+                </Text>
+                <Text
+                  fontSize="11px"
+                  fontFamily="mono"
+                  fontWeight="800"
+                  color={colors.text}
+                >
+                  {score.toFixed(3)}
+                </Text>
+              </Flex>
+
+              {lexical != null && (
+                <>
+                  <Text
+                    fontSize="9px"
+                    fontWeight="700"
+                    textTransform="uppercase"
+                    letterSpacing="0.05em"
+                    color={colors.subtext}
+                  >
+                    Combined
+                  </Text>
+                  <Flex align="center" gap={1.5} flexWrap="wrap">
+                    <Text fontSize="10px" color={colors.subtext}>
+                      max(
+                    </Text>
+                    <Text
+                      fontSize="10px"
+                      fontFamily="mono"
+                      color={colors.subtext}
+                    >
+                      blend {score.toFixed(3)}
+                    </Text>
+                    <Text fontSize="10px" color={colors.subtext}>
+                      ,
+                    </Text>
+                    <ScorePill
+                      label="lexical"
+                      value={lexical}
+                      color={c.green}
+                      colors={colors}
+                    />
+                    <Text fontSize="10px" color={colors.subtext}>
+                      )
+                    </Text>
+                    <Text
+                      fontSize="10px"
+                      color={colors.subtext}
+                      fontWeight="bold"
+                    >
+                      =
+                    </Text>
+                    <Text
+                      fontSize="11px"
+                      fontFamily="mono"
+                      fontWeight="800"
+                      color={eligible ? c.green : colors.text}
+                    >
+                      {combined.toFixed(3)}
+                    </Text>
+                  </Flex>
+                </>
+              )}
+            </Box>
           )}
           {workflow && (
             <Flex align="flex-start" gap={1.5} mt={1.5}>
@@ -2851,7 +3348,13 @@ function MatchRowInteractive({
           onMouseLeave={() => setShowTooltip(false)}
           flexShrink={0}
         >
-          <RadialGauge score={score} threshold={threshold} c={c} size={40} />
+          <RadialGauge
+            score={combined}
+            threshold={threshold}
+            eligible={eligible}
+            c={c}
+            size={40}
+          />
 
           <AnimatePresence>
             {showTooltip && (
@@ -2871,24 +3374,61 @@ function MatchRowInteractive({
                 w="240px"
               >
                 <Text fontSize="10px" fontWeight="bold" color={colors.subtext}>
-                  SIMILARITY METRIC
+                  {lexicalThreshold != null
+                    ? "REUSE METRICS"
+                    : "SIMILARITY METRIC"}
                 </Text>
-                <Text fontSize="xs" fontWeight="700" color={barColor} mt={0.5}>
-                  Cosine Score: {score.toFixed(4)}
-                </Text>
-                <Text fontSize="2xs" color={colors.subtext} mt={1}>
-                  Target Threshold: {threshold.toFixed(2)}
-                </Text>
+                <Flex justify="space-between" align="center" mt={0.5}>
+                  <Text fontSize="xs" fontWeight="700" color={colors.text}>
+                    Semantic (cosine)
+                  </Text>
+                  <Text
+                    fontSize="xs"
+                    fontWeight="700"
+                    fontFamily="mono"
+                    color={clears ? c.green : colors.subtext}
+                  >
+                    {score.toFixed(3)} {clears ? "≥" : "<"}{" "}
+                    {threshold.toFixed(2)}
+                  </Text>
+                </Flex>
+                {lexicalThreshold != null && (
+                  <Flex justify="space-between" align="center" mt={0.5}>
+                    <Text fontSize="xs" fontWeight="700" color={colors.text}>
+                      Lexical overlap
+                    </Text>
+                    <Text
+                      fontSize="xs"
+                      fontWeight="700"
+                      fontFamily="mono"
+                      color={lexClears ? c.green : colors.subtext}
+                    >
+                      {(lexical ?? 0).toFixed(3)} {lexClears ? "≥" : "<"}{" "}
+                      {lexicalThreshold.toFixed(2)}
+                    </Text>
+                  </Flex>
+                )}
                 <Text
                   fontSize="2xs"
-                  color={colors.text}
-                  mt={1}
+                  color={eligible ? c.green : colors.text}
+                  fontWeight="700"
+                  mt={1.5}
                   borderTop={`1px solid ${colors.border}`}
-                  pt={1}
+                  pt={1.5}
                 >
-                  {clears
-                    ? "✓ Meets target bar. Will trigger retrieval behavior."
-                    : "✗ Below required similarity floor."}
+                  {eligible
+                    ? lexicalThreshold != null
+                      ? `✓ Clears the reuse bar (${
+                          clears && lexClears
+                            ? "both"
+                            : lexClears
+                              ? "lexical"
+                              : "semantic"
+                        }). Copied forward verbatim.`
+                      : "✓ Meets target bar. Will trigger retrieval behavior."
+                    : lexicalThreshold != null
+                      ? "✗ Below both reuse bars — regenerated from scratch."
+                      : "✗ Below required similarity floor."}
                 </Text>
               </MotionBox>
             )}
@@ -3042,6 +3582,8 @@ function MatchRowInteractive({
                   <EngineSimulator
                     score={score}
                     threshold={threshold}
+                    lexical={lexical}
+                    lexicalThreshold={lexicalThreshold}
                     isAppScoped={isAppScoped}
                     c={c}
                     colors={colors}
@@ -3260,11 +3802,18 @@ function SpecCard({
 function RadialGauge({
   score,
   threshold,
+  eligible,
   c,
   size = 42,
 }: {
   score: number;
   threshold: number;
+  /**
+   * Reuse eligibility override (lexical OR semantic). When provided it drives the
+   * pass/fail color, so a lexically-cleared row reads green even though the arc
+   * (which tracks `score`) sits below the semantic bar. Falls back to score≥bar.
+   */
+  eligible?: boolean;
   c: any;
   size?: number;
 }) {
@@ -3273,7 +3822,7 @@ function RadialGauge({
   const circumference = 2 * Math.PI * radius;
   const offset =
     circumference - Math.max(0, Math.min(1, score)) * circumference;
-  const clears = score >= threshold;
+  const clears = eligible ?? score >= threshold;
   const color = clears
     ? c.green
     : score >= threshold - 0.05

@@ -942,7 +942,7 @@ export function renderHtml(report: RunReport): string {
               ? `
             <div class="screenshots-grid">
               ${report.screenshots
-                .map((s) => {
+                .map((s, idx) => {
                   const m = s.filename.match(
                     /^(?:([a-zA-Z0-9\-]+)-)?step-(\d+)-(pre|post)-(\w+)\.png$/,
                   );
@@ -963,7 +963,7 @@ export function renderHtml(report: RunReport): string {
                       ? "Visual highlight overlay applied to click target"
                       : "Resulting page state after execution";
                   return `
-                    <div class="screenshot-card" onclick="openLightbox('data:image/png;base64,${s.base64}')">
+                    <div class="screenshot-card" onclick="openLightbox(${idx})">
                       <div class="screenshot-img-container">
                         <img src="data:image/png;base64,${s.base64}" alt="Step ${stepNum} ${action}" loading="lazy">
                         <div class="screenshot-badge-overlay">
@@ -1003,10 +1003,12 @@ export function renderHtml(report: RunReport): string {
 
   <!-- Lightbox Modal -->
   <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+    <button class="lightbox-prev" onclick="prevLightboxImage(event)">‹</button>
     <div class="lightbox-content" onclick="event.stopPropagation()">
       <button class="lightbox-close" onclick="closeLightbox()">×</button>
       <img id="lightbox-img" src="" alt="Enlarged screenshot">
     </div>
+    <button class="lightbox-next" onclick="nextLightboxImage(event)">›</button>
   </div>
 
   <!-- Code Viewer Modal -->
@@ -1037,6 +1039,7 @@ export function renderHtml(report: RunReport): string {
 
   <script>
     const GENERATED_SPECS = ${JSON.stringify(report.generatedSpecs || [])};
+    const SCREENSHOTS = ${JSON.stringify(report.screenshots || [])};
 
     function safeGetItem(key) {
       try {
@@ -1134,16 +1137,50 @@ export function renderHtml(report: RunReport): string {
 
     let currentFilter = 'all';
 
-    function openLightbox(src) {
-      const lb = document.getElementById('lightbox');
-      const img = document.getElementById('lightbox-img');
-      img.src = src;
-      lb.classList.add('active');
+    let currentLightboxIndex = -1;
+
+    function openLightbox(index) {
+      currentLightboxIndex = index;
+      updateLightboxImage();
+      document.getElementById('lightbox').classList.add('active');
+    }
+    function updateLightboxImage() {
+      if (currentLightboxIndex >= 0 && currentLightboxIndex < SCREENSHOTS.length) {
+        const s = SCREENSHOTS[currentLightboxIndex];
+        const img = document.getElementById('lightbox-img');
+        img.src = 'data:image/png;base64,' + s.base64;
+      }
     }
     function closeLightbox() {
       const lb = document.getElementById('lightbox');
       lb.classList.remove('active');
+      currentLightboxIndex = -1;
     }
+    function prevLightboxImage(e) {
+      if (e) e.stopPropagation();
+      if (SCREENSHOTS.length === 0) return;
+      currentLightboxIndex = (currentLightboxIndex - 1 + SCREENSHOTS.length) % SCREENSHOTS.length;
+      updateLightboxImage();
+    }
+    function nextLightboxImage(e) {
+      if (e) e.stopPropagation();
+      if (SCREENSHOTS.length === 0) return;
+      currentLightboxIndex = (currentLightboxIndex + 1) % SCREENSHOTS.length;
+      updateLightboxImage();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const lb = document.getElementById('lightbox');
+      if (lb && lb.classList.contains('active')) {
+        if (e.key === 'ArrowLeft') {
+          prevLightboxImage(e);
+        } else if (e.key === 'ArrowRight') {
+          nextLightboxImage(e);
+        } else if (e.key === 'Escape') {
+          closeLightbox();
+        }
+      }
+    });
 
     // Tab switching logic
     const tabButtons = document.querySelectorAll('.tab-btn');

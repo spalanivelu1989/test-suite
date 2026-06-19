@@ -34,6 +34,7 @@ import { ConsoleLayout } from "@/app/components/ConsoleLayout";
 import { PatternExplorer } from "@/app/explore/PatternExplorer";
 import { SqlQuery } from "@/app/sql-query/SqlQuery";
 import { MatchingVisualizer } from "@/app/components/MatchingVisualizer";
+import { MigrationCheck, getHPEColors } from "@/app/components/MigrationCheck";
 import { LaunchWizard } from "@/app/components/LaunchWizard";
 import { TestRunsTable } from "@/app/components/TestRunsTable";
 import { TestReportView } from "@/app/components/TestReportView";
@@ -43,6 +44,9 @@ import type { Run, ProgressEvent, RunReport } from "@/src/types";
 export default function HomePage() {
   const { theme } = useThemeMode();
   const colors = getAWSColors(theme);
+  // Migration Check palette — the Dashboard stat cards reuse it so their section
+  // header strips/bodies match the Migration Check tab's section styling.
+  const hpe = getHPEColors(theme);
   const isDark = theme === "dark";
 
   // Tab State
@@ -57,6 +61,7 @@ export default function HomePage() {
         "dashboard",
         "test-runs",
         "test-report",
+        "migration-check",
         "security-groups",
         "key-pairs",
         "explore",
@@ -342,17 +347,13 @@ export default function HomePage() {
             {/* Active Runs Card */}
             <Box
               position="relative"
-              p={3.5}
-              bg={
-                isDark
-                  ? "linear-gradient(135deg, rgba(133, 193, 220, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
-                  : "linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
-              }
+              bg={hpe.cardBg}
               border="1px solid"
               borderColor={
-                runningCount > 0 ? "rgba(133, 193, 220, 0.45)" : colors.border
+                runningCount > 0 ? "rgba(133, 193, 220, 0.45)" : hpe.border
               }
               borderRadius="xl"
+              shadow="sm"
               cursor="pointer"
               onClick={() => setActiveTab("test-runs")}
               overflow="hidden"
@@ -362,101 +363,105 @@ export default function HomePage() {
                   ? "rgba(153, 209, 219, 0.5)"
                   : "rgba(59, 130, 246, 0.4)",
                 bg: isDark
-                  ? "linear-gradient(135deg, rgba(133, 193, 220, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
-                  : "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
+                  ? "rgba(133, 193, 220, 0.12)"
+                  : "rgba(59, 130, 246, 0.07)",
                 transform: "translateY(-1px)",
                 shadow: "md",
               }}
             >
-              <Flex justify="space-between" align="start">
-                <VStack align="start" gap={1}>
-                  <Text
-                    fontSize="11px"
+              {/* Header strip (matches Migration Check sections) */}
+              <Flex
+                bg={hpe.subBg}
+                borderBottom="1px solid"
+                borderColor={hpe.border}
+                px={4}
+                py={2.5}
+                align="center"
+                justify="space-between"
+              >
+                <Text
+                  fontSize="11.5px"
+                  fontWeight="bold"
+                  color={colors.text}
+                  letterSpacing="0.05em"
+                  textTransform="uppercase"
+                >
+                  Active Runs
+                </Text>
+                {runningCount > 0 && (
+                  <Badge
+                    variant="subtle"
+                    bg="rgba(166, 209, 137, 0.12)"
+                    color="#a6d189"
+                    borderColor="rgba(166, 209, 137, 0.25)"
+                    borderWidth="1px"
+                    borderRadius="full"
+                    fontSize="9px"
                     fontWeight="bold"
-                    color={colors.subtext}
-                    letterSpacing="0.05em"
-                    textTransform="uppercase"
+                    px={2}
+                    py={0.5}
+                    display="inline-flex"
+                    alignItems="center"
+                    gap={1}
                   >
-                    Active Runs
-                  </Text>
-                  <HStack align="baseline" gap={2}>
-                    <Text
-                      fontSize="26px"
-                      fontWeight="normal"
-                      lineHeight="1"
-                      color="transparent"
-                      letterSpacing="-0.5px"
+                    <Box
+                      w="5px"
+                      h="5px"
+                      borderRadius="full"
+                      bg="#a6d189"
                       style={{
-                        // Use `backgroundImage` (not the `background` shorthand,
-                        // which resets background-clip to border-box) and set
-                        // BOTH the standard + prefixed clip, or Chrome renders
-                        // the gradient as a solid block over the number.
-                        backgroundImage: isDark
-                          ? "linear-gradient(to right, #99d1db, #8caaee)"
-                          : "linear-gradient(to right, #0f2d59, #1d4ed8)",
-                        backgroundClip: "text",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
+                        animation: "pulse-glow-run 1.2s infinite",
                       }}
-                    >
-                      {runningCount}
-                    </Text>
-                    {runningCount > 0 && (
-                      <Badge
-                        variant="subtle"
-                        bg="rgba(166, 209, 137, 0.12)"
-                        color="#a6d189"
-                        borderColor="rgba(166, 209, 137, 0.25)"
-                        borderWidth="1px"
-                        borderRadius="full"
-                        fontSize="9px"
-                        fontWeight="bold"
-                        px={2}
-                        py={0.5}
-                        display="inline-flex"
-                        alignItems="center"
-                        gap={1}
-                      >
-                        <Box
-                          w="5px"
-                          h="5px"
-                          borderRadius="full"
-                          bg="#a6d189"
-                          style={{
-                            animation: "pulse-glow-run 1.2s infinite",
-                          }}
-                        />
-                        LIVE
-                      </Badge>
-                    )}
-                  </HStack>
-                </VStack>
+                    />
+                    LIVE
+                  </Badge>
+                )}
               </Flex>
 
-              <Text
-                fontSize="11.5px"
-                color={colors.subtext}
-                mt={2}
-                fontWeight="medium"
-              >
-                {runningCount > 0
-                  ? `${runningCount} test run${runningCount > 1 ? "s" : ""} actively running now`
-                  : "No test executions currently active"}
-              </Text>
+              {/* Body */}
+              <Box p={4}>
+                <Text
+                  fontSize="26px"
+                  fontWeight="normal"
+                  lineHeight="1"
+                  color="transparent"
+                  letterSpacing="-0.5px"
+                  style={{
+                    // Use `backgroundImage` (not the `background` shorthand,
+                    // which resets background-clip to border-box) and set
+                    // BOTH the standard + prefixed clip, or Chrome renders
+                    // the gradient as a solid block over the number.
+                    backgroundImage: isDark
+                      ? "linear-gradient(to right, #99d1db, #8caaee)"
+                      : "linear-gradient(to right, #0f2d59, #1d4ed8)",
+                    backgroundClip: "text",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  {runningCount}
+                </Text>
+                <Text
+                  fontSize="11.5px"
+                  color={colors.subtext}
+                  mt={2}
+                  fontWeight="medium"
+                >
+                  {runningCount > 0
+                    ? `${runningCount} test run${runningCount > 1 ? "s" : ""} actively running now`
+                    : "No test executions currently active"}
+                </Text>
+              </Box>
             </Box>
 
             {/* Total Runs Card */}
             <Box
               position="relative"
-              p={3.5}
-              bg={
-                isDark
-                  ? "linear-gradient(135deg, rgba(166, 209, 137, 0.08) 0%, rgba(35, 38, 52, 0.9) 100%)"
-                  : "linear-gradient(135deg, rgba(22, 163, 74, 0.05) 0%, rgba(241, 245, 249, 0.9) 100%)"
-              }
+              bg={hpe.cardBg}
               border="1px solid"
-              borderColor={colors.border}
+              borderColor={hpe.border}
               borderRadius="xl"
+              shadow="sm"
               cursor="pointer"
               onClick={() => setActiveTab("test-runs")}
               overflow="hidden"
@@ -466,56 +471,65 @@ export default function HomePage() {
                   ? "rgba(166, 209, 137, 0.5)"
                   : "rgba(22, 163, 74, 0.4)",
                 bg: isDark
-                  ? "linear-gradient(135deg, rgba(166, 209, 137, 0.12) 0%, rgba(45, 49, 69, 0.95) 100%)"
-                  : "linear-gradient(135deg, rgba(22, 163, 74, 0.08) 0%, rgba(235, 239, 245, 0.95) 100%)",
+                  ? "rgba(166, 209, 137, 0.12)"
+                  : "rgba(22, 163, 74, 0.07)",
                 transform: "translateY(-1px)",
                 shadow: "md",
               }}
             >
-              <Flex justify="space-between" align="start">
-                <VStack align="start" gap={1}>
-                  <Text
-                    fontSize="11px"
-                    fontWeight="bold"
-                    color={colors.subtext}
-                    letterSpacing="0.05em"
-                    textTransform="uppercase"
-                  >
-                    Total Runs
-                  </Text>
-                  <Text
-                    fontSize="36px"
-                    fontWeight="normal"
-                    lineHeight="1"
-                    color="transparent"
-                    letterSpacing="-0.5px"
-                    style={{
-                      // backgroundImage (not the `background` shorthand) + both
-                      // standard & prefixed background-clip, so Chrome clips the
-                      // gradient to the glyphs instead of painting a solid block.
-                      backgroundImage: isDark
-                        ? "linear-gradient(to right, #99d1db, #8caaee)"
-                        : "linear-gradient(to right, #0f2d59, #1d4ed8)",
-                      backgroundClip: "text",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                    }}
-                  >
-                    {totalCount}
-                  </Text>
-                </VStack>
+              {/* Header strip (matches Migration Check sections) */}
+              <Flex
+                bg={hpe.subBg}
+                borderBottom="1px solid"
+                borderColor={hpe.border}
+                px={4}
+                py={2.5}
+                align="center"
+              >
+                <Text
+                  fontSize="11.5px"
+                  fontWeight="bold"
+                  color={colors.text}
+                  letterSpacing="0.05em"
+                  textTransform="uppercase"
+                >
+                  Total Runs
+                </Text>
               </Flex>
 
-              <Text
-                fontSize="11.5px"
-                color={colors.subtext}
-                mt={2}
-                fontWeight="medium"
-              >
-                {totalCount > 0
-                  ? `${totalCount} suite execution${totalCount > 1 ? "s" : ""} recorded in history`
-                  : "Ready to launch your first test suite run"}
-              </Text>
+              {/* Body */}
+              <Box p={4}>
+                <Text
+                  fontSize="36px"
+                  fontWeight="normal"
+                  lineHeight="1"
+                  color="transparent"
+                  letterSpacing="-0.5px"
+                  style={{
+                    // backgroundImage (not the `background` shorthand) + both
+                    // standard & prefixed background-clip, so Chrome clips the
+                    // gradient to the glyphs instead of painting a solid block.
+                    backgroundImage: isDark
+                      ? "linear-gradient(to right, #99d1db, #8caaee)"
+                      : "linear-gradient(to right, #0f2d59, #1d4ed8)",
+                    backgroundClip: "text",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  {totalCount}
+                </Text>
+                <Text
+                  fontSize="11.5px"
+                  color={colors.subtext}
+                  mt={2}
+                  fontWeight="medium"
+                >
+                  {totalCount > 0
+                    ? `${totalCount} suite execution${totalCount > 1 ? "s" : ""} recorded in history`
+                    : "Ready to launch your first test suite run"}
+                </Text>
+              </Box>
             </Box>
           </Grid>
 
@@ -587,6 +601,14 @@ export default function HomePage() {
         />
       </Box>
 
+      {/* ==================== MIGRATION CHECK TAB ==================== */}
+      <Box
+        display={activeTab === "migration-check" ? "block" : "none"}
+        width="100%"
+      >
+        <MigrationCheck />
+      </Box>
+
       {/* ==================== PATTERN EXPLORER TAB ==================== */}
       <Box display={activeTab === "explore" ? "block" : "none"} width="100%">
         <PatternExplorer />
@@ -598,7 +620,10 @@ export default function HomePage() {
       </Box>
 
       {/* ==================== MATCHING VISUALIZER TAB ==================== */}
-      <Box display={activeTab === "matching-works" ? "block" : "none"} width="100%">
+      <Box
+        display={activeTab === "matching-works" ? "block" : "none"}
+        width="100%"
+      >
         <MatchingVisualizer />
       </Box>
 

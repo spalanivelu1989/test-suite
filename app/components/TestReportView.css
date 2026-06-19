@@ -1791,6 +1791,45 @@
   background: rgba(0, 0, 0, 0.9);
 }
 
+.lightbox-prev,
+.lightbox-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 100000;
+}
+
+.lightbox-prev {
+  left: 24px;
+}
+
+.lightbox-next {
+  right: 24px;
+}
+
+.lightbox-prev:hover,
+.lightbox-next:hover {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.lightbox-prev:active,
+.lightbox-next:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
 /* Code Pill Button and Modal styling */
 .test-report-container .code-pill-btn {
   display: inline-flex;

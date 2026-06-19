@@ -28,11 +28,18 @@ import {
   BookOpen,
   X,
   ChevronDown,
+  Maximize2,
+  Minimize2,
+  Zap,
+  Eye,
+  FileText,
 } from "lucide-react";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors } from "@/app/theme/aws";
 import { catppuccinAlpha, getCatppuccinColors } from "@/app/theme/catppuccin";
+import { MarkdownRenderer } from "@/app/components/MarkdownRenderer";
+import { CodeBlock } from "@/app/components/CodeBlock";
 
 // "SQL Query" tab — ask the Knowledge DB a question in plain English. The AI turns
 // it into SQL (you can edit it), then a read-only backend runs it and renders the
@@ -56,17 +63,410 @@ interface HistoryEntry {
 const HISTORY_KEY = "sql-query-history";
 const HISTORY_MAX = 20;
 
+// A quick-template either carries pre-written `sql` (a vetted "canned" query that
+// is dropped straight into the editor — no AI round-trip) or omits it, in which
+// case clicking it falls back to the AI translator for the free-form `label`.
+// The canned SQL mirrors docs/sql-query-playbook.md; keep the two in sync.
+interface ExampleTemplate {
+  label: string;
+  sql?: string;
+}
+
 const CATEGORIZED_EXAMPLES = {
   "Runs & Status": [
-    "Show the 10 most recent test runs with their status",
-    "List the tests that passed in the most recent run",
-    "Get the prior plan for the target URL https://www.tarento.com/",
+    {
+      label: "What was the most recent test run?",
+      sql: `SELECT run_id, app_id, url, status, crawl_mode, created_at
+FROM runs
+ORDER BY created_at DESC
+LIMIT 1`,
+    },
+    {
+      label: "Show me the last 10 test runs",
+      sql: `SELECT run_id, app_id, url, status, created_at
+FROM runs
+ORDER BY created_at DESC
+LIMIT 10`,
+    },
+    {
+      label: "How many runs ended up in each status?",
+      sql: `SELECT status, COUNT(*) AS runs
+FROM runs
+GROUP BY status
+ORDER BY runs DESC`,
+    },
+    {
+      label: "What test runs happened in the past week?",
+      sql: `SELECT run_id, app_id, url, status, created_at
+FROM runs
+WHERE created_at >= now() - INTERVAL '7 days'
+ORDER BY created_at DESC`,
+    },
+    {
+      label: "Which runs failed in the last 30 days?",
+      sql: `SELECT run_id, app_id, url, created_at
+FROM runs
+WHERE status = 'failed'
+  AND created_at >= now() - INTERVAL '30 days'
+ORDER BY created_at DESC`,
+    },
+    {
+      label: "How many times has each app been tested?",
+      sql: `SELECT app_id, COUNT(*) AS run_count
+FROM runs
+GROUP BY app_id
+ORDER BY run_count DESC`,
+    },
+    {
+      label: "When was each app first and last tested?",
+      sql: `SELECT app_id,
+       MIN(created_at) AS first_run,
+       MAX(created_at) AS last_run,
+       COUNT(*) AS runs
+FROM runs
+GROUP BY app_id
+ORDER BY last_run DESC`,
+    },
+    {
+      label: "Show me all the test runs for a particular URL",
+      sql: `SELECT run_id, url, status, created_at
+FROM runs
+WHERE app_id = 'https://example.com'
+ORDER BY created_at DESC`,
+    },
   ],
-  "App Coverage": [
-    "Which apps have the most saved tests?",
-    "How many specs were reused vs newly generated per app?",
+  "Test Results": [
+    {
+      label: "How many tests passed and failed in the latest run?",
+      sql: `SELECT outcome, COUNT(*) AS total
+FROM test_results
+WHERE run_id = (SELECT run_id FROM runs ORDER BY created_at DESC LIMIT 1)
+GROUP BY outcome
+ORDER BY total DESC`,
+    },
+    {
+      label: "Which tests failed in the latest run, and why?",
+      sql: `SELECT flow_id, file, failure_reason
+FROM test_results
+WHERE run_id = (SELECT run_id FROM runs ORDER BY created_at DESC LIMIT 1)
+  AND outcome = 'failed'
+ORDER BY flow_id`,
+    },
+    {
+      label: "Show me every test result from the latest run",
+      sql: `SELECT flow_id, file, outcome, failure_reason
+FROM test_results
+WHERE run_id = (SELECT run_id FROM runs ORDER BY created_at DESC LIMIT 1)
+ORDER BY outcome, flow_id`,
+    },
+    {
+      label: "Overall, how many tests passed, healed, or failed?",
+      sql: `SELECT outcome, COUNT(*) AS total
+FROM test_results
+GROUP BY outcome
+ORDER BY total DESC`,
+    },
+    {
+      label: "What's the pass rate for each app?",
+      sql: `SELECT app_id,
+       COUNT(*) FILTER (WHERE outcome = 'passed') AS passed,
+       COUNT(*) AS total,
+       ROUND(100.0 * COUNT(*) FILTER (WHERE outcome = 'passed')
+             / NULLIF(COUNT(*), 0), 1) AS pass_pct
+FROM test_results
+GROUP BY app_id
+ORDER BY pass_pct DESC`,
+    },
+    {
+      label: "What are the most common reasons tests fail?",
+      sql: `SELECT failure_reason, COUNT(*) AS occurrences
+FROM test_results
+WHERE outcome = 'failed' AND failure_reason IS NOT NULL
+GROUP BY failure_reason
+ORDER BY occurrences DESC
+LIMIT 20`,
+    },
+    {
+      label: "Which flows fail the most often?",
+      sql: `SELECT app_id, flow_id,
+       COUNT(*) FILTER (WHERE outcome = 'failed') AS failures,
+       COUNT(*) AS times_run
+FROM test_results
+GROUP BY app_id, flow_id
+HAVING COUNT(*) FILTER (WHERE outcome = 'failed') > 0
+ORDER BY failures DESC
+LIMIT 20`,
+    },
+    {
+      label: "Which tests had to be self-healed in the latest run?",
+      sql: `SELECT flow_id, file, failure_reason
+FROM test_results
+WHERE run_id = (SELECT run_id FROM runs ORDER BY created_at DESC LIMIT 1)
+  AND outcome = 'healed'
+ORDER BY flow_id`,
+    },
   ],
-};
+  Coverage: [
+    {
+      label: "How much did we cover in the latest run?",
+      sql: `SELECT app_id, percent, tested_count, curated_total, created_at
+FROM coverage_snapshots
+ORDER BY created_at DESC
+LIMIT 1`,
+    },
+    {
+      label: "What's the latest coverage for each app?",
+      sql: `SELECT DISTINCT ON (app_id)
+       app_id, percent, tested_count, curated_total, created_at
+FROM coverage_snapshots
+ORDER BY app_id, created_at DESC`,
+    },
+    {
+      label: "Which runs had less than 80% coverage?",
+      sql: `SELECT run_id, app_id, percent, tested_count, curated_total, created_at
+FROM coverage_snapshots
+WHERE percent < 80
+ORDER BY percent ASC`,
+    },
+    {
+      label: "Which runs reached 100% coverage?",
+      sql: `SELECT run_id, app_id, tested_count, curated_total, created_at
+FROM coverage_snapshots
+WHERE percent = 100
+ORDER BY created_at DESC`,
+    },
+    {
+      label: "Which flows are still untested in an app's latest run?",
+      sql: `SELECT unnest(missing_flows) AS missing_flow
+FROM coverage_snapshots
+WHERE run_id = (
+  SELECT run_id FROM coverage_snapshots
+  WHERE app_id = 'https://example.com'
+  ORDER BY created_at DESC LIMIT 1
+)`,
+    },
+    {
+      label: "How has coverage changed over time for a URL?",
+      sql: `SELECT created_at, percent, tested_count, curated_total
+FROM coverage_snapshots
+WHERE app_id = 'https://example.com'
+ORDER BY created_at ASC`,
+    },
+    {
+      label: "What's the average coverage for each app?",
+      sql: `SELECT app_id,
+       ROUND(AVG(percent), 1) AS avg_percent,
+       COUNT(*) AS snapshots
+FROM coverage_snapshots
+GROUP BY app_id
+ORDER BY avg_percent DESC`,
+    },
+    {
+      label: "Which runs had the best coverage?",
+      sql: `SELECT run_id, app_id, percent, created_at
+FROM coverage_snapshots
+ORDER BY percent DESC
+LIMIT 10`,
+    },
+  ],
+  "Specs & Plans": [
+    {
+      label: "Show me the most recent test plan",
+      sql: `SELECT report->>'planMarkdown' AS plan_markdown
+FROM raw_reports
+ORDER BY created_at DESC
+LIMIT 1`,
+    },
+    {
+      label: "What's the latest test plan for a particular URL?",
+      sql: `SELECT report->>'planMarkdown' AS plan_markdown
+FROM raw_reports
+WHERE app_id = 'https://example.com'
+ORDER BY created_at DESC
+LIMIT 1`,
+    },
+    {
+      label: "Can you summarize the latest test run?",
+      sql: `SELECT report->>'testSummary' AS test_summary
+FROM raw_reports
+ORDER BY created_at DESC
+LIMIT 1`,
+    },
+    {
+      label: "Which test files were generated in the latest run?",
+      sql: `SELECT file, title, flow_id, reused
+FROM specs
+WHERE run_id = (SELECT run_id FROM runs ORDER BY created_at DESC LIMIT 1)
+ORDER BY file`,
+    },
+    {
+      label: "Show me the test code from the latest run",
+      sql: `SELECT spec->>'file' AS file,
+       spec->>'code' AS code
+FROM raw_reports,
+     jsonb_array_elements(report->'generatedSpecs') AS spec
+WHERE run_id = (SELECT run_id FROM raw_reports ORDER BY created_at DESC LIMIT 1)
+ORDER BY file`,
+    },
+    {
+      label: "What scenarios were planned for the latest run?",
+      sql: `SELECT ordinal, name
+FROM plan_scenarios
+WHERE run_id = (SELECT run_id FROM runs ORDER BY created_at DESC LIMIT 1)
+ORDER BY ordinal`,
+    },
+    {
+      label: "Which apps have the most saved tests?",
+      sql: `SELECT app_id, COUNT(*) AS spec_count
+FROM specs
+GROUP BY app_id
+ORDER BY spec_count DESC`,
+    },
+    {
+      label: "For each app, how many tests were reused vs. newly written?",
+      sql: `SELECT app_id,
+       COUNT(*) FILTER (WHERE reused) AS reused,
+       COUNT(*) FILTER (WHERE NOT reused) AS newly_generated,
+       COUNT(*) AS total
+FROM specs
+GROUP BY app_id
+ORDER BY total DESC`,
+    },
+  ],
+  Healing: [
+    {
+      label: "Show me the most recent self-healing fixes",
+      sql: `SELECT created_at, app_id, flow_id, file, strategy, outcome
+FROM healing_events
+ORDER BY created_at DESC
+LIMIT 20`,
+    },
+    {
+      label: "How often does self-healing work vs. give up?",
+      sql: `SELECT outcome, COUNT(*) AS total
+FROM healing_events
+GROUP BY outcome
+ORDER BY total DESC`,
+    },
+    {
+      label: "What errors trigger self-healing the most?",
+      sql: `SELECT failure_signature, COUNT(*) AS occurrences
+FROM healing_events
+GROUP BY failure_signature
+ORDER BY occurrences DESC
+LIMIT 20`,
+    },
+    {
+      label: "Which self-healing strategies get used the most?",
+      sql: `SELECT strategy, COUNT(*) AS uses
+FROM healing_events
+GROUP BY strategy
+ORDER BY uses DESC`,
+    },
+    {
+      label: "What got self-healed in the latest run?",
+      sql: `SELECT flow_id, file, strategy, outcome
+FROM healing_events
+WHERE run_id = (SELECT run_id FROM runs ORDER BY created_at DESC LIMIT 1)
+ORDER BY flow_id`,
+    },
+    {
+      label: "Show me the before-and-after fixes for a URL",
+      sql: `SELECT flow_id, file, strategy, outcome, before_snippet, after_snippet
+FROM healing_events
+WHERE app_id = 'https://example.com'
+ORDER BY created_at DESC`,
+    },
+    {
+      label: "Which apps need the most self-healing?",
+      sql: `SELECT app_id, COUNT(*) AS heal_events
+FROM healing_events
+GROUP BY app_id
+ORDER BY heal_events DESC`,
+    },
+    {
+      label: "What's the self-healing success rate for each app?",
+      sql: `SELECT app_id,
+       COUNT(*) FILTER (WHERE outcome = 'healed') AS healed,
+       COUNT(*) AS total,
+       ROUND(100.0 * COUNT(*) FILTER (WHERE outcome = 'healed')
+             / NULLIF(COUNT(*), 0), 1) AS heal_pct
+FROM healing_events
+GROUP BY app_id
+ORDER BY heal_pct DESC`,
+    },
+  ],
+  "Apps & Database": [
+    {
+      label: "What tables are in the database?",
+      sql: `SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+ORDER BY table_name`,
+    },
+    {
+      label: "Which apps are we testing?",
+      sql: `SELECT app_id, run_count, first_seen, last_seen
+FROM apps
+ORDER BY last_seen DESC`,
+    },
+    {
+      label: "Which apps are tested the most?",
+      sql: `SELECT app_id, run_count, last_seen
+FROM apps
+ORDER BY run_count DESC
+LIMIT 10`,
+    },
+    {
+      label: "Which apps haven't been tested in the last week?",
+      sql: `SELECT app_id, last_seen, run_count
+FROM apps
+WHERE last_seen < now() - INTERVAL '7 days'
+ORDER BY last_seen ASC`,
+    },
+    {
+      label: "What are the success, flake, and heal rates for recent runs?",
+      sql: `SELECT run_id,
+       (report->>'successRate')::numeric      AS success_rate,
+       (report->>'flakeRate')::numeric        AS flake_rate,
+       (report->>'healSuccessRate')::numeric  AS heal_success_rate,
+       created_at
+FROM raw_reports
+ORDER BY created_at DESC
+LIMIT 20`,
+    },
+    {
+      label: "Give me a full health check of an app's latest run",
+      sql: `SELECT r.run_id, r.url, r.status, r.created_at,
+       cs.percent AS coverage_percent,
+       COUNT(tr.id) FILTER (WHERE tr.outcome = 'passed') AS passed,
+       COUNT(tr.id) FILTER (WHERE tr.outcome = 'failed') AS failed,
+       COUNT(tr.id) FILTER (WHERE tr.outcome = 'healed') AS healed
+FROM runs r
+LEFT JOIN coverage_snapshots cs ON cs.run_id = r.run_id
+LEFT JOIN test_results tr       ON tr.run_id = r.run_id
+WHERE r.app_id = 'https://example.com'
+GROUP BY r.run_id, r.url, r.status, r.created_at, cs.percent
+ORDER BY r.created_at DESC
+LIMIT 1`,
+    },
+    {
+      label: "What are our most trusted testing rules?",
+      sql: `SELECT id, scope_kind, scope_key, principle, recommendation,
+       confidence, support_count
+FROM playbooks
+WHERE status = 'trusted'
+ORDER BY confidence DESC, support_count DESC`,
+    },
+    {
+      label: "What testing rules apply to a particular URL?",
+      sql: `SELECT principle, antipattern, recommendation, confidence, status
+FROM playbooks
+WHERE scope_kind = 'app' AND scope_key = 'https://example.com'
+ORDER BY confidence DESC`,
+    },
+  ],
+} satisfies Record<string, ExampleTemplate[]>;
 
 const SCHEMA_TABLES = [
   {
@@ -334,6 +734,45 @@ function formatIST(value: string): string {
   })} IST`;
 }
 
+/**
+ * Classify a long cell value so the viewer picks the right presentation:
+ * - "code"     → source code or JSON (show the raw code view; markdown would mangle it)
+ * - "markdown" → headings/lists/tables/blockquotes (show the rendered view)
+ * - "text"     → plain prose (raw view; rendering as markdown is a no-op)
+ */
+function detectContentKind(v: string): "code" | "markdown" | "text" {
+  const t = v.trim();
+
+  // Markdown signals — weighted; tables and headings are the strongest cues.
+  const hasTable =
+    /(^|\n)\s*\|.*\|/.test(v) && /(^|\n)\s*\|?\s*:?-{2,}:?\s*(\||$)/.test(v);
+  const markdownScore =
+    (/(^|\n)#{1,6}\s/.test(v) ? 2 : 0) +
+    (hasTable ? 3 : 0) +
+    (/(^|\n)\s*[-*+]\s+\S/.test(v) ? 1 : 0) +
+    (/(^|\n)\s*\d+[.)]\s+\S/.test(v) ? 1 : 0) +
+    (/\*\*[^*\n]+\*\*/.test(v) ? 1 : 0) +
+    (/(^|\n)>\s/.test(v) ? 1 : 0);
+
+  // Code / JSON signals — real declarations and structure, not stray punctuation.
+  const isJson =
+    (t.startsWith("{") && t.endsWith("}")) ||
+    (t.startsWith("[") && t.endsWith("]"));
+  const codeScore =
+    (/(^|\n)\s*(import |export )/.test(v) ? 2 : 0) +
+    (/(^|\n)\s*(const |let |var |function |class |interface |enum |type )\w/.test(
+      v,
+    )
+      ? 2
+      : 0) +
+    (/=>|\bawait\s|\)\s*\{|\}\s*\)/.test(v) ? 1 : 0) +
+    (isJson ? 3 : 0);
+
+  if (codeScore > markdownScore) return "code";
+  if (markdownScore > 0) return "markdown";
+  return "text";
+}
+
 /** Render any cell value (null, JSON, array, scalar) as a readable string. */
 function formatCell(value: unknown): string {
   if (value === null || value === undefined) return "∅";
@@ -456,6 +895,17 @@ export function SqlQuery() {
   const [focusedField, setFocusedField] = useState<"question" | "sql" | null>(
     null,
   );
+  // Which panel is expanded to full screen ("question" | "sql" | "results" | null).
+  const [fullscreen, setFullscreen] = useState<
+    "question" | "sql" | "results" | null
+  >(null);
+  // A long/markdown cell value opened in the viewer modal (null = closed).
+  const [viewerCell, setViewerCell] = useState<{
+    column: string;
+    value: string;
+  } | null>(null);
+  const [viewerMode, setViewerMode] = useState<"rendered" | "raw">("rendered");
+  const [viewerCopied, setViewerCopied] = useState(false);
 
   // Redesign additions
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -493,6 +943,50 @@ export function SqlQuery() {
     } catch {
       /* storage full / disabled — keep it in memory only */
     }
+  }
+
+  // Esc exits full screen; also lock body scroll while a panel is expanded.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(null);
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [fullscreen]);
+
+  // Esc closes the cell viewer; lock body scroll while it is open. Reset the mode
+  // back to "rendered" each time a new cell is opened.
+  useEffect(() => {
+    if (!viewerCell) return;
+    // Markdown content opens in the rendered view; code/JSON/plain text opens in
+    // the raw code view (rendering those as markdown mangles them).
+    setViewerMode(
+      detectContentKind(viewerCell.value) === "markdown" ? "rendered" : "raw",
+    );
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setViewerCell(null);
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [viewerCell]);
+
+  function copyViewer() {
+    if (!viewerCell) return;
+    navigator.clipboard.writeText(viewerCell.value).then(() => {
+      setViewerCopied(true);
+      setTimeout(() => setViewerCopied(false), 1500);
+    });
   }
 
   async function translate(q?: string) {
@@ -574,12 +1068,17 @@ export function SqlQuery() {
     });
   }
 
-  function useExample(q: string) {
-    setQuestion(q);
+  function useExample(ex: ExampleTemplate) {
+    setQuestion(ex.label);
     setResult(null);
     setError(null);
     setExecTime(null);
-    translate(q);
+    if (ex.sql) {
+      // Canned query — drop the vetted SQL straight in, skip the AI translator.
+      setSql(ex.sql);
+    } else {
+      translate(ex.label);
+    }
   }
 
   function loadFromHistory(h: HistoryEntry) {
@@ -729,6 +1228,36 @@ export function SqlQuery() {
     overflow: "hidden",
   });
 
+  // Overlay props applied to a composer panel when it is expanded to full screen
+  // (a fixed, inset card above a backdrop). {} keeps the normal in-grid layout.
+  const panelFsProps = (panel: "question" | "sql" | "results") =>
+    fullscreen === panel
+      ? {
+          position: "fixed" as const,
+          inset: "16px",
+          zIndex: 1400,
+          width: "auto",
+          maxW: "none",
+        }
+      : {};
+
+  // The maximize/restore toggle shown in each panel header.
+  const renderFsButton = (panel: "question" | "sql" | "results") => (
+    <Button
+      size="xs"
+      h="28px"
+      variant="ghost"
+      color={colors.subtext}
+      borderRadius="6px"
+      _hover={{ bg: colors.rowHover, color: editorText }}
+      onClick={() => setFullscreen((cur) => (cur === panel ? null : panel))}
+      title={fullscreen === panel ? "Exit full screen (Esc)" : "Full screen"}
+      aria-label={fullscreen === panel ? "Exit full screen" : "Full screen"}
+    >
+      {fullscreen === panel ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+    </Button>
+  );
+
   // Filters
   const filteredHistory = useMemo(() => {
     if (!historySearch.trim()) return history;
@@ -773,8 +1302,26 @@ export function SqlQuery() {
   const lineCount = Math.max(sql.split("\n").length, 8);
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
 
+  // Content kind of the value open in the viewer — drives which views are offered.
+  const viewerKind = viewerCell ? detectContentKind(viewerCell.value) : "text";
+  // The markdown "Rendered" view only makes sense for markdown; code/JSON would be
+  // mangled, so we hide the toggle and force the raw code view for those.
+  const viewerCanRender = viewerKind !== "code";
+
   return (
-    <Box width="100%" p={{ base: 4, md: 6 }}>
+    <Box width="100%">
+      {/* Dimmed backdrop behind a full-screen composer panel (click to exit). */}
+      {fullscreen && (
+        <Box
+          position="fixed"
+          inset="0"
+          zIndex={1399}
+          bg="blackAlpha.600"
+          backdropFilter="blur(2px)"
+          onClick={() => setFullscreen(null)}
+        />
+      )}
+
       {/* Header Banner */}
       <Flex align="center" justify="space-between" mb={5} wrap="wrap" gap={3}>
         <Flex align="center" gap={3}>
@@ -865,6 +1412,7 @@ export function SqlQuery() {
               display="flex"
               flexDirection="column"
               overflow="hidden"
+              {...panelFsProps("question")}
             >
               {/* Header */}
               <Flex
@@ -885,14 +1433,17 @@ export function SqlQuery() {
                     1. ASK A QUESTION
                   </Text>
                 </Flex>
+                {renderFsButton("question")}
               </Flex>
 
               {/* Textarea */}
-              <Box p={3} flex="1">
+              <Box p={3} flex="1" display="flex" flexDirection="column">
                 <Box
                   style={fieldWrap("question")}
                   bg={colors.subBg}
                   border="none"
+                  flex={fullscreen === "question" ? "1" : undefined}
+                  display={fullscreen === "question" ? "flex" : undefined}
                 >
                   <textarea
                     value={question}
@@ -905,7 +1456,13 @@ export function SqlQuery() {
                     }}
                     placeholder="e.g. List the failed tests in the most recent run, sorted by app..."
                     rows={4}
-                    style={{ ...bareTextArea, minHeight: "90px" }}
+                    style={{
+                      ...bareTextArea,
+                      minHeight: "90px",
+                      ...(fullscreen === "question"
+                        ? { flex: 1, height: "100%" }
+                        : {}),
+                    }}
                   />
                 </Box>
               </Box>
@@ -922,48 +1479,52 @@ export function SqlQuery() {
                   QUICK TEMPLATES
                 </Text>
 
-                {/* Category selectors */}
-                <Flex gap={1.5} mb={2.5} overflowX="auto" pb={1}>
-                  {(
-                    Object.keys(CATEGORIZED_EXAMPLES) as Array<
-                      keyof typeof CATEGORIZED_EXAMPLES
-                    >
-                  ).map((cat) => (
-                    <Box
-                      key={cat}
-                      as="button"
-                      px={2.5}
-                      py={1}
-                      borderRadius="6px"
-                      fontSize="10px"
-                      fontWeight="700"
-                      bg={
-                        selectedExampleCategory === cat
-                          ? catppuccinAlpha(c.sapphire, 0.15)
-                          : "transparent"
-                      }
-                      color={
-                        selectedExampleCategory === cat
-                          ? c.sapphire
-                          : colors.subtext
-                      }
-                      border={`1px solid ${selectedExampleCategory === cat ? catppuccinAlpha(c.sapphire, 0.3) : colors.border}`}
-                      onClick={() => setSelectedExampleCategory(cat)}
-                      _hover={{ bg: colors.rowHover, color: colors.text }}
-                      whiteSpace="nowrap"
-                      transition="all 0.15s ease"
-                    >
-                      {cat}
-                    </Box>
-                  ))}
-                </Flex>
+                {/* Category selectors — hidden when there's only one category. */}
+                {Object.keys(CATEGORIZED_EXAMPLES).length > 1 && (
+                  <Flex gap={1.5} mb={2.5} overflowX="auto" pb={1}>
+                    {(
+                      Object.keys(CATEGORIZED_EXAMPLES) as Array<
+                        keyof typeof CATEGORIZED_EXAMPLES
+                      >
+                    ).map((cat) => (
+                      <Box
+                        key={cat}
+                        as="button"
+                        px={2.5}
+                        py={1}
+                        borderRadius="6px"
+                        fontSize="10px"
+                        fontWeight="700"
+                        bg={
+                          selectedExampleCategory === cat
+                            ? catppuccinAlpha(c.sapphire, 0.15)
+                            : "transparent"
+                        }
+                        color={
+                          selectedExampleCategory === cat
+                            ? c.sapphire
+                            : colors.subtext
+                        }
+                        border={`1px solid ${selectedExampleCategory === cat ? catppuccinAlpha(c.sapphire, 0.3) : colors.border}`}
+                        onClick={() => setSelectedExampleCategory(cat)}
+                        _hover={{ bg: colors.rowHover, color: colors.text }}
+                        whiteSpace="nowrap"
+                        transition="all 0.15s ease"
+                      >
+                        {cat}
+                      </Box>
+                    ))}
+                  </Flex>
+                )}
 
                 {/* Templates */}
                 <Flex direction="column" gap={1.5}>
-                  {CATEGORIZED_EXAMPLES[selectedExampleCategory].map((q) => (
-                    <Box
-                      key={q}
+                  {CATEGORIZED_EXAMPLES[selectedExampleCategory].map((ex) => (
+                    <Flex
+                      key={ex.label}
                       as="button"
+                      align="center"
+                      gap={2}
                       p={2}
                       borderRadius="8px"
                       border={`1px solid ${colors.border}`}
@@ -976,11 +1537,27 @@ export function SqlQuery() {
                         color: colors.text,
                         borderColor: c.sapphire,
                       }}
-                      onClick={() => useExample(q)}
+                      onClick={() => useExample(ex)}
                       transition="all 0.12s ease"
+                      title={
+                        ex.sql
+                          ? "Insert ready-to-run SQL (no AI)"
+                          : "Generate SQL with AI"
+                      }
                     >
-                      {q}
-                    </Box>
+                      {ex.sql && (
+                        <Box
+                          color={c.green}
+                          flexShrink={0}
+                          title="Instant — no AI"
+                        >
+                          <Zap size={12} fill="currentColor" />
+                        </Box>
+                      )}
+                      <Text as="span" flex="1">
+                        {ex.label}
+                      </Text>
+                    </Flex>
                   ))}
                 </Flex>
               </Box>
@@ -1058,6 +1635,7 @@ export function SqlQuery() {
               flexDirection="column"
               overflow="hidden"
               transition="all 0.18s ease"
+              {...panelFsProps("sql")}
             >
               {/* Toolbar Header */}
               <Flex
@@ -1087,23 +1665,26 @@ export function SqlQuery() {
                   </Flex>
                 </Flex>
 
-                <Button
-                  size="xs"
-                  h="28px"
-                  variant="ghost"
-                  color={colors.subtext}
-                  borderRadius="6px"
-                  _hover={{ bg: colors.rowHover, color: editorText }}
-                  disabled={!sql.trim()}
-                  onClick={copySql}
-                >
-                  {copied ? (
-                    <Check size={13} style={{ marginRight: 5 }} />
-                  ) : (
-                    <Copy size={13} style={{ marginRight: 5 }} />
-                  )}
-                  {copied ? "Copied" : "Copy"}
-                </Button>
+                <Flex align="center" gap={1}>
+                  <Button
+                    size="xs"
+                    h="28px"
+                    variant="ghost"
+                    color={colors.subtext}
+                    borderRadius="6px"
+                    _hover={{ bg: colors.rowHover, color: editorText }}
+                    disabled={!sql.trim()}
+                    onClick={copySql}
+                  >
+                    {copied ? (
+                      <Check size={13} style={{ marginRight: 5 }} />
+                    ) : (
+                      <Copy size={13} style={{ marginRight: 5 }} />
+                    )}
+                    {copied ? "Copied" : "Copy"}
+                  </Button>
+                  {renderFsButton("sql")}
+                </Flex>
               </Flex>
 
               {/* Code Editor Body with scrollable gutter & textarea synced */}
@@ -1111,8 +1692,8 @@ export function SqlQuery() {
                 flex="1"
                 bg={editorBg}
                 position="relative"
-                height="230px"
-                minHeight="230px"
+                height={fullscreen === "sql" ? "auto" : "230px"}
+                minHeight={fullscreen === "sql" ? "0" : "230px"}
               >
                 {/* Gutter numbers */}
                 <Box
@@ -1312,6 +1893,8 @@ export function SqlQuery() {
               display="flex"
               flexDirection="column"
               gap={4}
+              overflow={fullscreen === "results" ? "hidden" : undefined}
+              {...panelFsProps("results")}
             >
               {/* Header toolbar */}
               <Flex
@@ -1422,6 +2005,7 @@ export function SqlQuery() {
                     <Download size={12} style={{ marginRight: 4 }} />
                     Download CSV
                   </Button>
+                  {renderFsButton("results")}
                 </Flex>
               </Flex>
 
@@ -1490,8 +2074,18 @@ export function SqlQuery() {
                   overflow="hidden"
                   boxShadow={cardShadow}
                   bg={colors.cardBg}
+                  flex={fullscreen === "results" ? "1" : undefined}
+                  minH={fullscreen === "results" ? "0" : undefined}
+                  display={fullscreen === "results" ? "flex" : undefined}
+                  flexDirection="column"
                 >
-                  <Box overflowX="auto" maxH="450px" overflowY="auto">
+                  <Box
+                    overflowX="auto"
+                    maxH={fullscreen === "results" ? "unset" : "450px"}
+                    flex={fullscreen === "results" ? "1" : undefined}
+                    minH={fullscreen === "results" ? "0" : undefined}
+                    overflowY="auto"
+                  >
                     <Table.Root
                       size="sm"
                       variant="outline"
@@ -1569,9 +2163,23 @@ export function SqlQuery() {
                                 {i + 1}
                               </Table.Cell>
                               {result.columns.map((col) => {
-                                const text = formatCell(row[col]);
+                                const raw = row[col];
+                                const text = formatCell(raw);
                                 const isNullVal =
-                                  row[col] === null || row[col] === undefined;
+                                  raw === null || raw === undefined;
+                                // Long / multi-line text (e.g. plan markdown) or
+                                // JSON objects are unreadable when truncated to one
+                                // line — offer a "View" button that opens the full
+                                // value in the viewer modal.
+                                const isObject =
+                                  typeof raw === "object" && raw !== null;
+                                const isLongText =
+                                  (typeof raw === "string" &&
+                                    (raw.includes("\n") || raw.length > 120)) ||
+                                  isObject;
+                                const viewerValue = isObject
+                                  ? JSON.stringify(raw, null, 2)
+                                  : (raw as string);
                                 return (
                                   <Table.Cell
                                     key={col}
@@ -1590,7 +2198,51 @@ export function SqlQuery() {
                                     borderColor={colors.border}
                                     title={text}
                                   >
-                                    {text}
+                                    {isLongText ? (
+                                      <Flex align="center" gap={2} minW={0}>
+                                        <Box
+                                          flex="1"
+                                          overflow="hidden"
+                                          textOverflow="ellipsis"
+                                          whiteSpace="nowrap"
+                                        >
+                                          {text}
+                                        </Box>
+                                        <Button
+                                          size="xs"
+                                          h="22px"
+                                          px={2}
+                                          flexShrink={0}
+                                          variant="outline"
+                                          borderColor={colors.border}
+                                          color={c.sapphire}
+                                          borderRadius="6px"
+                                          fontSize="10px"
+                                          fontWeight="700"
+                                          _hover={{
+                                            bg: catppuccinAlpha(
+                                              c.sapphire,
+                                              0.12,
+                                            ),
+                                            borderColor: c.sapphire,
+                                          }}
+                                          onClick={() =>
+                                            setViewerCell({
+                                              column: col,
+                                              value: viewerValue,
+                                            })
+                                          }
+                                        >
+                                          <Eye
+                                            size={11}
+                                            style={{ marginRight: 4 }}
+                                          />
+                                          View
+                                        </Button>
+                                      </Flex>
+                                    ) : (
+                                      text
+                                    )}
                                   </Table.Cell>
                                 );
                               })}
@@ -1975,6 +2627,142 @@ export function SqlQuery() {
           </Box>
         )}
       </Flex>
+
+      {/* Cell viewer modal — renders long/markdown values (e.g. plan_markdown)
+          either as formatted markdown or as raw monospace text. */}
+      {viewerCell && (
+        <>
+          <Box
+            position="fixed"
+            inset="0"
+            zIndex={1499}
+            bg="blackAlpha.600"
+            backdropFilter="blur(2px)"
+            onClick={() => setViewerCell(null)}
+          />
+          <Flex
+            position="fixed"
+            inset={{ base: "12px", md: "48px" }}
+            zIndex={1500}
+            direction="column"
+            bg={colors.cardBg}
+            borderRadius="16px"
+            border={`1px solid ${colors.border}`}
+            boxShadow="0 24px 60px rgba(0,0,0,0.45)"
+            overflow="hidden"
+          >
+            {/* Header */}
+            <Flex
+              align="center"
+              justify="space-between"
+              px={5}
+              py={3.5}
+              borderBottom={`1px solid ${colors.border}`}
+              bg={colors.subBg}
+              gap={3}
+            >
+              <Flex align="center" gap={2.5} minW={0}>
+                <FileText size={16} color={c.sapphire} />
+                <Text
+                  fontSize="13px"
+                  fontWeight="bold"
+                  color={colors.text}
+                  fontFamily="mono"
+                  overflow="hidden"
+                  textOverflow="ellipsis"
+                  whiteSpace="nowrap"
+                >
+                  {viewerCell.column}
+                </Text>
+              </Flex>
+
+              <Flex align="center" gap={2}>
+                {/* Rendered / Raw toggle — only for markdown/text; code is always
+                    shown in the raw code view. */}
+                {viewerCanRender && (
+                  <Flex
+                    bg={colors.subBg}
+                    border={`1px solid ${colors.border}`}
+                    borderRadius="8px"
+                    p="2px"
+                    gap="2px"
+                  >
+                    {(["rendered", "raw"] as const).map((mode) => (
+                      <Box
+                        key={mode}
+                        as="button"
+                        px={2.5}
+                        py={1}
+                        borderRadius="6px"
+                        fontSize="11px"
+                        fontWeight="700"
+                        textTransform="capitalize"
+                        bg={
+                          viewerMode === mode
+                            ? catppuccinAlpha(c.sapphire, 0.15)
+                            : "transparent"
+                        }
+                        color={
+                          viewerMode === mode ? c.sapphire : colors.subtext
+                        }
+                        onClick={() => setViewerMode(mode)}
+                        _hover={{ color: colors.text }}
+                        transition="all 0.15s ease"
+                      >
+                        {mode}
+                      </Box>
+                    ))}
+                  </Flex>
+                )}
+
+                <Button
+                  size="xs"
+                  h="28px"
+                  variant="outline"
+                  borderColor={colors.border}
+                  color={colors.subtext}
+                  borderRadius="6px"
+                  onClick={copyViewer}
+                  _hover={{ bg: colors.rowHover, color: colors.text }}
+                >
+                  {viewerCopied ? (
+                    <Check size={12} style={{ marginRight: 4 }} />
+                  ) : (
+                    <Copy size={12} style={{ marginRight: 4 }} />
+                  )}
+                  {viewerCopied ? "Copied" : "Copy"}
+                </Button>
+
+                <Button
+                  size="xs"
+                  h="28px"
+                  w="28px"
+                  minW="28px"
+                  p={0}
+                  variant="ghost"
+                  color={colors.subtext}
+                  borderRadius="6px"
+                  onClick={() => setViewerCell(null)}
+                  _hover={{ bg: colors.rowHover, color: colors.text }}
+                  title="Close (Esc)"
+                  aria-label="Close"
+                >
+                  <X size={15} />
+                </Button>
+              </Flex>
+            </Flex>
+
+            {/* Body */}
+            <Box flex="1" overflowY="auto" px={6} py={5} bg={colors.cardBg}>
+              {viewerCanRender && viewerMode === "rendered" ? (
+                <MarkdownRenderer content={viewerCell.value} />
+              ) : (
+                <CodeBlock content={viewerCell.value} />
+              )}
+            </Box>
+          </Flex>
+        </>
+      )}
     </Box>
   );
 }
