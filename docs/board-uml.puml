@@ -4,8 +4,6 @@ title AI Test-Suite — Agent Workflow (Board Overview)
 ' --- look & feel: clean, readable, board-friendly ---
 skinparam backgroundColor #FFFFFF
 skinparam shadowing false
-skinparam ParticipantPadding 18
-skinparam BoxPadding 12
 skinparam sequenceMessageAlign center
 skinparam roundcorner 8
 skinparam ArrowColor #444444
