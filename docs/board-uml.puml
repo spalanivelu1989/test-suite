@@ -1,0 +1,61 @@
+@startuml ai-test-suite-workflow
+title AI Test-Suite — Agent Workflow (Board Overview)
+
+' --- look & feel: clean, readable, board-friendly ---
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam ParticipantPadding 18
+skinparam BoxPadding 12
+skinparam sequenceMessageAlign center
+skinparam roundcorner 8
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam NoteBackgroundColor #FFF7E0
+skinparam NoteBorderColor #E0C46C
+
+actor "User" as User
+
+participant "Discoverer" as A1 #E8F5E9
+participant "Designer"   as A2 #E3F2FD
+participant "Evolver"    as A3 #FFF3E0
+participant "Reporter"   as A4 #F3E5F5
+
+database  "Knowledge DB\n(past plans · scripts · fixes)" as DB #ECEFF1
+boundary  "Playwright\n(real browser)"                  as PW #ECEFF1
+
+User -> A1 : 1. "Test this website" (URL)
+
+== Step 1 — Explore the live site, THEN write a plan ==
+DB --> A1 : its own previous plan (memory / head-start)
+A1 -> PW : open the site & click through it
+activate PW
+PW --> A1 : pages + screenshots
+deactivate PW
+A1 -> A1 : write a plain-English **Test Plan**\n(the user flows worth testing)
+
+== Step 2 — Reuse what works, write the rest ==
+A1 -> A2 : hand over the Test Plan
+DB --> A2 : matching test scripts from past runs -> **REUSE**
+A2 -> A2 : write **new scripts** for everything not yet covered
+
+== Step 3 — Run for real, then self-heal ==
+A2 -> PW : run every test in the browser
+activate PW
+PW --> A3 : pass / fail results
+deactivate PW
+DB --> A3 : fixes that worked before for similar failures
+A3 -> A3 : repair what failed · park the unfixable
+
+== Step 4 — Explain the results, then remember them ==
+A3 -> A4 : final results + screenshots
+A4 -> A4 : write a human-readable **Report**\n(summary · issues · recommended fixes)
+A4 --> User : 📄 Test Report
+A4 -> DB : save this run -> next run is smarter
+
+note across
+  Playwright (the real browser) is driven in **two places**: when the Discoverer
+  explores the site, and when the tests are run before the Evolver heals them.
+  The Knowledge DB is **optional** — without it the same four agents still run, just "cold".
+end note
+
+@enduml
