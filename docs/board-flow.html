@@ -1,0 +1,1974 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Test-Suite — Agent Workflow (Live Flow)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080b11;
+      --panel: #0f131c;
+      --panel-glass: rgba(15, 19, 28, 0.85);
+      --ink: #f3f4f6;
+      --muted: #9ca3af;
+      --line: #1e293b;
+      --line-active: #3b82f6;
+      --accent: #6366f1;
+      --grid: #131924;
+      --node-fill: #0f131c;
+      --node-stroke: #2e3b52;
+      --edge-stroke: #1e293b;
+      --bubble-bg: #f3f4f6;
+      --bubble-border: #cbd5e1;
+      --bubble-text: #1f2937;
+      --bubble-who-color: #4b5563;
+      --button-bg: #151c2c;
+      --button-border: #2e3b52;
+      --button-hover-bg: #1f293d;
+      --button-hover-border: #3b4e6f;
+      --scrollbar-thumb: #1e293b;
+      --header-gradient: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      --done-fill: #121e1a;
+      --done-stroke: rgba(34, 197, 94, 0.4);
+      --shadow: rgba(0, 0, 0, 0.5);
+      --accent-glow: rgba(99, 102, 241, 0.06);
+      --node-active-stroke: #5a6578;
+    }
+
+    body.light {
+      --bg: #f4f4f8;
+      --panel: #ffffff;
+      --panel-glass: rgba(255, 255, 255, 0.85);
+      --ink: #1f2433;
+      --muted: #6b7280;
+      --line: #cbd5e1;
+      --line-active: #2563eb;
+      --accent: #4f46e5;
+      --grid: #dfe2ea;
+      --node-fill: #ffffff;
+      --node-stroke: #cbd5e1;
+      --edge-stroke: #cbd5e1;
+      --bubble-bg: #f3f4f6;
+      --bubble-border: #cbd5e1;
+      --button-bg: #ffffff;
+      --button-border: #cbd5e1;
+      --button-hover-bg: #f3f4f6;
+      --button-hover-border: #94a3b8;
+      --scrollbar-thumb: #cbd5e1;
+      --header-gradient: linear-gradient(135deg, #1f2433 0%, #4b5563 100%);
+      --done-fill: #e8f5e9;
+      --done-stroke: rgba(34, 197, 94, 0.6);
+      --shadow: rgba(0, 0, 0, 0.1);
+      --accent-glow: rgba(99, 102, 241, 0.04);
+      --node-active-stroke: #a5b4fc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    header {
+      padding: 20px 24px 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      background: var(--header-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .theme-toggle-btn {
+      font-size: 12px;
+      padding: 7px 14px;
+      border-radius: 8px;
+    }
+
+    header p {
+      margin: 5px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ---- controls ---- */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 14px 24px;
+      background: var(--panel-glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--button-border);
+      background: var(--button-bg);
+      color: var(--ink);
+      padding: 8px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    button:hover {
+      background: var(--button-hover-bg);
+      border-color: var(--button-hover-border);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border-color: #6366f1;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    }
+
+    button.primary:hover {
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      box-shadow: 0 4px 18px rgba(99, 102, 241, 0.4);
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: default;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .toolbar .spacer {
+      flex: 1;
+    }
+
+    .speed {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .speed-btn {
+      padding: 2px 8px;
+      font-size: 13px;
+      font-weight: 700;
+      min-width: 24px;
+      height: 24px;
+      line-height: 1;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #speedVal {
+      font-family: 'JetBrains Mono', monospace;
+      min-width: 38px;
+      text-align: center;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .phase-tag {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(99, 102, 241, 0.1);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .phase-tag::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 6px #4ade80;
+      animation: statusPulse 1.8s infinite;
+    }
+
+    @keyframes statusPulse {
+
+      0%,
+      100% {
+        opacity: 0.5;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    /* ---- layout ---- */
+    .wrap {
+      display: flex;
+      gap: 0;
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    .stage-area {
+      flex: 1;
+      min-width: 0;
+      background: radial-gradient(circle,
+          var(--grid) 1.2px,
+          transparent 1.2px);
+      background-size: 24px 24px;
+      background-color: var(--bg);
+      overflow: hidden;
+      position: relative;
+    }
+
+    svg.stage {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ---- side log ---- */
+    .side {
+      width: 380px;
+      flex: none;
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .side h2 {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .log {
+      padding: 12px 18px 20px;
+      overflow-y: auto;
+      max-height: 65vh;
+    }
+
+    .log::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .log::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .log::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 999px;
+    }
+
+    .log::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    .log-item {
+      display: flex;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      border: 1px solid transparent;
+      opacity: 0;
+      transform: translateY(6px);
+      animation: pop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes pop {
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .log-item.cur {
+      background: rgba(99, 102, 241, 0.04);
+      border-color: rgba(99, 102, 241, 0.12);
+    }
+
+    .log-num {
+      flex: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .log-item.data .log-num {
+      background: #0ea5a4;
+    }
+
+    .log-item.work .log-num {
+      background: #f59e0b;
+    }
+
+    .log-body {
+      color: var(--ink);
+      transition: color 0.3s;
+    }
+
+    .log-route {
+      display: block;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted);
+      margin-bottom: 2px;
+      font-weight: 600;
+      transition: color 0.3s;
+    }
+
+    /* ---- SVG node + edge styling ---- */
+    .edge {
+      fill: none;
+      stroke: var(--edge-stroke);
+      stroke-width: 2.2;
+      transition: stroke 0.25s, stroke-width 0.25s;
+    }
+
+    .edge.dashed {
+      stroke-dasharray: 6 5;
+    }
+
+    .edge.active {
+      stroke: var(--line-active);
+      stroke-width: 3.5;
+      filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.5));
+      transition: stroke 0.25s, filter 0.25s;
+    }
+
+    .edge.active.call {
+      stroke: #6366f1;
+      filter: drop-shadow(0 0 5px rgba(99, 102, 241, 0.5));
+    }
+
+    body.light .edge.active.call {
+      stroke: #4f46e5;
+      filter: drop-shadow(0 0 5px rgba(79, 70, 229, 0.4));
+    }
+
+    .edge.active.data {
+      stroke: #0ea5a4;
+      filter: drop-shadow(0 0 5px rgba(14, 165, 164, 0.5));
+    }
+
+    .edge.active.flow {
+      stroke-dasharray: 8 6;
+      animation: dash 0.5s linear infinite;
+    }
+
+    .edge.active.flow.flow-reverse {
+      animation: dash-reverse 0.5s linear infinite;
+    }
+
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -28;
+      }
+    }
+
+    @keyframes dash-reverse {
+      to {
+        stroke-dashoffset: 28;
+      }
+    }
+
+    /* ---- directional arrowheads (n8n style) ---- */
+    .arrow {
+      fill: #475569;
+      transition: fill 0.25s;
+    }
+
+    .arrow.blink {
+      animation: arrowBlink 0.8s ease-in-out;
+    }
+
+    @keyframes arrowBlink {
+
+      0%,
+      100% {
+        fill: #475569;
+        filter: none;
+      }
+
+      20%,
+      60% {
+        fill: var(--line-active);
+        filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.95));
+      }
+
+      40%,
+      80% {
+        fill: #93c5fd;
+      }
+    }
+
+    .node {
+      cursor: pointer;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .node:hover {
+      transform: scale(1.02) translateY(-2px);
+    }
+
+    .node-card {
+      fill: var(--node-fill);
+      stroke: var(--node-stroke);
+      stroke-width: 1.5;
+      transition: stroke 0.25s, fill 0.25s, filter 0.25s;
+    }
+
+    .node.active .node-card {
+      stroke: var(--node-active-stroke);
+      stroke-width: 1.8;
+      fill: var(--node-fill);
+      filter: drop-shadow(0 2px 8px var(--accent-glow));
+    }
+
+    .node.working .node-card {
+      animation: workpulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes workpulse {
+
+      0%,
+      100% {
+        filter: drop-shadow(0 0 0 rgba(245, 158, 11, 0));
+        stroke: var(--node-stroke);
+      }
+
+      50% {
+        filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.5));
+        stroke: #f59e0b;
+      }
+    }
+
+    .node.done .node-card {
+      stroke: var(--done-stroke);
+      fill: var(--done-fill);
+    }
+
+    .node-title {
+      font-size: 14px;
+      font-weight: 700;
+      fill: var(--ink);
+      transition: fill 0.3s;
+    }
+
+    .node-sub {
+      font-size: 10.5px;
+      fill: var(--muted);
+      transition: fill 0.3s;
+    }
+
+    .node-icon {
+      font-size: 19px;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      fill: #fff;
+    }
+
+    .pulse {
+      fill: var(--line-active);
+      stroke: var(--bg);
+      stroke-width: 2;
+      filter: drop-shadow(0 0 6px var(--line-active));
+    }
+
+    .pulse.data {
+      fill: #0ea5a4;
+      filter: drop-shadow(0 0 6px #0ea5a4);
+    }
+
+    .pulse.call {
+      fill: #6366f1;
+      filter: drop-shadow(0 0 6px #6366f1);
+    }
+
+    /* ---- conversation bubbles (inside the SVG via foreignObject) ---- */
+    .bubble-wrap {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .bubble-wrap.above {
+      align-items: flex-end;
+    }
+
+    .bubble-wrap.below {
+      align-items: flex-start;
+    }
+
+    .bubble {
+      position: relative;
+      max-width: 172px;
+      background: var(--bubble-bg);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1.5px solid var(--bubble-border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 11.5px;
+      line-height: 1.3;
+      color: var(--bubble-text);
+      box-shadow: 0 8px 24px var(--shadow);
+      animation: bubbleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: background 0.3s, border-color 0.3s, color 0.3s, box-shadow 0.3s;
+    }
+
+    @keyframes bubbleIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .bubble-who {
+      display: block;
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+      color: var(--bubble-who-color);
+    }
+
+    .bubble::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+    }
+
+    .bubble.tail-down::after {
+      top: 100%;
+      border-top-color: var(--bubble-bg);
+      margin-top: -1px;
+      transition: border-top-color 0.3s;
+    }
+
+    .bubble.tail-up::after {
+      bottom: 100%;
+      border-bottom-color: var(--bubble-bg);
+      margin-bottom: -1px;
+      transition: border-bottom-color 0.3s;
+    }
+
+    footer {
+      padding: 16px 24px 24px;
+      font-size: 12.5px;
+      color: var(--muted);
+      background: var(--panel);
+      border-top: 1px solid var(--line);
+      line-height: 1.6;
+    }
+
+    footer b {
+      color: var(--ink);
+    }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    @media (max-width: 980px) {
+      .wrap {
+        flex-direction: column;
+      }
+
+      .side {
+        width: auto;
+        border-left: none;
+        border-top: 1px solid var(--line);
+      }
+
+      .log {
+        max-height: 32vh;
+      }
+    }
+
+    /* ---- DB ingestion & PostgreSQL console styles ---- */
+    .node.db-ingesting .node-card {
+      stroke: #336791 !important;
+      stroke-width: 2.2px !important;
+      animation: dbIngestGlow 0.4s infinite alternate;
+    }
+
+    @keyframes dbIngestGlow {
+      from { filter: drop-shadow(0 0 3px rgba(51, 103, 145, 0.4)); }
+      to { filter: drop-shadow(0 0 14px rgba(51, 103, 145, 0.8)); }
+    }
+
+    .transfer-modal {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1.5px solid #336791;
+      border-radius: 8px;
+      width: 100%;
+      height: 100%;
+      box-shadow: 0 10px 25px rgba(51, 103, 145, 0.4);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      color: #e2e8f0;
+      opacity: 0;
+      transform: scale(0.9) translateY(10px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    
+    .transfer-modal.show {
+      opacity: 1;
+      transform: none;
+    }
+
+    .transfer-header {
+      background: #1e293b;
+      padding: 6px 10px;
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .transfer-icon {
+      font-size: 10px;
+    }
+
+    .transfer-title {
+      color: #cbd5e1;
+    }
+
+    .transfer-pct {
+      margin-left: auto;
+      color: #38bdf8;
+      font-weight: 800;
+    }
+
+    .transfer-progress-container {
+      background: #0f172a;
+      height: 6px;
+      width: calc(100% - 20px);
+      margin: 8px 10px 4px;
+      border-radius: 3px;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+
+    .transfer-progress-bar {
+      background: linear-gradient(90deg, #336791 0%, #38bdf8 100%);
+      height: 100%;
+      width: 0%;
+      border-radius: 3px;
+      transition: width 0.1s linear;
+      box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
+    }
+
+    .transfer-stats {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 10px;
+      font-size: 8px;
+      color: #94a3b8;
+    }
+
+    .transfer-log {
+      flex: 1;
+      background: #090d16;
+      margin: 6px 10px 8px;
+      border-radius: 4px;
+      border: 1px solid #1e293b;
+      padding: 4px 6px;
+      font-size: 8px;
+      line-height: 1.35;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      text-align: left;
+    }
+
+    .log-line {
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .log-line.active {
+      color: #38bdf8;
+    }
+
+    .log-line.success {
+      color: #4ade80;
+    }
+
+    .log-line.finish {
+      color: #a78bfa;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body class="light">
+  <header>
+    <div>
+      <h1>AI Test-Suite — Agent Workflow, in motion</h1>
+      <p>
+        Watch a run flow through the four agents. Data pulses travel the wires
+        exactly as in <code>board-uml.puml</code>.
+      </p>
+    </div>
+    <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">🌙 Dark Mode</button>
+  </header>
+
+  <div class="toolbar">
+    <button id="play" class="primary">▶ Play</button>
+    <button id="step">⏭ Step</button>
+    <button id="restart">↻ Restart</button>
+    <span class="speed">Speed
+      <button id="speed-down" class="speed-btn" aria-label="Decrease speed">−</button>
+      <span id="speedVal">0.5×</span>
+      <button id="speed-up" class="speed-btn" aria-label="Increase speed">+</button>
+    </span>
+    <span class="spacer"></span>
+    <span class="phase-tag" id="phaseTag">Ready</span>
+  </div>
+
+  <div class="wrap">
+    <div class="stage-area">
+      <svg class="stage" id="stage" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet"
+        aria-label="Agent workflow diagram"></svg>
+    </div>
+    <aside class="side">
+      <h2>Activity log</h2>
+      <div class="log" id="log"></div>
+    </aside>
+  </div>
+
+  <footer>
+    <div class="legend">
+      <span><i class="dot" style="background: var(--accent)"></i> control /
+        hand-off</span>
+      <span><i class="dot" style="background: #0ea5a4"></i> data returned</span>
+      <span><i class="dot" style="background: #f59e0b"></i> agent working</span>
+    </div>
+    <b>Playwright</b> (the real browser) is driven in <b>two places</b> — when
+    the Discoverer explores the site, and when the Tester runs the spec files
+    and heals them. The Designer never drives the browser. The
+    <b>Knowledge DB is optional</b>: without it the same four agents still
+    run, just "cold".
+  </footer>
+
+  <script>
+    (function () {
+      // ---------- node definitions (top-left coords in a 1200×600 space) ----------
+      const NW = 168,
+        NH = 72;
+      const NODES = {
+        User: {
+          x: 40,
+          y: 120,
+          icon: "👤",
+          title: "User",
+          sub: "gives a URL",
+          color: "#94a3b8",
+        },
+        A1: {
+          x: 270,
+          y: 120,
+          icon: "🔍",
+          title: "Discoverer",
+          sub: "explore + plan",
+          color: "#4ade80",
+        },
+        A2: {
+          x: 500,
+          y: 120,
+          icon: "✍️",
+          title: "Designer",
+          sub: "write the tests",
+          color: "#60a5fa",
+        },
+        A3: {
+          x: 730,
+          y: 120,
+          icon: "🔧",
+          title: "Tester",
+          sub: "run + self-heal",
+          color: "#fb923c",
+        },
+        A4: {
+          x: 960,
+          y: 120,
+          icon: "📊",
+          title: "Reporter",
+          sub: "explain + report",
+          color: "#c084fc",
+        },
+        PW: {
+          x: 300,
+          y: 430,
+          icon: "🌐",
+          title: "Playwright",
+          sub: "real browser",
+          color: "#2dd4bf",
+        },
+        DB: {
+          x: 730,
+          y: 430,
+          icon: "🗄️",
+          title: "Knowledge DB",
+          sub: "plans·scripts·fixes",
+          color: "#94a3b8",
+        },
+      };
+      const center = (n) => ({
+        x: NODES[n].x + NW / 2,
+        y: NODES[n].y + NH / 2,
+      });
+
+      // ---------- the run, lifted straight from board-uml.puml ----------
+      // k: call (hand-off / control) | data (returned info) | work (self, agent thinking)
+      // chat: ordered [speakerNodeId, "spoken line"] turns shown as bubbles during the step.
+      const STEPS = [
+        {
+          f: "User",
+          t: "A1",
+          ph: 0,
+          k: "call",
+          route: "User → Discoverer",
+          m: '"Test this website" — hands over a URL',
+          chat: [
+            ["User", "Here's a website — can you test it for me?"],
+            ["A1", "Sure! I'll explore it live first, then write a plan."],
+          ],
+        },
+
+        {
+          f: "DB",
+          t: "A1",
+          ph: 1,
+          k: "data",
+          route: "Knowledge DB → Discoverer",
+          m: "Its own previous plan for this site (memory / head-start)",
+          roundTrip: true,
+          chat: [
+            ["A1", "Do we have a prior test plan for this URL?"],
+            ["DB", "Yes - here's the plan I saved last time."],
+          ],
+        },
+        {
+          f: "A1",
+          t: "PW",
+          ph: 1,
+          k: "call",
+          route: "Discoverer → Playwright",
+          m: "Open the site & click through it",
+          chat: [
+            ["A1", "Open the site and click through every page."],
+            ["PW", "On it — driving the real browser now."],
+          ],
+        },
+        {
+          f: "PW",
+          t: "A1",
+          ph: 1,
+          k: "data",
+          route: "Playwright → Discoverer",
+          m: "Pages + screenshots",
+          chat: [
+            ["PW", "Done. Sending you pages + screenshots."],
+            ["A1", "Great - now I can see the real user flows."],
+          ],
+        },
+        {
+          f: "A1",
+          t: "A1",
+          ph: 1,
+          k: "work",
+          route: "Discoverer (working)",
+          m: "Write a plain-English Test Plan — the user flows worth testing",
+          chat: [["A1", "Writing a Test Plan - the flows worth testing."]],
+        },
+
+        {
+          f: "A1",
+          t: "A2",
+          ph: 2,
+          k: "call",
+          route: "Discoverer → Designer",
+          m: "Hand over the Test Plan",
+          chat: [
+            ["A1", "Here's the Test Plan. Over to you, Designer."],
+            ["A2", "Thanks - I'll turn these flows into test scripts."],
+          ],
+        },
+        {
+          f: "DB",
+          t: "A2",
+          ph: 2,
+          k: "data",
+          route: "Knowledge DB → Designer",
+          m: "Matching test scripts from past runs → REUSE them",
+          roundTrip: true,
+          chat: [
+            ["A2", "Any prior test scripts that match these flows?"],
+            ["DB", "Yes - reuse these, they passed last time"],
+          ],
+        },
+        {
+          f: "A2",
+          t: "A2",
+          ph: 2,
+          k: "work",
+          route: "Designer (working)",
+          m: "Write new scripts for what isn't covered - spec files only, does NOT run them",
+          chat: [
+            [
+              "A2",
+              "Writing new scripts for the flows not covered by prior runs.",
+            ],
+          ],
+        },
+
+        {
+          f: "A2",
+          t: "A3",
+          ph: 3,
+          k: "call",
+          route: "Designer → Tester",
+          m: "Hand over the finished test spec files",
+          chat: [
+            ["A2", "Spec files are ready. Tester, they're yours."],
+            ["A3", "Got them — running everything in the browser now."],
+          ],
+        },
+        {
+          f: "A3",
+          t: "PW",
+          ph: 3,
+          k: "call",
+          route: "Tester → Playwright",
+          m: "Run every test in the browser",
+          chat: [
+            ["A3", "Run every test against the live site."],
+            ["PW", "Running… executing each spec."],
+          ],
+        },
+        {
+          f: "PW",
+          t: "A3",
+          ph: 3,
+          k: "data",
+          route: "Playwright → Tester",
+          m: "Pass / fail results",
+          chat: [
+            ["PW", "Results in: most passed, a few failed."],
+            ["A3", "Let me take a look at those failures."],
+          ],
+        },
+        {
+          f: "DB",
+          t: "A3",
+          ph: 3,
+          k: "data",
+          route: "Knowledge DB → Tester",
+          m: "Fixes that worked before for similar failures",
+          roundTrip: true, // ball goes A3→DB (asks), then DB→A3 (answers)
+          chat: [
+            ["A3", "Have we fixed failures like these before?"],
+            ["DB", "Yes - here are the fixes that worked last time."],
+          ],
+        },
+        {
+          f: "A3",
+          t: "A3",
+          ph: 3,
+          k: "work",
+          route: "Tester (working)",
+          m: "Repair what failed · park the unfixable",
+          chat: [["A3", "Repairing what I can..."]],
+        },
+
+        {
+          f: "A3",
+          t: "A4",
+          ph: 4,
+          k: "call",
+          route: "Tester → Reporter",
+          m: "Final results + screenshots",
+          chat: [
+            ["A3", "Final results + screenshots. Reporter, wrap it up."],
+            ["A4", "On it - writing this up for User."],
+          ],
+        },
+        {
+          f: "A4",
+          t: "A4",
+          ph: 4,
+          k: "work",
+          route: "Reporter (working)",
+          m: "Write a human-readable Report — summary · issues · recommended fixes",
+          chat: [
+            [
+              "A4",
+              "Writing the Report — summary, issues, recommended fixes.",
+            ],
+          ],
+        },
+        {
+          f: "A4",
+          t: "User",
+          ph: 4,
+          k: "data",
+          route: "Reporter → User",
+          m: "📄 Test Report",
+          chat: [
+            ["A4", "Your Test Report is ready 📄"],
+            ["User", "Thank you!"],
+          ],
+        },
+        {
+          f: "A4",
+          t: "DB",
+          ph: 4,
+          k: "call",
+          route: "Reporter → Knowledge DB",
+          m: "Save this run → next run is smarter",
+          chat: [
+            ["A4", "Saving this run on DB."],
+            ["DB", "Stored. I'll remember it for next time."],
+          ],
+        },
+      ];
+
+      const PHASES = [
+        "Kick-off",
+        "Step 1 · Explore the live site, then plan",
+        "Step 2 · Reuse what works, write the rest",
+        "Step 3 · Run for real, then self-heal",
+        "Step 4 · Explain the results",
+      ];
+
+      // ---------- build edge paths ----------
+      // S-curve with adaptive handles; the long Reporter→User return arcs over the top.
+      function buildPath(f, t) {
+        const a = center(f),
+          b = center(t);
+        if ((f === "A4" && t === "User") || (f === "User" && t === "A4")) {
+          const top = 40;
+          return `M ${a.x} ${a.y} C ${a.x} ${top}, ${b.x} ${top}, ${b.x} ${b.y}`;
+        }
+        const dx = b.x - a.x,
+          dy = b.y - a.y;
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          return `M ${a.x} ${a.y} C ${a.x + dx * 0.5} ${a.y}, ${b.x - dx * 0.5} ${b.y}, ${b.x} ${b.y}`;
+        }
+        return `M ${a.x} ${a.y} C ${a.x} ${a.y + dy * 0.5}, ${b.x} ${b.y - dy * 0.5}, ${b.x} ${b.y}`;
+      }
+
+      const pairKey = (a, b) => [a, b].sort().join("|");
+      const edges = {}; // key -> { el, from, to, len }
+      STEPS.forEach((s) => {
+        if (s.f === s.t) return;
+        const key = pairKey(s.f, s.t);
+        if (!edges[key])
+          edges[key] = { from: s.f, to: s.t, d: buildPath(s.f, s.t) };
+      });
+
+      // ---------- render SVG ----------
+      const SVGNS = "http://www.w3.org/2000/svg";
+      const stage = document.getElementById("stage");
+      const el = (tag, attrs, text) => {
+        const e = document.createElementNS(SVGNS, tag);
+        for (const k in attrs) e.setAttribute(k, attrs[k]);
+        if (text != null) e.textContent = text;
+        return e;
+      };
+
+      // edges layer (behind nodes)
+      const edgeLayer = el("g", {});
+      stage.appendChild(edgeLayer);
+      Object.values(edges).forEach((e) => {
+        const p = el("path", { d: e.d, class: "edge dashed" });
+        edgeLayer.appendChild(p);
+        e.el = p;
+        e.len = p.getTotalLength();
+      });
+
+      // directed pairs actually used → tells us where arrowheads belong
+      const directed = new Set();
+      STEPS.forEach((s) => {
+        if (s.f !== s.t) directed.add(s.f + ">" + s.t);
+      });
+
+      // arrowheads layer (above edges, below nodes)
+      const arrowLayer = el("g", {});
+      stage.appendChild(arrowLayer);
+      const allArrows = [];
+
+      const norm = (x, y) => {
+        const d = Math.hypot(x, y) || 1;
+        return { x: x / d, y: y / d };
+      };
+      const insideCard = (p, n, pad) =>
+        p.x >= n.x - pad &&
+        p.x <= n.x + NW + pad &&
+        p.y >= n.y - pad &&
+        p.y <= n.y + NH + pad;
+
+      // build an arrowhead whose tip lands exactly on node `n`'s surface, pointing in
+      function makeArrow(path, len, n, side) {
+        const STEP = 1; // fine scan → snap precisely to the card edge
+        const OVERLAP = 2.5; // push tip slightly under the card so it always touches
+        let edgeL, tip, dir;
+        if (side === "to") {
+          // walk inward from the destination end; first point outside the card = the edge
+          edgeL = 0;
+          for (let q = len; q >= 0; q -= STEP) {
+            if (!insideCard(path.getPointAtLength(q), n, 0)) {
+              edgeL = q;
+              break;
+            }
+          }
+          const onEdge = path.getPointAtLength(edgeL);
+          const ahead = path.getPointAtLength(Math.min(len, edgeL + 8));
+          dir = norm(ahead.x - onEdge.x, ahead.y - onEdge.y); // points into the node
+          tip = {
+            x: onEdge.x + dir.x * OVERLAP,
+            y: onEdge.y + dir.y * OVERLAP,
+          };
+        } else {
+          edgeL = len;
+          for (let q = 0; q <= len; q += STEP) {
+            if (!insideCard(path.getPointAtLength(q), n, 0)) {
+              edgeL = q;
+              break;
+            }
+          }
+          const onEdge = path.getPointAtLength(edgeL);
+          const back = path.getPointAtLength(Math.max(0, edgeL - 8));
+          dir = norm(back.x - onEdge.x, back.y - onEdge.y); // points into the node
+          tip = {
+            x: onEdge.x + dir.x * OVERLAP,
+            y: onEdge.y + dir.y * OVERLAP,
+          };
+        }
+        const size = 7,
+          half = 4;
+        const nx = -dir.y,
+          ny = dir.x;
+        const bx = tip.x - dir.x * size,
+          by = tip.y - dir.y * size;
+        const pts =
+          `${tip.x.toFixed(1)},${tip.y.toFixed(1)} ` +
+          `${(bx + nx * half).toFixed(1)},${(by + ny * half).toFixed(1)} ` +
+          `${(bx - nx * half).toFixed(1)},${(by - ny * half).toFixed(1)}`;
+        const poly = el("polygon", { points: pts, class: "arrow" });
+        arrowLayer.appendChild(poly);
+        allArrows.push(poly);
+        return poly;
+      }
+
+      // agent↔DB query edges are conceptually two-way (agent asks, DB answers)
+      const BIDIRECTIONAL = new Set(["A1|DB", "A2|DB", "A3|DB"]);
+
+      Object.values(edges).forEach((e) => {
+        e.arrows = {};
+        e.arrows[e.to] = makeArrow(e.el, e.len, NODES[e.to], "to");
+        // bidirectional edge → arrowhead at both ends
+        if (
+          directed.has(e.to + ">" + e.from) ||
+          BIDIRECTIONAL.has(pairKey(e.from, e.to))
+        ) {
+          e.arrows[e.from] = makeArrow(e.el, e.len, NODES[e.from], "from");
+        }
+      });
+
+      // pulse dot
+      const pulse = el("circle", {
+        r: 5.5,
+        class: "pulse",
+        cx: -100,
+        cy: -100,
+        opacity: 0,
+      });
+
+      // nodes layer (on top)
+      const nodeEls = {};
+      Object.keys(NODES).forEach((id) => {
+        const n = NODES[id];
+        const g = el("g", { class: "node", "data-id": id });
+        g.appendChild(
+          el("rect", {
+            class: "node-card",
+            x: n.x,
+            y: n.y,
+            width: NW,
+            height: NH,
+            rx: 12,
+          }),
+        );
+        g.appendChild(
+          el("circle", {
+            cx: n.x + 30,
+            cy: n.y + NH / 2,
+            r: 19,
+            fill: n.color,
+          }),
+        );
+        g.appendChild(
+          el(
+            "text",
+            { class: "node-icon", x: n.x + 30, y: n.y + NH / 2 + 1 },
+            n.icon,
+          ),
+        );
+        g.appendChild(
+          el(
+            "text",
+            { class: "node-title", x: n.x + 58, y: n.y + 31 },
+            n.title,
+          ),
+        );
+        g.appendChild(
+          el("text", { class: "node-sub", x: n.x + 58, y: n.y + 50 }, n.sub),
+        );
+        edgeLayer.parentNode.appendChild(g);
+        nodeEls[id] = g;
+      });
+      stage.appendChild(pulse);
+
+      // bubble layer (on top of everything) — speech bubbles via foreignObject
+      const bubbleLayer = el("g", {});
+      stage.appendChild(bubbleLayer);
+      const bubbleEls = [];
+
+      // DB particles group
+      const dbParticlesGroup = el("g", { id: "dbParticlesGroup" });
+      stage.appendChild(dbParticlesGroup);
+
+      // PostgreSQL Ingestion Console foreignObject
+      const pgConsoleFO = el("foreignObject", {
+        id: "pgConsoleFO",
+        x: 915,
+        y: 390,
+        width: 260,
+        height: 155,
+        style: "display: none;"
+      });
+      const consoleDiv = document.createElement("div");
+      consoleDiv.className = "transfer-modal";
+      consoleDiv.innerHTML = `
+        <div class="transfer-header">
+          <span class="transfer-icon">📊 ➔ 🗄️</span>
+          <span class="transfer-title">Syncing Run Data...</span>
+          <span class="transfer-pct" id="transferPct">0%</span>
+        </div>
+        <div class="transfer-progress-container">
+          <div class="transfer-progress-bar" id="transferProgressBar"></div>
+        </div>
+        <div class="transfer-stats">
+          <div class="transfer-stat">Files: <span id="transferFiles">0 / 6</span></div>
+          <div class="transfer-stat">Rate: <span id="transferRate">45.8 KB/s</span></div>
+          <div class="transfer-stat">Time Left: <span id="transferTimeLeft">15s</span></div>
+        </div>
+        <div class="transfer-log" id="transferLog">
+        </div>
+      `;
+      pgConsoleFO.appendChild(consoleDiv);
+      stage.appendChild(pgConsoleFO);
+
+      function triggerDbIngestAnimation() {
+        const dbNode = nodeEls["DB"];
+        if (dbNode) dbNode.classList.add("db-ingesting");
+
+        const consoleEl = document.getElementById("pgConsoleFO");
+        if (consoleEl) {
+          consoleEl.style.display = "block";
+          consoleEl.getBoundingClientRect();
+          const innerConsole = consoleEl.querySelector(".transfer-modal");
+          if (innerConsole) innerConsole.classList.add("show");
+        }
+
+        const pctEl = document.getElementById("transferPct");
+        const barEl = document.getElementById("transferProgressBar");
+        const filesEl = document.getElementById("transferFiles");
+        const rateEl = document.getElementById("transferRate");
+        const timeLeftEl = document.getElementById("transferTimeLeft");
+        const logEl = document.getElementById("transferLog");
+
+        if (logEl) logEl.innerHTML = "";
+
+        const files = [
+          { name: "test_spec_discovery.json", size: "18 KB" },
+          { name: "locator_heal_map.json", size: "4 KB" },
+          { name: "error_screengrab_step8.png", size: "215 KB" },
+          { name: "performance_benchmarks.csv", size: "12 KB" },
+          { name: "playwright_spec_healed.js", size: "32 KB" },
+          { name: "test_run_report.html", size: "145 KB" }
+        ];
+
+        const totalDuration = 15000 / speed;
+        const startTime = performance.now();
+        
+        let lastFileIdx = -1;
+        let lastRateUpdate = 0;
+        let transferActive = true;
+
+        function addConsoleLog(text, type = "normal") {
+          if (!logEl) return;
+          const line = document.createElement("div");
+          line.className = "log-line " + type;
+          line.textContent = text;
+          logEl.appendChild(line);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        addConsoleLog("Initializing connection...", "active");
+
+        const progressTick = (now) => {
+          if (!transferActive) return;
+          const elapsed = now - startTime;
+          const pct = Math.min(100, (elapsed / totalDuration) * 100);
+
+          if (pctEl) pctEl.textContent = Math.round(pct) + "%";
+          if (barEl) barEl.style.width = pct + "%";
+
+          const secondsLeft = Math.max(0, Math.ceil((totalDuration - elapsed) / 1000));
+          if (timeLeftEl) timeLeftEl.textContent = secondsLeft + "s";
+
+          if (now - lastRateUpdate > 1200) {
+            lastRateUpdate = now;
+            const rate = (30 + Math.random() * 25).toFixed(1);
+            if (rateEl) rateEl.textContent = rate + " KB/s";
+          }
+
+          const fileIdx = Math.floor(pct / 16.6);
+          if (fileIdx > lastFileIdx && fileIdx < 6) {
+            lastFileIdx = fileIdx;
+            const f = files[fileIdx];
+            if (filesEl) filesEl.textContent = `${fileIdx + 1} / 6`;
+            addConsoleLog(`[${Math.round(pct)}%] Sending ${f.name} (${f.size})...`, "active");
+            
+            const lines = logEl.querySelectorAll(".log-line");
+            if (lines.length > 1) {
+              lines[lines.length - 2].className = "log-line success";
+              lines[lines.length - 2].textContent = "✓ " + lines[lines.length - 2].textContent.substring(4);
+            }
+          }
+
+          if (pct < 100) {
+            requestAnimationFrame(progressTick);
+          } else {
+            if (filesEl) filesEl.textContent = "6 / 6";
+            if (timeLeftEl) timeLeftEl.textContent = "0s";
+            
+            const lines = logEl.querySelectorAll(".log-line");
+            if (lines.length > 0) {
+              const last = lines[lines.length - 1];
+              last.className = "log-line success";
+              if (last.textContent.startsWith("[")) {
+                last.textContent = "✓ " + last.textContent.substring(6);
+              }
+            }
+            
+            addConsoleLog("✓ DB indices rebuilt & optimized.", "success");
+            addConsoleLog("Ingestion complete. Sync successful!", "finish");
+            
+            setTimeout(() => {
+              if (dbNode) dbNode.classList.remove("db-ingesting");
+            }, 1000);
+          }
+        };
+        requestAnimationFrame(progressTick);
+
+        const container = document.getElementById("dbParticlesGroup");
+        if (!container) return;
+        container.innerHTML = "";
+
+        const startX = 814;
+        const startY = 430;
+        const endX = 760;
+        const endY = 466;
+
+        const spawnInterval = 500 / speed;
+        let spawnedCount = 0;
+        const maxSpawns = Math.floor(totalDuration / spawnInterval) - 2;
+
+        const fileEmojis = ["📄", "📝", "📊", "📁", "⚡", "🖼️"];
+
+        const spawnFileIcon = () => {
+          if (spawnedCount >= maxSpawns || !transferActive) return;
+          spawnedCount++;
+
+          const emoji = fileEmojis[Math.floor(Math.random() * fileEmojis.length)];
+          const p = el("text", {
+            x: startX,
+            y: startY,
+            "font-size": "13px",
+            "text-anchor": "middle",
+            "dominant-baseline": "middle",
+            opacity: 0.9,
+            style: `cursor: default; user-select: none; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';`
+          }, emoji);
+          container.appendChild(p);
+
+          const iconStartTime = performance.now();
+          const duration = (900 + Math.random() * 400) / speed;
+          
+          const offsetX = -25 - Math.random() * 45;
+          const offsetY = (Math.random() - 0.5) * 30;
+
+          const animateIcon = (now) => {
+            const elapsed = now - iconStartTime;
+            const pct = Math.min(1, elapsed / duration);
+            
+            const eased = pct < 0.5 ? 4 * pct * pct * pct : 1 - Math.pow(-2 * pct + 2, 3) / 2;
+
+            const cx = startX + (endX - startX) * eased + offsetX * Math.sin(pct * Math.PI);
+            const cy = startY + (endY - startY) * eased + offsetY * Math.sin(pct * Math.PI);
+            
+            const rotation = eased * 360;
+
+            p.setAttribute("x", cx);
+            p.setAttribute("y", cy);
+            p.setAttribute("transform", `rotate(${rotation}, ${cx}, ${cy})`);
+            p.setAttribute("opacity", 1 - eased);
+
+            if (pct < 1) {
+              requestAnimationFrame(animateIcon);
+            } else {
+              p.remove();
+            }
+          };
+          requestAnimationFrame(animateIcon);
+
+          setTimeout(spawnFileIcon, spawnInterval);
+        };
+
+        spawnFileIcon();
+
+        const origClearActive = clearActive;
+        clearActive = function() {
+          transferActive = false;
+          origClearActive();
+          clearActive = origClearActive;
+        };
+      }
+
+      function addBubble(nodeId, text) {
+        const n = NODES[nodeId];
+        const top = n.y < 300; // top-row node → bubble sits above it
+        const W = 180,
+          foH = top ? 95 : 85;
+        let bx = n.x + NW / 2 - W / 2;
+        bx = Math.max(8, Math.min(bx, 1200 - W - 8));
+        const by = top ? n.y - 101 : n.y + NH + 4;
+        const fo = el("foreignObject", {
+          x: bx,
+          y: by,
+          width: W,
+          height: foH,
+        });
+        const wrap = document.createElement("div");
+        wrap.setAttribute(
+          "class",
+          "bubble-wrap " + (top ? "above" : "below"),
+        );
+        const b = document.createElement("div");
+        b.setAttribute("class", "bubble " + (top ? "tail-down" : "tail-up"));
+        const who = document.createElement("span");
+        who.setAttribute("class", "bubble-who");
+        who.textContent = n.title;
+        b.appendChild(who);
+        b.appendChild(document.createTextNode(text));
+        wrap.appendChild(b);
+        fo.appendChild(wrap);
+        bubbleLayer.appendChild(fo);
+        bubbleEls.push(fo);
+      }
+
+      function clearBubbles() {
+        while (bubbleEls.length) bubbleLayer.removeChild(bubbleEls.pop());
+      }
+
+      // ---------- engine ----------
+      const logEl = document.getElementById("log");
+      const phaseEl = document.getElementById("phaseTag");
+      const playBtn = document.getElementById("play");
+      const stepBtn = document.getElementById("step");
+      const restartBtn = document.getElementById("restart");
+      const speedDownBtn = document.getElementById("speed-down");
+      const speedUpBtn = document.getElementById("speed-up");
+      const speedVal = document.getElementById("speedVal");
+
+      let idx = -1; // last completed step
+      let playing = false;
+      let anim = null; // current rAF handle
+      let speed = 0.5;
+      const BASE = 2400; // ms per step at 1× (slower so both chat lines are readable)
+
+      function clearActive() {
+        Object.values(edges).forEach((e) =>
+          e.el.classList.remove("active", "flow", "call", "data", "flow-reverse"),
+        );
+        Object.values(nodeEls).forEach((g) =>
+          g.classList.remove("active", "working", "db-ingesting"),
+        );
+        pulse.setAttribute("opacity", 0);
+        allArrows.forEach((a) => a.classList.remove("blink"));
+        clearBubbles();
+        const consoleEl = document.getElementById("pgConsoleFO");
+        if (consoleEl) {
+          consoleEl.style.display = "none";
+          const innerConsole = consoleEl.querySelector(".pg-console");
+          if (innerConsole) innerConsole.classList.remove("show");
+        }
+        const container = document.getElementById("dbParticlesGroup");
+        if (container) container.innerHTML = "";
+      }
+
+      // blink the arrowhead pointing into `destId` on the given edge
+      function blinkArrow(edge, destId) {
+        const a = edge.arrows[destId];
+        if (!a) return;
+        a.classList.remove("blink");
+        void a.getBBox(); // force reflow so the animation restarts
+        a.classList.add("blink");
+      }
+
+      function travelBall(edge, srcId, dstId, kind, travelMs) {
+        return new Promise((res) => {
+          const forward = edge.from === srcId; // native path goes from→to
+          edge.el.classList.remove("call", "data", "flow-reverse");
+          edge.el.classList.add(kind);
+          if (!forward) {
+            edge.el.classList.add("flow-reverse");
+          }
+          pulse.setAttribute(
+            "class",
+            "pulse " + (kind === "data" ? "data" : "call"),
+          );
+          pulse.setAttribute("opacity", 1);
+          const t0 = performance.now();
+          const tick = (now) => {
+            let p = (now - t0) / travelMs;
+            if (p > 1) p = 1;
+            const eased =
+              p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+            const t = forward ? eased : 1 - eased;
+            const pt = edge.el.getPointAtLength(edge.len * t);
+            pulse.setAttribute("cx", pt.x);
+            pulse.setAttribute("cy", pt.y);
+            if (p >= 1) res();
+            else anim = requestAnimationFrame(tick);
+          };
+          anim = requestAnimationFrame(tick);
+        });
+      }
+
+      function waitMs(ms) {
+        return new Promise((res) => {
+          const t0 = performance.now();
+          const tick = (now) => {
+            if (now - t0 >= ms) res();
+            else anim = requestAnimationFrame(tick);
+          };
+          anim = requestAnimationFrame(tick);
+        });
+      }
+
+      function setPhase(ph) {
+        phaseEl.textContent = ph === 0 && idx < 0 ? "Ready" : PHASES[ph];
+      }
+
+      function addLog(i) {
+        const s = STEPS[i];
+        document
+          .querySelectorAll(".log-item.cur")
+          .forEach((n) => n.classList.remove("cur"));
+        const item = document.createElement("div");
+        item.className = "log-item cur " + s.k;
+        item.innerHTML =
+          `<div class="log-num">${i + 1}</div>` +
+          `<div class="log-body"><span class="log-route">${s.route}</span>${s.m}</div>`;
+        logEl.appendChild(item);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function markDone(id) {
+        nodeEls[id].classList.add("done");
+      }
+
+      function runStep(i) {
+        return new Promise((resolve) => {
+          const s = STEPS[i];
+          clearActive();
+          setPhase(s.ph);
+          addLog(i);
+
+          let dur = BASE / speed;
+          const V = 0.125 * speed;
+
+          // reveal conversation bubbles in order as the step plays out
+          const chat = s.chat || [];
+          const shownChat = new Array(chat.length).fill(false);
+          const revealChat = (elapsed) => {
+            for (let c = 0; c < chat.length; c++) {
+              if (shownChat[c]) continue;
+              const at = dur * Math.min(0.5, c * 0.42);
+              if (elapsed >= at) {
+                shownChat[c] = true;
+                addBubble(chat[c][0], chat[c][1]);
+              }
+            }
+          };
+
+          if (s.f === s.t) {
+            // self / working step — node pulses, no traveling dot
+            dur = 1600 / speed;
+            nodeEls[s.f].classList.add("active", "working");
+            const t0 = performance.now();
+            const tick = (now) => {
+              revealChat(now - t0);
+              if (now - t0 >= dur) {
+                nodeEls[s.f].classList.remove("working");
+                markDone(s.f);
+                resolve();
+              } else {
+                anim = requestAnimationFrame(tick);
+              }
+            };
+            anim = requestAnimationFrame(tick);
+            return;
+          }
+
+          // round-trip step: ball goes asker→responder (question), then back (answer)
+          if (s.roundTrip) {
+            const rtEdge = edges[pairKey(s.f, s.t)];
+            const asker = s.t; // e.g. Tester asks
+            const responder = s.f; // e.g. Knowledge DB answers
+            rtEdge.el.classList.remove("call", "data");
+            rtEdge.el.classList.add("active", "flow", "call");
+            nodeEls[asker].classList.add("active");
+            nodeEls[responder].classList.add("active");
+            const leg = rtEdge.len / V;
+            (async () => {
+              if (chat[0]) addBubble(chat[0][0], chat[0][1]); // the question
+              await travelBall(rtEdge, asker, responder, "call", leg);
+              blinkArrow(rtEdge, responder);
+              await waitMs(200 / speed);
+              if (chat[1]) addBubble(chat[1][0], chat[1][1]); // the answer
+              await travelBall(rtEdge, responder, asker, "data", leg);
+              blinkArrow(rtEdge, asker);
+              await waitMs(300 / speed);
+              markDone(asker);
+              markDone(responder);
+              resolve();
+            })();
+            return;
+          }
+
+          // travel step along the shared edge
+          const edge = edges[pairKey(s.f, s.t)];
+          const forward = edge.from === s.f; // path native orientation
+          edge.el.classList.remove("call", "data", "flow-reverse");
+          edge.el.classList.add("active", "flow", s.k);
+          if (!forward) {
+            edge.el.classList.add("flow-reverse");
+          }
+          nodeEls[s.f].classList.add("active");
+          nodeEls[s.t].classList.add("active");
+          pulse.setAttribute(
+            "class",
+            "pulse " + (s.k === "data" ? "data" : "call"),
+          );
+          pulse.setAttribute("opacity", 1);
+
+          const travel = edge.len / V;
+          dur = travel + (600 / speed);
+          const t0 = performance.now();
+          let arrived = false;
+          const tick = (now) => {
+            revealChat(now - t0);
+            let p = (now - t0) / travel;
+            if (p > 1) p = 1;
+            const eased =
+              p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; // easeInOutQuad
+            const t = forward ? eased : 1 - eased;
+            const pt = edge.el.getPointAtLength(edge.len * t);
+            pulse.setAttribute("cx", pt.x);
+            pulse.setAttribute("cy", pt.y);
+            if (p >= 1 && !arrived) {
+              arrived = true;
+              blinkArrow(edge, s.t); // ball hit the arrow → blink it
+              if (s.f === "A4" && s.t === "DB") {
+                triggerDbIngestAnimation();
+              }
+            }
+            const extraWait = (s.f === "A4" && s.t === "DB") ? (15000 / speed) : 0;
+            if (p >= 1 && now - t0 >= dur + extraWait) {
+              markDone(s.f);
+              markDone(s.t);
+              resolve();
+            } else {
+              anim = requestAnimationFrame(tick);
+            }
+          };
+          anim = requestAnimationFrame(tick);
+        });
+      }
+
+      async function advance() {
+        if (idx >= STEPS.length - 1) {
+          stopPlay(true);
+          return false;
+        }
+        idx++;
+        await runStep(idx);
+        if (idx >= STEPS.length - 1) {
+          stopPlay(true);
+          reset(true, true); // keepLogs = true
+          phaseEl.textContent = "Run completed";
+
+          // Append "Run completed" system log item
+          document
+            .querySelectorAll(".log-item.cur")
+            .forEach((n) => n.classList.remove("cur"));
+          const item = document.createElement("div");
+          item.className = "log-item cur";
+          item.innerHTML =
+            `<div class="log-num" style="background: #22c55e;">✓</div>` +
+            `<div class="log-body"><span class="log-route">System</span>Run completed</div>`;
+          logEl.appendChild(item);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        return true;
+      }
+
+      async function loop() {
+        while (playing) {
+          const more = await advance();
+          if (!more) break;
+        }
+      }
+
+      function startPlay() {
+        if (idx >= STEPS.length - 1) {
+          reset(false);
+        } else if (idx === -1) {
+          logEl.innerHTML = "";
+        }
+        playing = true;
+        playBtn.textContent = "⏸ Pause";
+        playBtn.classList.remove("primary");
+        stepBtn.disabled = true;
+        loop();
+      }
+      function stopPlay(finished) {
+        playing = false;
+        if (anim) cancelAnimationFrame(anim);
+        playBtn.textContent = finished ? "▶ Replay" : "▶ Play";
+        playBtn.classList.add("primary");
+        stepBtn.disabled = false;
+      }
+
+      function reset(repaint = true, keepLogs = false) {
+        stopPlay(false);
+        if (anim) cancelAnimationFrame(anim);
+        idx = -1;
+        clearActive();
+        Object.values(nodeEls).forEach((g) => g.classList.remove("done"));
+        if (!keepLogs) {
+          logEl.innerHTML = "";
+        }
+        if (repaint) {
+          phaseEl.textContent = "Ready";
+        }
+        playBtn.textContent = "▶ Play";
+        playBtn.classList.add("primary");
+        stepBtn.disabled = false;
+      }
+
+      // ---------- controls ----------
+      playBtn.addEventListener("click", () => {
+        playing ? stopPlay(false) : startPlay();
+      });
+      stepBtn.addEventListener("click", async () => {
+        if (playing) return;
+
+        const nextStep = STEPS[idx + 1];
+        if (!nextStep) return;
+        const targetPh = nextStep.ph;
+
+        stepBtn.disabled = true;
+        playBtn.disabled = true;
+        restartBtn.disabled = true;
+
+        const savedSpeed = speed;
+        // Temporarily set a very high speed to fast-forward intermediate steps instantly
+        speed = 250; 
+
+        while (idx < STEPS.length - 1) {
+          const stepToRun = STEPS[idx + 1];
+          if (!stepToRun || stepToRun.ph !== targetPh) {
+            break;
+          }
+          idx++;
+          await runStep(idx);
+        }
+
+        // Restore user speed
+        speed = savedSpeed;
+
+        if (idx >= STEPS.length - 1) {
+          stopPlay(true);
+          reset(true, true); // keepLogs = true
+          phaseEl.textContent = "Run completed";
+
+          // Append "Run completed" system log item
+          document
+            .querySelectorAll(".log-item.cur")
+            .forEach((n) => n.classList.remove("cur"));
+          const item = document.createElement("div");
+          item.className = "log-item cur";
+          item.innerHTML =
+            `<div class="log-num" style="background: #22c55e;">✓</div>` +
+            `<div class="log-body"><span class="log-route">System</span>Run completed</div>`;
+          logEl.appendChild(item);
+          logEl.scrollTop = logEl.scrollHeight;
+        } else {
+          clearActive();
+          setPhase(STEPS[idx].ph);
+        }
+
+        stepBtn.disabled = false;
+        playBtn.disabled = false;
+        restartBtn.disabled = false;
+      });
+      restartBtn.addEventListener("click", () => reset(true));
+      // ---------- theme toggle ----------
+      const themeToggleBtn = document.getElementById("theme-toggle");
+      themeToggleBtn.addEventListener("click", () => {
+        const isLight = document.body.classList.toggle("light");
+        themeToggleBtn.textContent = isLight ? "🌙 Dark Mode" : "☀️ Light Mode";
+      });
+      speedDownBtn.addEventListener("click", () => {
+        if (speed > 0.1) {
+          speed = Math.max(0.1, parseFloat((speed - 0.1).toFixed(1)));
+          speedVal.textContent = speed.toFixed(1) + "×";
+        }
+      });
+      speedUpBtn.addEventListener("click", () => {
+        if (speed < 3.0) {
+          speed = Math.min(3.0, parseFloat((speed + 0.1).toFixed(1)));
+          speedVal.textContent = speed.toFixed(1) + "×";
+        }
+      });
+
+      reset(true);
+    })();
+  </script>
+</body>
+
+</html>

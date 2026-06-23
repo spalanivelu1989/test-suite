@@ -24,6 +24,7 @@ boundary  "Playwright\n(real browser)"                  as PW #ECEFF1
 User -> A1 : 1. "Test this website" (URL)
 
 == Step 1 — Explore the live site, THEN write a plan ==
+A1 -> DB : ask for previous plan (memory)
 DB --> A1 : its own previous plan (memory / head-start)
 A1 -> PW : open the site & click through it
 activate PW
@@ -33,6 +34,7 @@ A1 -> A1 : write a plain-English **Test Plan**\n(the user flows worth testing)
 
 == Step 2 — Reuse what works, write the rest (spec files only) ==
 A1 -> A2 : hand over the Test Plan
+A2 -> DB : ask for matching test scripts
 DB --> A2 : matching test scripts from past runs -> **REUSE**
 A2 -> A2 : write **new scripts** for everything not yet covered\n(writes **test spec files** only — does NOT run them)
 
@@ -42,6 +44,7 @@ A3 -> PW : run every test in the browser
 activate PW
 PW --> A3 : pass / fail results
 deactivate PW
+A3 -> DB : ask for prior fixes
 DB --> A3 : fixes that worked before for similar failures
 A3 -> A3 : repair what failed · park the unfixable
 
