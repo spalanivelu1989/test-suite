@@ -104,7 +104,7 @@ export interface RunAgentResult {
 /**
  * T4: run a single Playwright agent definition via the Agent SDK,
  * streaming progress. One agent per call (D2 — the orchestrator chains
- * discoverer→designer→evolver sequentially).
+ * discoverer→designer→tester sequentially).
  */
 export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
   const queryFn = opts.queryFn ?? sdkQuery;

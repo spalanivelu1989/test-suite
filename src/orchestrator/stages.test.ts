@@ -13,6 +13,7 @@ import {
   designTests,
   evolveTests,
   discoverTests,
+  parseLoginRequired,
   regenerateMissingScenarios,
   trimPlan,
   validateTests,
@@ -152,7 +153,7 @@ test("designTests flags an error when no specs were written", async () => {
   }
 });
 
-test("evolveTests runs the evolver agent and reports tool usage", async () => {
+test("evolveTests runs the tester agent and reports tool usage", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     const runner = async (opts: RunAgentOptions): Promise<RunAgentResult> => {
@@ -179,7 +180,7 @@ test("evolveTests runs the evolver agent and reports tool usage", async () => {
   }
 });
 
-// ── validateTests + evolver prompt augmentation ───────────────────────────────
+// ── validateTests + tester prompt augmentation ───────────────────────────────
 
 test("validateTests scores the generated specs against the plan", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
@@ -219,7 +220,7 @@ test('Unplanned thing', async ({ page }) => { await page.goto('/'); });`,
   }
 });
 
-test("evolveTests appends validation findings to the evolver prompt", async () => {
+test("evolveTests appends validation findings to the tester prompt", async () => {
   const ws = await createWorkspace(`test-${randomUUID()}`);
   try {
     let capturedPrompt = "";
@@ -415,6 +416,30 @@ test("discoverTests injects deep-mode constraint with correct depth and page cap
   } finally {
     await rm(ws.root, { recursive: true, force: true });
   }
+});
+
+// ── parseLoginRequired unit tests ─────────────────────────────────────────────
+
+test("parseLoginRequired reads the HTML-comment marker (yes/no)", () => {
+  assert.equal(
+    parseLoginRequired("<!-- LOGIN_REQUIRED: no -->\n# Plan"),
+    false,
+  );
+  assert.equal(
+    parseLoginRequired("<!-- LOGIN_REQUIRED: yes -->\n# Plan"),
+    true,
+  );
+});
+
+test("parseLoginRequired accepts true/false and is case-insensitive", () => {
+  assert.equal(parseLoginRequired("login_required: TRUE"), true);
+  assert.equal(parseLoginRequired("LOGIN_REQUIRED: False"), false);
+});
+
+test("parseLoginRequired returns null when the marker is absent or input null", () => {
+  assert.equal(parseLoginRequired("# Plan\n\n## 1. Home"), null);
+  assert.equal(parseLoginRequired(null), null);
+  assert.equal(parseLoginRequired("LOGIN_REQUIRED: maybe"), null);
 });
 
 // ── trimPlan unit tests ───────────────────────────────────────────────────────

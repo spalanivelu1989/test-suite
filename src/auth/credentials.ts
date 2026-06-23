@@ -8,7 +8,7 @@
 //      authenticated storage state to the workspace's auth file.
 //   3. `playwright.config.ts` loads that file as `use.storageState`, so every
 //      generated test starts already authenticated — no per-test login code.
-//   4. The Designer/Evolver `state-load` the same file when they drive the CLI,
+//   4. The Designer/Tester `state-load` the same file when they drive the CLI,
 //      so their manual exploration sees the authenticated app too.
 //
 // When the env vars are unset, every helper returns "no auth" and the pipeline
@@ -57,7 +57,7 @@ export const AUTH_IDP_ENV = "TARGET_IDP";
 
 /**
  * Discoverer preamble: log in FIRST, confirm it worked, then `state-save` the
- * session so the generated suite (and the Designer/Evolver) can reuse it.
+ * session so the generated suite (and the Designer/Tester) can reuse it.
  * `entryUrl` is the run's target URL; `authStatePath` is the absolute path the
  * workspace expects the saved state at (and that playwright.config.ts loads).
  *
@@ -90,8 +90,14 @@ export function buildDiscovererAuthPreamble(
       'an SAP S-user (an id like "S" followed by digits) authenticates via the "Default Identity Provider" / SAP ID service; ' +
       "a corporate email (name@company) uses that company's own provider.";
   return [
-    "🔐 AUTHENTICATION REQUIRED — this app is behind a login screen. You MUST log in BEFORE exploring,",
-    "or every snapshot will only show the login page and your plan will be empty/wrong.",
+    "🔐 LOGIN MAY BE REQUIRED — credentials were provided for this app. If it shows a login screen you MUST log in",
+    "BEFORE exploring, or every snapshot will only show the login page and your plan will be empty/wrong.",
+    "If, after opening the start URL, you find NO login form at all (no username/password field and no login affordance),",
+    "the app is PUBLIC: skip the login procedure below, record LOGIN_REQUIRED: no (see below), and explore it directly.",
+    "",
+    "📋 RECORD THE LOGIN OUTCOME — make the VERY FIRST line of plan.md an HTML comment stating whether this app",
+    "actually had a login: `<!-- LOGIN_REQUIRED: yes -->` if you had to log in, or `<!-- LOGIN_REQUIRED: no -->` if",
+    "the app was publicly accessible with no login wall. This line is required so the harness runs the suite correctly.",
     "",
     "The credentials are already set in your shell as ENVIRONMENT VARIABLES (their values are intentionally",
     "not printed here):",
@@ -167,9 +173,9 @@ export function buildDesignerAuthPreamble(
 }
 
 /**
- * Evolver preamble: keep specs login-free; load saved state for manual CLI checks.
+ * Tester preamble: keep specs login-free; load saved state for manual CLI checks.
  */
-export function buildEvolverAuthPreamble(authStatePath: string): string {
+export function buildTesterAuthPreamble(authStatePath: string): string {
   return [
     "\n\n🔐 This app requires login; the suite runs authenticated via use.storageState in playwright.config.ts.",
     "Do NOT add login steps or credentials to any spec. When inspecting a page manually with playwright-cli, run",

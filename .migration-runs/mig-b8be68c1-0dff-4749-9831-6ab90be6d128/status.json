@@ -1,0 +1,95 @@
+{
+  "id": "mig-b8be68c1-0dff-4749-9831-6ab90be6d128",
+  "sourceUrl": "https://spalanivelu1989.github.io/",
+  "targetUrl": "https://senthilcaesar.github.io/",
+  "startedAt": "2026-06-23T08:53:05.861Z",
+  "status": "completed",
+  "finishedAt": "2026-06-23T08:56:23.104Z",
+  "events": [
+    {
+      "at": "2026-06-23T08:53:05.864Z",
+      "step": "resolve",
+      "message": "Looking up the source app's existing tests…"
+    },
+    {
+      "at": "2026-06-23T08:53:05.872Z",
+      "step": "resolve",
+      "message": "Selected 8 test(s) to carry over."
+    },
+    {
+      "at": "2026-06-23T08:53:05.872Z",
+      "step": "prepare",
+      "message": "Preparing workspace and pointing 8 test(s) at the target…"
+    },
+    {
+      "at": "2026-06-23T08:53:05.876Z",
+      "step": "run",
+      "message": "Running 8 test(s) on the target — 2 pass(es) for flake detection. This can take a few minutes…"
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "• \"About Me\" Navigation Link: In-Page Hash Navigation: failed [behavioral] — Test timeout of 30000ms exceeded."
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "• About Me Section: Professional Background Content: failed [behavioral] — Error: expect(locator).toBeVisible() failed Locator: locator('#about').getByRole('heading', { level: 2 }) Expected: visible Timeout: 5000ms Error: element(s) not found Call log: - Expect \"toBeVisible\""
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "• \"Contact\" Navigation Link: In-Page Hash Navigation: failed [behavioral] — Test timeout of 30000ms exceeded."
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "• Contact Section: Email Link Correctness: failed [behavioral] — Error: expect(locator).toBeVisible() failed Locator: locator('#contact').getByRole('link', { name: 'spalanivelu1989@gmail.com' }) Expected: visible Timeout: 5000ms Error: element(s) not found Call log"
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "• Contact Section: Full Content Structure: failed [behavioral] — Error: expect(locator).toBeVisible() failed Locator: locator('#contact').getByRole('heading', { level: 2 }) Expected: visible Timeout: 5000ms Error: element(s) not found Call log: - Expect \"toBeVisibl"
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "• Contact Section: LinkedIn Link Correctness: failed [behavioral] — Error: expect(locator).toBeVisible() failed Locator: locator('#contact').getByRole('link', { name: 'senthil-palanivelu' }) Expected: visible Timeout: 5000ms Error: element(s) not found Call log: - Exp"
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "• Navigation Bar: Both Links Present with Correct Hrefs: failed [behavioral] — Error: expect(locator).toBeVisible() failed Locator: getByRole('navigation').getByRole('link', { name: 'About Me' }) Expected: visible Timeout: 5000ms Error: element(s) not found Call log: - Expect \"t"
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "• Page Load: Title and Primary Heading: failed [behavioral] — Error: expect(page).toHaveTitle(expected) failed Expected: \"Senthil Palanivelu - AI Engineer\" Received: \"Senthil Palanivelu\" Timeout: 5000ms Call log: - Expect \"toHaveTitle\" with timeout 5000ms 14 × u"
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "run",
+      "message": "Tests finished: 0 passing, 8 regression(s), 0 infra, 0 flaky."
+    },
+    {
+      "at": "2026-06-23T08:56:21.459Z",
+      "step": "fingerprint",
+      "message": "Verifying it's the same build…"
+    },
+    {
+      "at": "2026-06-23T08:56:23.103Z",
+      "step": "fingerprint",
+      "message": "Fingerprint: error."
+    },
+    {
+      "at": "2026-06-23T08:56:23.103Z",
+      "step": "report",
+      "message": "Compiling the migration report…"
+    },
+    {
+      "at": "2026-06-23T08:56:23.104Z",
+      "step": "done",
+      "message": "Migration check complete."
+    }
+  ]
+}

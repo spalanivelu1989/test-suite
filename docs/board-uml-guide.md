@@ -80,13 +80,13 @@ From left to right across the top of the diagram:
 | **User**         | Stick figure               | A human (e.g. a QA engineer or product owner) | Kicks everything off by giving a website URL.                                  |
 | **Discoverer**   | Box                        | AI agent #1                                   | Explores the live website and writes a plain-English **test plan**.            |
 | **Designer**     | Box                        | AI agent #2                                   | Turns the plan into actual **test scripts**, reusing past ones where possible. |
-| **Evolver**      | Box                        | AI agent #3                                   | **Runs** the tests and **repairs** the ones that fail.                         |
+| **Tester**      | Box                        | AI agent #3                                   | **Runs** the tests and **repairs** the ones that fail.                         |
 | **Reporter**     | Box                        | AI agent #4                                   | Writes the final human-readable **report** and stores the run as memory.       |
 | **Knowledge DB** | Cylinder                   | A database                                    | The tool's long-term memory: past plans, past scripts, and past fixes.         |
 | **Playwright**   | Box (with browser meaning) | The real web browser, automated               | The only thing that actually touches the live website.                         |
 
 The four agents always run **in this left-to-right order**: Discoverer →
-Designer → Evolver → Reporter. The diagram's four grey "Step" bands line up with
+Designer → Tester → Reporter. The diagram's four grey "Step" bands line up with
 the first three handoffs plus the final reporting phase.
 
 ---
@@ -100,7 +100,7 @@ your finger, top to bottom. Each paragraph corresponds to one grey "Step" band.
 > "This diagram shows what happens, in order, when someone asks our tool to test a
 > website. We read it from top to bottom — that's the passage of time. The columns
 > across the top are the players: on the left, the **User** — a real person. Then
-> our **four AI agents** — Discoverer, Designer, Evolver, and Reporter. On the far
+> our **four AI agents** — Discoverer, Designer, Tester, and Reporter. On the far
 > right, two supporting players: our **Knowledge Database**, which is the tool's
 > long-term memory, and **Playwright**, which is a real web browser the software
 > drives automatically."
@@ -127,18 +127,20 @@ your finger, top to bottom. Each paragraph corresponds to one grey "Step" band.
 > test scripts from past runs** — that's the dashed 'REUSE' arrow. Any confident
 > matches are reused as-is, saving time and keeping things consistent. The Designer
 > then writes **brand-new scripts only for the parts of the plan that aren't already
-> covered.**"
+> covered.** The Designer's job ends there — it writes the **test spec files** but
+> never runs them."
 
-> **Step 3 — Run for real, then self-heal.**
-> "Now the tests are actually executed. The Designer's tests are run in the live
-> browser again — that's the **second** solid arrow to **Playwright** — and the
-> browser returns **pass/fail results**. For anything that failed, the **Evolver**
+> **Step 3 — Hand over to the Tester, run for real, then self-heal.**
+> "The Designer hands the finished **test spec files** to the **Tester**, whose job
+> is to actually execute them. The Tester runs the tests in the live
+> browser — that's the **second** solid arrow to **Playwright** — and the
+> browser returns **pass/fail results**. For anything that failed, the **Tester**
 > asks the database for **fixes that worked before** on similar failures, then
 > repairs the broken tests. Anything it genuinely can't fix, it parks aside rather
 > than leaving the suite broken."
 
 > **Step 4 — Explain the results, then remember them.**
-> "Finally, the Evolver passes the **final results and screenshots** to the
+> "Finally, the Tester passes the **final results and screenshots** to the
 > **Reporter**. The Reporter writes a **human-readable report** — a summary, the
 > issues found, and recommended fixes — and sends it back to the **User**. As a last
 > step, it **saves this entire run back into the Knowledge Database**, so the next
@@ -163,7 +165,7 @@ If someone asks one of these, here's exactly where to point on the diagram:
 | **How do agents get past plans from the database?**            | Step 1, the dashed arrow from Knowledge DB to Discoverer | The **Discoverer** requests its own previous plan as memory.                                                  |
 | **How do agents get matching test scripts from the database?** | Step 2, the dashed "REUSE" arrow into Designer           | The **Designer** requests matching past scripts and reuses confident matches.                                 |
 | **Where is the real browser (Playwright) used?**               | The two activation bars on the Playwright lifeline       | **Two places only:** Discoverer's exploration (Step 1) and the test run (Step 3).                             |
-| **What does each agent do?**                                   | The self-looping arrow under each agent                  | Discoverer = explore + plan · Designer = reuse + write · Evolver = run + fix · Reporter = explain + remember. |
+| **What does each agent do?**                                   | The self-looping arrow under each agent                  | Discoverer = explore + plan · Designer = reuse + write · Tester = run + fix · Reporter = explain + remember. |
 
 ---
 
@@ -195,7 +197,7 @@ If you only have half a minute:
 
 > "A user gives us a website. Four AI agents take turns. The **Discoverer** explores
 > the live site in a real browser and writes a test plan. The **Designer** turns that
-> plan into tests, reusing tests that worked before. The **Evolver** runs the tests
+> plan into tests, reusing tests that worked before. The **Tester** runs the tests
 > and automatically fixes the ones that break. The **Reporter** writes a plain-English
 > report and saves everything to memory so the next run is smarter. The real browser
 > is used twice — to explore and to run the tests — and the memory database makes the
@@ -215,7 +217,7 @@ If you only have half a minute:
 | **Message**                  | An arrow between participants — one of them contacting another.                             |
 | **Activation bar**           | The thin rectangle on a lifeline showing when that participant is actively busy.            |
 | **Self-message / self-loop** | An arrow that returns to the same lifeline — a participant doing its own internal work.     |
-| **Agent**                    | One of the four AI workers (Discoverer, Designer, Evolver, Reporter).                       |
+| **Agent**                    | One of the four AI workers (Discoverer, Designer, Tester, Reporter).                       |
 | **Playwright**               | The software that drives a real web browser automatically.                                  |
 | **Knowledge DB**             | The database that stores past plans, scripts, and fixes — the tool's long-term memory.      |
 

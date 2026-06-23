@@ -10,7 +10,7 @@ import Anthropic from "@anthropic-ai/sdk";
  *  - The raw Anthropic SDK (`src/claude/client.ts`, Reporter narrative) — captured
  *    automatically by the OpenInference {@link AnthropicInstrumentation}: model,
  *    token usage, and input/output land in Langfuse with zero call-site changes.
- *  - The Claude Agent SDK subprocess (Discoverer/Designer/Evolver) — its LLM calls
+ *  - The Claude Agent SDK subprocess (Discoverer/Designer/Tester) — its LLM calls
  *    happen out-of-process and cannot be auto-instrumented, so `runAgent` wraps
  *    each run in a manual "agent" observation (see src/agents/runtime.ts).
  *  - The Knowledge Layer's Postgres queries — each retrieval read opens its own

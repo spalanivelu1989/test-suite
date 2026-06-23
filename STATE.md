@@ -151,14 +151,14 @@ Assemble → Forge → Test).
 ## Key decisions
 
 - **2026-06-13 (Maintenance — agent rename, Spec v0.3.1):** Renamed the three
-  agents **Planner→Discoverer, Generator→Designer, Healer→Evolver** across code,
-  the agent definition files (`.claude/agents/playwright-test-{discoverer,designer,evolver}.md`,
+  agents **Planner→Discoverer, Generator→Designer, Healer→Tester** across code,
+  the agent definition files (`.claude/agents/playwright-test-{discoverer,designer,tester}.md`,
   git-mv'd), function names (`discoverTests`/`designTests`/`evolveTests`),
   display labels, Langfuse `agent:*` spans, Spec R12, and `CONTEXT.md`.
   **Deliberately NOT renamed:** the knowledge-base "healing" data vocabulary
   (`healing_events`, `HealingEvent`, heal precedents — shipped on `main`, would
   need a schema migration) and the persisted `RunStage` string values
-  (`planning`/`generating`/`healing`). Accepted split: the agent is "Evolver" but
+  (`planning`/`generating`/`healing`). Accepted split: the agent is "Tester" but
   its memory layer is still "healing". tsc clean; 89 non-DB tests green.
   Historical artifacts (LEARNINGS, implementation-notes, phase-2/3 specs,
   plan.md/tasks.md, workflow.md) left under the old names — they record what was

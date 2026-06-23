@@ -76,7 +76,7 @@ const OUTCOME_COLOR: Record<TestOutcome, string> = {
 const PIPELINE_STAGES = [
   { id: "planning", label: "Discoverer", colorKey: "mauve" },
   { id: "generating", label: "Designer", colorKey: "sky" },
-  { id: "healing", label: "Evolver", colorKey: "yellow" },
+  { id: "healing", label: "Tester", colorKey: "yellow" },
   { id: "reporting", label: "Reporter", colorKey: "green" },
 ] as const;
 
@@ -614,9 +614,9 @@ function classifyLogLine(stage: RunStage, raw: string, text: string): LogLevel {
   }
 
   if (stage === "error" || stage === "cancelled") return "error";
-  // Stage-intro lines ("Evolver: repairing failures…") stay neutral.
+  // Stage-intro lines ("Tester: repairing failures…") stay neutral.
   if (
-    /^(discoverer|designer|validator|evolver|reporter|running generated|re-running)/i.test(
+    /^(discoverer|designer|validator|tester|reporter|running generated|re-running)/i.test(
       t,
     )
   )
@@ -655,7 +655,7 @@ const TIMELINE_GROUPS: { id: string; label: string; stages: RunStage[] }[] = [
   { id: "validate", label: "Validator", stages: ["validating"] },
   {
     id: "execute",
-    label: "Run & Heal",
+    label: "Tester",
     stages: ["running", "healing", "flake-check"],
   },
   { id: "report", label: "Reporter", stages: ["reporting"] },

@@ -1,4 +1,4 @@
-// Heal provenance (CRISPR "repair pathway" metric). The Evolver's repairs are
+// Heal provenance (CRISPR "repair pathway" metric). The Tester's repairs are
 // already reconstructed as HealingEvent[] by captureHeal (ADR-0004); here we split
 // them by WHETHER a donor template was on hand at heal time:
 //
@@ -19,7 +19,7 @@ import type { HealingEvent, HealingPrecedent, HealProvenance } from "../types";
  * outcome, so we collapse to the file level to avoid counting one repair N times.
  *
  * A healed spec is template-directed when its (non-empty) failure signature matches
- * a precedent that was surfaced to the Evolver this run. An empty signature can't
+ * a precedent that was surfaced to the Tester this run. An empty signature can't
  * key a template, so it always counts as blind. Quarantines (test.fixme) are a
  * non-repair and excluded from the HDR/NHEJ denominator.
  */

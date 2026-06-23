@@ -1,0 +1,711 @@
+{
+  "config": {
+    "configFile": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/playwright.config.ts",
+    "rootDir": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/senthilpalanivelu/Programme/test-suite/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json",
+        {
+          "outputFile": "results.json"
+        }
+      ],
+      [
+        "line",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "about-me-navigation-link-in-page-hash-navigation.spec.ts",
+      "file": "about-me-navigation-link-in-page-hash-navigation.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "\"About Me\" Navigation Link: In-Page Hash Navigation",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 30281,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/about-me-navigation-link-in-page-hash-navigation.spec.ts",
+                        "column": 6,
+                        "line": 19
+                      },
+                      "message": "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('navigation').getByRole('link', { name: 'About Me' })\u001b[22m\n\n\n  17 |     .getByRole(\"navigation\")\n  18 |     .getByRole(\"link\", { name: \"About Me\" })\n> 19 |     .click();\n     |      ^\n  20 |\n  21 |   // 4. Assert the current URL is https://senthilcaesar.github.io/#about\n  22 |   await expect(page).toHaveURL(\"https://senthilcaesar.github.io/#about\");\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/about-me-navigation-link-in-page-hash-navigation.spec.ts:19:6"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-06-23T08:54:44.133Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/about-me-navigation-link-i-ec74f-ink-In-Page-Hash-Navigation/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/about-me-navigation-link-i-ec74f-ink-In-Page-Hash-Navigation/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/about-me-navigation-link-i-ec74f-ink-In-Page-Hash-Navigation/trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "26e88b4c0a5cc84f53a9-264a826ea8a7e4ab9291",
+          "file": "about-me-navigation-link-in-page-hash-navigation.spec.ts",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "about-me-section-professional-background-content.spec.ts",
+      "file": "about-me-section-professional-background-content.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "About Me Section: Professional Background Content",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5573,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#about').getByRole('heading', { level: 2 })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#about').getByRole('heading', { level: 2 })\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#about').getByRole('heading', { level: 2 })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#about').getByRole('heading', { level: 2 })\u001b[22m\n\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/about-me-section-professional-background-content.spec.ts:15:25",
+                    "location": {
+                      "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/about-me-section-professional-background-content.spec.ts",
+                      "column": 25,
+                      "line": 15
+                    },
+                    "snippet": "  13 |   // 3. Assert the section's <h2> heading text is \"About Me\"\n  14 |   const heading = aboutSection.getByRole(\"heading\", { level: 2 });\n> 15 |   await expect(heading).toBeVisible();\n     |                         ^\n  16 |   await expect(heading).toHaveText(\"About Me\");\n  17 |\n  18 |   // 4. Assert a paragraph inside the section contains \"7 years of experience\""
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/about-me-section-professional-background-content.spec.ts",
+                        "column": 25,
+                        "line": 15
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#about').getByRole('heading', { level: 2 })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#about').getByRole('heading', { level: 2 })\u001b[22m\n\n\n  13 |   // 3. Assert the section's <h2> heading text is \"About Me\"\n  14 |   const heading = aboutSection.getByRole(\"heading\", { level: 2 });\n> 15 |   await expect(heading).toBeVisible();\n     |                         ^\n  16 |   await expect(heading).toHaveText(\"About Me\");\n  17 |\n  18 |   // 4. Assert a paragraph inside the section contains \"7 years of experience\"\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/about-me-section-professional-background-content.spec.ts:15:25"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-06-23T08:55:14.919Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/about-me-section-professio-d1c40-essional-Background-Content/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/about-me-section-professio-d1c40-essional-Background-Content/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/about-me-section-professio-d1c40-essional-Background-Content/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/about-me-section-professional-background-content.spec.ts",
+                    "column": 25,
+                    "line": 15
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "80db059851f28dad07d2-2516f88d572295c8a7f7",
+          "file": "about-me-section-professional-background-content.spec.ts",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "contact-navigation-link-in-page-hash-navigation.spec.ts",
+      "file": "contact-navigation-link-in-page-hash-navigation.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "\"Contact\" Navigation Link: In-Page Hash Navigation",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 30293,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-navigation-link-in-page-hash-navigation.spec.ts",
+                        "column": 6,
+                        "line": 17
+                      },
+                      "message": "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('navigation').getByRole('link', { name: 'Contact' })\u001b[22m\n\n\n  15 |     .getByRole(\"navigation\")\n  16 |     .getByRole(\"link\", { name: \"Contact\" })\n> 17 |     .click();\n     |      ^\n  18 |\n  19 |   // 4. Assert the current URL is https://senthilcaesar.github.io/#contact\n  20 |   await expect(page).toHaveURL(\"https://senthilcaesar.github.io/#contact\");\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-navigation-link-in-page-hash-navigation.spec.ts:17:6"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-06-23T08:55:20.869Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-navigation-link-in-f9278-ink-In-Page-Hash-Navigation/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-navigation-link-in-f9278-ink-In-Page-Hash-Navigation/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-navigation-link-in-f9278-ink-In-Page-Hash-Navigation/trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "4c63a3937207aa66285c-31473d7e575f620b82bd",
+          "file": "contact-navigation-link-in-page-hash-navigation.spec.ts",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "contact-section-email-link-correctness.spec.ts",
+      "file": "contact-section-email-link-correctness.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Contact Section: Email Link Correctness",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5565,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('link', { name: 'spalanivelu1989@gmail.com' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('link', { name: 'spalanivelu1989@gmail.com' })\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('link', { name: 'spalanivelu1989@gmail.com' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('link', { name: 'spalanivelu1989@gmail.com' })\u001b[22m\n\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-email-link-correctness.spec.ts:19:27",
+                    "location": {
+                      "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-email-link-correctness.spec.ts",
+                      "column": 27,
+                      "line": 19
+                    },
+                    "snippet": "  17 |\n  18 |   // 4. Assert the link is visible\n> 19 |   await expect(emailLink).toBeVisible();\n     |                           ^\n  20 |\n  21 |   // 5. Assert the link's href attribute is exactly \"mailto:spalanivelu1989@gmail.com\"\n  22 |   await expect(emailLink).toHaveAttribute("
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-email-link-correctness.spec.ts",
+                        "column": 27,
+                        "line": 19
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('link', { name: 'spalanivelu1989@gmail.com' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('link', { name: 'spalanivelu1989@gmail.com' })\u001b[22m\n\n\n  17 |\n  18 |   // 4. Assert the link is visible\n> 19 |   await expect(emailLink).toBeVisible();\n     |                           ^\n  20 |\n  21 |   // 5. Assert the link's href attribute is exactly \"mailto:spalanivelu1989@gmail.com\"\n  22 |   await expect(emailLink).toHaveAttribute(\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-email-link-correctness.spec.ts:19:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-06-23T08:55:51.677Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-email-link-12738-tion-Email-Link-Correctness/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-email-link-12738-tion-Email-Link-Correctness/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-email-link-12738-tion-Email-Link-Correctness/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-email-link-correctness.spec.ts",
+                    "column": 27,
+                    "line": 19
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "ea2ad99d31ddf3a01009-ee3de080b35fc7a7e2a2",
+          "file": "contact-section-email-link-correctness.spec.ts",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "contact-section-full-content-structure.spec.ts",
+      "file": "contact-section-full-content-structure.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Contact Section: Full Content Structure",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5566,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('heading', { level: 2 })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('heading', { level: 2 })\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('heading', { level: 2 })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('heading', { level: 2 })\u001b[22m\n\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-full-content-structure.spec.ts:15:25",
+                    "location": {
+                      "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-full-content-structure.spec.ts",
+                      "column": 25,
+                      "line": 15
+                    },
+                    "snippet": "  13 |   // 3. Assert the section's <h2> heading text is \"Contact\"\n  14 |   const heading = contactSection.getByRole(\"heading\", { level: 2 });\n> 15 |   await expect(heading).toBeVisible();\n     |                         ^\n  16 |   await expect(heading).toHaveText(\"Contact\");\n  17 |\n  18 |   // 4. Assert the introductory paragraph contains \"I'm always open to discussing new projects\""
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-full-content-structure.spec.ts",
+                        "column": 25,
+                        "line": 15
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('heading', { level: 2 })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('heading', { level: 2 })\u001b[22m\n\n\n  13 |   // 3. Assert the section's <h2> heading text is \"Contact\"\n  14 |   const heading = contactSection.getByRole(\"heading\", { level: 2 });\n> 15 |   await expect(heading).toBeVisible();\n     |                         ^\n  16 |   await expect(heading).toHaveText(\"Contact\");\n  17 |\n  18 |   // 4. Assert the introductory paragraph contains \"I'm always open to discussing new projects\"\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-full-content-structure.spec.ts:15:25"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-06-23T08:55:57.640Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-full-conte-a70c3-tion-Full-Content-Structure/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-full-conte-a70c3-tion-Full-Content-Structure/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-full-conte-a70c3-tion-Full-Content-Structure/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-full-content-structure.spec.ts",
+                    "column": 25,
+                    "line": 15
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "260e8ef53010a7abf300-c69cff4bd171659fd844",
+          "file": "contact-section-full-content-structure.spec.ts",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "contact-section-linkedin-link-correctness.spec.ts",
+      "file": "contact-section-linkedin-link-correctness.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Contact Section: LinkedIn Link Correctness",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5579,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('link', { name: 'senthil-palanivelu' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('link', { name: 'senthil-palanivelu' })\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('link', { name: 'senthil-palanivelu' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('link', { name: 'senthil-palanivelu' })\u001b[22m\n\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-linkedin-link-correctness.spec.ts:19:30",
+                    "location": {
+                      "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-linkedin-link-correctness.spec.ts",
+                      "column": 30,
+                      "line": 19
+                    },
+                    "snippet": "  17 |\n  18 |   // 4. Assert the link is visible\n> 19 |   await expect(linkedInLink).toBeVisible();\n     |                              ^\n  20 |\n  21 |   // 5. Assert the link's href attribute is exactly the full LinkedIn profile URL\n  22 |   await expect(linkedInLink).toHaveAttribute("
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-linkedin-link-correctness.spec.ts",
+                        "column": 30,
+                        "line": 19
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#contact').getByRole('link', { name: 'senthil-palanivelu' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#contact').getByRole('link', { name: 'senthil-palanivelu' })\u001b[22m\n\n\n  17 |\n  18 |   // 4. Assert the link is visible\n> 19 |   await expect(linkedInLink).toBeVisible();\n     |                              ^\n  20 |\n  21 |   // 5. Assert the link's href attribute is exactly the full LinkedIn profile URL\n  22 |   await expect(linkedInLink).toHaveAttribute(\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-linkedin-link-correctness.spec.ts:19:30"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-06-23T08:56:03.591Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-linkedin-l-a0f3c-n-LinkedIn-Link-Correctness/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-linkedin-l-a0f3c-n-LinkedIn-Link-Correctness/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/contact-section-linkedin-l-a0f3c-n-LinkedIn-Link-Correctness/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/contact-section-linkedin-link-correctness.spec.ts",
+                    "column": 30,
+                    "line": 19
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "3d2c529d187524fa0f37-b870389c431de9a74f37",
+          "file": "contact-section-linkedin-link-correctness.spec.ts",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "navigation-bar-both-links-present-with-correct-hrefs.spec.ts",
+      "file": "navigation-bar-both-links-present-with-correct-hrefs.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Navigation Bar: Both Links Present with Correct Hrefs",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5782,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('navigation').getByRole('link', { name: 'About Me' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('navigation').getByRole('link', { name: 'About Me' })\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('navigation').getByRole('link', { name: 'About Me' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('navigation').getByRole('link', { name: 'About Me' })\u001b[22m\n\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/navigation-bar-both-links-present-with-correct-hrefs.spec.ts:17:27",
+                    "location": {
+                      "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/navigation-bar-both-links-present-with-correct-hrefs.spec.ts",
+                      "column": 27,
+                      "line": 17
+                    },
+                    "snippet": "  15 |   // 3. Assert a link with text \"About Me\" is visible\n  16 |   const aboutLink = nav.getByRole(\"link\", { name: \"About Me\" });\n> 17 |   await expect(aboutLink).toBeVisible();\n     |                           ^\n  18 |\n  19 |   // 4. Assert the \"About Me\" link's href attribute points to #about\n  20 |   const aboutHref = await aboutLink.getAttribute(\"href\");"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/navigation-bar-both-links-present-with-correct-hrefs.spec.ts",
+                        "column": 27,
+                        "line": 17
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('navigation').getByRole('link', { name: 'About Me' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('navigation').getByRole('link', { name: 'About Me' })\u001b[22m\n\n\n  15 |   // 3. Assert a link with text \"About Me\" is visible\n  16 |   const aboutLink = nav.getByRole(\"link\", { name: \"About Me\" });\n> 17 |   await expect(aboutLink).toBeVisible();\n     |                           ^\n  18 |\n  19 |   // 4. Assert the \"About Me\" link's href attribute points to #about\n  20 |   const aboutHref = await aboutLink.getAttribute(\"href\");\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/navigation-bar-both-links-present-with-correct-hrefs.spec.ts:17:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-06-23T08:56:09.549Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/navigation-bar-both-links--794b5--Present-with-Correct-Hrefs/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/navigation-bar-both-links--794b5--Present-with-Correct-Hrefs/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/navigation-bar-both-links--794b5--Present-with-Correct-Hrefs/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/navigation-bar-both-links-present-with-correct-hrefs.spec.ts",
+                    "column": 27,
+                    "line": 17
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8c7a37eb46c0fea4d4bb-c39c3b1beb1695744548",
+          "file": "navigation-bar-both-links-present-with-correct-hrefs.spec.ts",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "page-load-title-and-primary-heading.spec.ts",
+      "file": "page-load-title-and-primary-heading.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Page Load: Title and Primary Heading",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5561,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveTitle\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected: \u001b[32m\"Senthil Palanivelu\u001b[7m - AI Engineer\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"Senthil Palanivelu\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveTitle\" with timeout 5000ms\u001b[22m\n\u001b[2m    14 × unexpected value \"Senthil Palanivelu\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveTitle\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected: \u001b[32m\"Senthil Palanivelu\u001b[7m - AI Engineer\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"Senthil Palanivelu\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveTitle\" with timeout 5000ms\u001b[22m\n\u001b[2m    14 × unexpected value \"Senthil Palanivelu\"\u001b[22m\n\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/page-load-title-and-primary-heading.spec.ts:14:22",
+                    "location": {
+                      "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/page-load-title-and-primary-heading.spec.ts",
+                      "column": 22,
+                      "line": 14
+                    },
+                    "snippet": "  12 |\n  13 |   // 3. Assert that the browser tab title is exactly \"Senthil Palanivelu - AI Engineer\"\n> 14 |   await expect(page).toHaveTitle(\"Senthil Palanivelu - AI Engineer\");\n     |                      ^\n  15 |\n  16 |   // 4. Assert that the visible H1 heading text is exactly \"Senthil Palanivelu\"\n  17 |   const h1 = page.getByRole(\"heading\", {"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/page-load-title-and-primary-heading.spec.ts",
+                        "column": 22,
+                        "line": 14
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveTitle\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected: \u001b[32m\"Senthil Palanivelu\u001b[7m - AI Engineer\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"Senthil Palanivelu\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveTitle\" with timeout 5000ms\u001b[22m\n\u001b[2m    14 × unexpected value \"Senthil Palanivelu\"\u001b[22m\n\n\n  12 |\n  13 |   // 3. Assert that the browser tab title is exactly \"Senthil Palanivelu - AI Engineer\"\n> 14 |   await expect(page).toHaveTitle(\"Senthil Palanivelu - AI Engineer\");\n     |                      ^\n  15 |\n  16 |   // 4. Assert that the visible H1 heading text is exactly \"Senthil Palanivelu\"\n  17 |   const h1 = page.getByRole(\"heading\", {\n    at /Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/page-load-title-and-primary-heading.spec.ts:14:22"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-06-23T08:56:15.707Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/page-load-title-and-primar-ebb6f-d-Title-and-Primary-Heading/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/page-load-title-and-primar-ebb6f-d-Title-and-Primary-Heading/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/senthilpalanivelu/Programme/test-suite/test-results/page-load-title-and-primar-ebb6f-d-Title-and-Primary-Heading/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/senthilpalanivelu/Programme/test-suite/.migration-runs/mig-b8be68c1-0dff-4749-9831-6ab90be6d128/tests/page-load-title-and-primary-heading.spec.ts",
+                    "column": 22,
+                    "line": 14
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "c40079c3883fc8be4b36-a97d5c94a83dec5d5dd7",
+          "file": "page-load-title-and-primary-heading.spec.ts",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-06-23T08:54:43.907Z",
+    "duration": 97540.286,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 8,
+    "flaky": 0
+  }
+}

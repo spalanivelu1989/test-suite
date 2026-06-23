@@ -115,6 +115,7 @@ test("captureResults runs the suite via the workspace", async () => {
     authStatePath: "",
     runSuite: async () => report,
     writePlan: async () => {},
+    disableAuth: async () => {},
   });
   assert.equal(results.length, 3);
 });
@@ -172,6 +173,7 @@ test("assessSuiteFlakiness flags a test whose result diverges across re-runs", a
     authStatePath: "",
     runSuite,
     writePlan: async () => {},
+    disableAuth: async () => {},
   };
   const { results, flakeRate } = await assessSuiteFlakiness(ws, 3);
   assert.equal(call, 3);

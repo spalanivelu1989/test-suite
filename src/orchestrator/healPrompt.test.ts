@@ -3,12 +3,12 @@ import { test } from "node:test";
 import type { HealingPrecedent, Playbook } from "../knowledge/types";
 import {
   formatPlaybooks,
-  formatPrecedentsForEvolver,
+  formatPrecedentsForTester,
   evolveTests,
 } from "./stages";
 import type { StageDeps } from "./stages";
 
-// Phase 3 additive-no-regression guard for the Evolver prompt (R13/N2/AC8/AC16):
+// Phase 3 additive-no-regression guard for the Tester prompt (R13/N2/AC8/AC16):
 // with no precedents and no playbooks the prompt must be byte-identical to
 // Phase 2; with them, the injected blocks appear.
 
@@ -59,7 +59,7 @@ async function capturePrompt(
 }
 
 test("formatters: empty inputs → empty string (no prompt change)", () => {
-  assert.equal(formatPrecedentsForEvolver([]), "");
+  assert.equal(formatPrecedentsForTester([]), "");
   assert.equal(formatPlaybooks([]), "");
 });
 

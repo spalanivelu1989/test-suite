@@ -114,7 +114,7 @@ test("runAgent flags an error result", async () => {
   assert.equal(out.isError, true);
 });
 
-// Regression for run 928c24b7…: the Evolver finished its work but the SDK stream
+// Regression for run 928c24b7…: the Tester finished its work but the SDK stream
 // never delivered a terminal `result` and never closed (a lingering browser
 // child held stdio open), so `for await` blocked forever. The idle guard must
 // abort and return instead of hanging.

@@ -15,7 +15,7 @@ actor "User" as User
 
 participant "Discoverer" as A1 #E8F5E9
 participant "Designer"   as A2 #E3F2FD
-participant "Evolver"    as A3 #FFF3E0
+participant "Tester"    as A3 #FFF3E0
 participant "Reporter"   as A4 #F3E5F5
 
 database  "Knowledge DB\n(past plans · scripts · fixes)" as DB #ECEFF1
@@ -31,13 +31,14 @@ PW --> A1 : pages + screenshots
 deactivate PW
 A1 -> A1 : write a plain-English **Test Plan**\n(the user flows worth testing)
 
-== Step 2 — Reuse what works, write the rest ==
+== Step 2 — Reuse what works, write the rest (spec files only) ==
 A1 -> A2 : hand over the Test Plan
 DB --> A2 : matching test scripts from past runs -> **REUSE**
-A2 -> A2 : write **new scripts** for everything not yet covered
+A2 -> A2 : write **new scripts** for everything not yet covered\n(writes **test spec files** only — does NOT run them)
 
-== Step 3 — Run for real, then self-heal ==
-A2 -> PW : run every test in the browser
+== Step 3 — Hand over to the Tester, run for real, then self-heal ==
+A2 -> A3 : hand over the finished **test spec files**
+A3 -> PW : run every test in the browser
 activate PW
 PW --> A3 : pass / fail results
 deactivate PW
@@ -52,7 +53,8 @@ A4 -> DB : save this run -> next run is smarter
 
 note across
   Playwright (the real browser) is driven in **two places**: when the Discoverer
-  explores the site, and when the tests are run before the Evolver heals them.
+  explores the site, and when the **Tester** runs the spec files and then heals them.
+  The Designer's job ends once the spec files are written — it never drives the browser.
   The Knowledge DB is **optional** — without it the same four agents still run, just "cold".
 end note
 

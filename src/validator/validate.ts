@@ -353,12 +353,12 @@ export function validateSuite(
 }
 
 /**
- * Render the fixable findings (everything except relevance, which the Evolver
- * can't act on) as an instruction block to append to the Evolver's prompt, so it
+ * Render the fixable findings (everything except relevance, which the Tester
+ * can't act on) as an instruction block to append to the Tester's prompt, so it
  * repairs static anti-patterns alongside real runtime failures. Returns "" when
  * there is nothing actionable.
  */
-export function formatValidationForEvolver(report: ValidationReport): string {
+export function formatValidationForTester(report: ValidationReport): string {
   const fixable = report.specs
     .map((s) => ({
       file: s.file,

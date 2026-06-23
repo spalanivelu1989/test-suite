@@ -87,7 +87,10 @@ test("discoverer preamble references env vars and the state-save path", () => {
     "https://app.test/home",
     "/runs/abc/.auth/storageState.json",
   );
-  assert.match(preamble, /AUTHENTICATION REQUIRED/);
+  assert.match(preamble, /LOGIN MAY BE REQUIRED/);
+  // Instructs the agent to record the login outcome marker (drives the truthful gate).
+  assert.match(preamble, /<!-- LOGIN_REQUIRED: yes -->/);
+  assert.match(preamble, /<!-- LOGIN_REQUIRED: no -->/);
   // Fills reference the env vars, double-quoted (mangle-proof), not literals.
   assert.match(preamble, /fill <ref> "\$TARGET_USERNAME"/);
   assert.match(preamble, /fill <ref> "\$TARGET_PASSWORD" --submit/);

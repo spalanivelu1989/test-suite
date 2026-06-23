@@ -1,4 +1,4 @@
-// Deterministic heal capture (Spec R1, ADR-0004). The Evolver edits spec files in
+// Deterministic heal capture (Spec R1, ADR-0004). The Tester edits spec files in
 // place and reports nothing structured, so we reconstruct each fix by DIFFING the
 // pre-heal spec against the post-heal spec — both already in hand at the
 // orchestrator seam. Pure: no DB, no LLM, no I/O. This is the heart of ADR-0004.
@@ -86,8 +86,8 @@ export function diffHunks(
 }
 
 /**
- * Reconstruct the Evolver's repairs as append-only HealingEvents (R1). One event
- * per changed hunk in each spec the Evolver modified, tagged with the failure it
+ * Reconstruct the Tester's repairs as append-only HealingEvents (R1). One event
+ * per changed hunk in each spec the Tester modified, tagged with the failure it
  * resolved, the strategy, and the outcome.
  *
  * Crucially the failure SIGNATURE comes from the PRE-heal (`initial`) results —

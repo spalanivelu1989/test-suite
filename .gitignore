@@ -16,6 +16,9 @@ npm-debug.log*
 # OS
 .DS_Store
 
+# vendored at install time from playwright-core (see bin/copy-trace-viewer.mjs)
+/public/trace-viewer/
+
 # generated run artifacts
 /.runs/
 /test-output/

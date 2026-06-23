@@ -1,7 +1,7 @@
 // Phase 2: the migration run. Composes existing pipeline helpers (workspace,
 // suite execution, flake separation, report assembly) around the new origin-swap
 // and diff logic. Skips Discoverer/Designer entirely and — by default — the
-// Evolver too (report-first: do not paper over regressions).
+// Tester too (report-first: do not paper over regressions).
 //
 // Heavy dependencies are injectable so the orchestration is unit-testable without
 // a browser, Claude, or the filesystem.
@@ -57,9 +57,9 @@ export interface MigrationCheckDeps {
     reruns: number,
     signal?: AbortSignal,
   ) => Promise<{ results: TestResult[]; flakeRate: number }>;
-  /** Cancellation: aborting this stops the run (suite + Evolver) and marks it cancelled. */
+  /** Cancellation: aborting this stops the run (suite + Tester) and marks it cancelled. */
   abortController?: AbortController;
-  /** Conservative heal (Evolver). Default runs evolveTests; injectable for tests. */
+  /** Conservative heal (Tester). Default runs evolveTests; injectable for tests. */
   heal?: (ws: Workspace) => Promise<void>;
   /** Read the specs on disk after a heal, to detect which were modified. */
   readSpecs?: (ws: Workspace) => Promise<WrittenSpec[]>;
@@ -273,19 +273,29 @@ export async function runMigrationCheck(
   const { ws, written } = await prepare(id, req, selected);
   checkpoint();
 
-  // 4. (Optional) conservative heal. The Evolver may fix failures, but any spec
+  // 4. (Optional) conservative heal. The Tester may fix failures, but any spec
   // it had to MODIFY is flagged 'healed' — a needed fix means the test didn't
   // transfer as-is, which we surface rather than let it hide a regression.
   let healedFiles = new Set<string>();
   if (req.options?.heal) {
-    emit("heal", "Auto-healing failing tests with the Evolver…");
+    emit("heal", "Auto-healing failing tests with the Tester…");
     const heal =
       deps.heal ??
       (async (w: Workspace) => {
-        // Forward the abort so a "stop" kills the Evolver's agent subprocess.
+        // Forward the Tester's per-step execution into the migration log so the
+        // user can see HOW each test was run and repaired — tool calls (the
+        // `npx playwright test` invocations, edits, re-runs) and the agent's
+        // own narration, mirroring the Test Runs console.
         await evolveTests(
           w,
-          undefined,
+          (e) => {
+            if (e.kind === "tool") emit("heal", `[tester] tool: ${e.tool}`);
+            else if (e.kind === "text" && e.text.trim())
+              emit("heal", `[tester] ${e.text.trim()}`);
+            else if (e.kind === "result" && e.isError && e.text.trim())
+              emit("heal", `[tester] ⚠ ${e.text.trim()}`);
+          },
+          // Forward the abort so a "stop" kills the Tester's agent subprocess.
           deps.abortController ? { abortController: deps.abortController } : {},
         );
       });
@@ -293,7 +303,7 @@ export async function runMigrationCheck(
     checkpoint();
     const readSpecs = deps.readSpecs ?? readGeneratedSpecs;
     healedFiles = modifiedFiles(written, await readSpecs(ws));
-    emit("heal", `Evolver modified ${healedFiles.size} test(s).`);
+    emit("heal", `Tester modified ${healedFiles.size} test(s).`);
   }
 
   // 5. Run + flake-separate.
@@ -322,6 +332,20 @@ export async function runMigrationCheck(
     healedFiles,
     setupError,
   );
+  // Per-spec execution detail — so the log shows how each carried-over test
+  // behaved on the target (outcome + classification), not just a roll-up.
+  if (!setupError) {
+    for (const d of diff) {
+      const name = d.title?.trim() || d.file;
+      const reason = d.failureReason
+        ? ` — ${d.failureReason.replace(/\s+/g, " ").trim().slice(0, 200)}`
+        : "";
+      emit(
+        "run",
+        `• ${name}: ${d.targetOutcome} [${d.classification}]${reason}`,
+      );
+    }
+  }
   emit(
     "run",
     setupError

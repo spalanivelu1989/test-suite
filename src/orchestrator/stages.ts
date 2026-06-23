@@ -16,7 +16,7 @@ import {
   type ValidationReport,
 } from "../types";
 import {
-  formatValidationForEvolver,
+  formatValidationForTester,
   parsePlanScenarios,
   validateSuite,
 } from "../validator/validate";
@@ -29,11 +29,11 @@ import {
   type AuthCredentials,
   authEnvFor,
   buildDesignerAuthPreamble,
-  buildEvolverAuthPreamble,
+  buildTesterAuthPreamble,
   buildDiscovererAuthPreamble,
 } from "../auth/credentials";
 
-/** Max precedents injected into the Evolver prompt (token budget, C5/D8). */
+/** Max precedents injected into the Tester prompt (token budget, C5/D8). */
 const MAX_HEAL_PRECEDENTS = 5;
 
 /** Max playbooks injected into any agent prompt (token budget, C5/D8). */
@@ -53,7 +53,7 @@ export function formatPlaybooks(playbooks: Playbook[] = []): string {
 }
 
 /** Render prior fixes as a compact, budgeted prompt block (R7). Empty → "". */
-export function formatPrecedentsForEvolver(
+export function formatPrecedentsForTester(
   precedents: HealingPrecedent[],
 ): string {
   if (precedents.length === 0) return "";
@@ -90,6 +90,31 @@ export interface PlanResult {
   planMarkdown: string | null;
   toolCalls: string[];
   isError: boolean;
+  /**
+   * Whether the app actually had a login wall, parsed from the Discoverer's
+   * `LOGIN_REQUIRED:` marker. Only meaningful when auth was configured; null when
+   * no auth was set, the marker is absent, or it is unparseable (the caller then
+   * leaves the auth scaffolding as-is). The runtime global-setup probe is the real
+   * safety net — this signal only drives truthful messaging and lets the
+   * orchestrator drop the now-unused auth scaffolding before the suite runs.
+   */
+  loginRequired: boolean | null;
+}
+
+/**
+ * Parse the Discoverer's `LOGIN_REQUIRED: yes|no` marker (it writes one when auth
+ * was configured, ideally as an HTML comment on the plan's first line). Tolerant of
+ * a comment wrapper and of yes/no | true/false. Returns null when the marker is
+ * absent or unparseable, so callers never act on a missing signal.
+ */
+export function parseLoginRequired(
+  planMarkdown: string | null,
+): boolean | null {
+  if (!planMarkdown) return null;
+  const m = planMarkdown.match(/LOGIN_REQUIRED:\s*(yes|no|true|false)/i);
+  if (!m) return null;
+  const v = m[1].toLowerCase();
+  return v === "yes" || v === "true";
 }
 
 export interface PlanOptions {
@@ -346,6 +371,9 @@ export async function discoverTests(
     // A saved plan = success even if the agent hit its turn cap; only a missing
     // plan is fatal (graceful degradation — found via a live maxTurns cutoff).
     isError: !planMarkdown,
+    // Only trust the marker when we actually asked for it (an auth run); otherwise
+    // there is no auth scaffolding to reconcile, so the signal is irrelevant.
+    loginRequired: options.auth ? parseLoginRequired(planMarkdown) : null,
   };
 }
 
@@ -760,7 +788,7 @@ export async function regenerateMissingScenarios(
  * Validation stage: statically inspect the generated specs (no browser, no LLM)
  * for structure/assertion/robustness/relevance issues, scored against the plan.
  * Pure read of workspace files — its findings are surfaced in the report and fed
- * to the Evolver so flagged anti-patterns get fixed alongside runtime failures.
+ * to the Tester so flagged anti-patterns get fixed alongside runtime failures.
  */
 export async function validateTests(ws: Workspace): Promise<ValidationReport> {
   const [specs, plan] = await Promise.all([
@@ -775,7 +803,7 @@ export interface HealResult {
   isError: boolean;
 }
 
-/** T8: run the Evolver → execute the suite, repair failures, quarantine the unfixable. */
+/** T8: run the Tester → execute the suite, repair failures, quarantine the unfixable. */
 export async function evolveTests(
   ws: Workspace,
   onEvent?: (e: AgentEvent) => void,
@@ -787,16 +815,16 @@ export async function evolveTests(
 ): Promise<HealResult> {
   const load = deps.loadAgentFn ?? loadAgent;
   const run = deps.runner ?? runAgent;
-  const agent = await load("playwright-test-evolver");
+  const agent = await load("playwright-test-tester");
 
   const validationBlock = validation
-    ? formatValidationForEvolver(validation)
+    ? formatValidationForTester(validation)
     : "";
-  const authBlock = auth ? buildEvolverAuthPreamble(ws.authStatePath) : "";
+  const authBlock = auth ? buildTesterAuthPreamble(ws.authStatePath) : "";
   // Phase 3: surface prior successful fixes for similar failures (R7) and trusted
   // principles (R12). Best-effort and token-budgeted; with none, the prompt is
   // identical to Phase 2 (N2).
-  const precedentBlock = formatPrecedentsForEvolver(precedents);
+  const precedentBlock = formatPrecedentsForTester(precedents);
   const playbookBlock = formatPlaybooks(playbooks);
   const prompt = [
     "Run the generated test suite by executing npx playwright test via Bash. For each failing test, debug it by",
@@ -814,7 +842,7 @@ export async function evolveTests(
     maxPages: 999,
     entryUrl: "",
     workspaceRoot: ws.root,
-    stageName: "3-evolver",
+    stageName: "3-tester",
   });
 
   const guard = createCliGuard({

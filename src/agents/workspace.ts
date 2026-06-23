@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getRunsRoot } from "../runManager/persistence";
 import type { PlaywrightJsonReport } from "../results/parse";
@@ -49,6 +49,15 @@ export interface Workspace {
   runSuite(signal?: AbortSignal): Promise<PlaywrightJsonReport>;
   /** Write (or overwrite) the Markdown plan the Designer will read. */
   writePlan(markdown: string): Promise<void>;
+  /**
+   * Turn a run's auth off after creation: rewrite the suite config WITHOUT
+   * globalSetup/storageState and remove the generated global-setup.ts. Called when
+   * the Discoverer reports the app has no login wall, so the suite is truthful (no
+   * "Login enabled" scaffolding) and doesn't waste a browser launch re-probing for
+   * a login that isn't there. Safe to call when auth was never enabled (the config
+   * is simply rewritten identically and there is no global-setup.ts to remove).
+   */
+  disableAuth(): Promise<void>;
 }
 
 export interface WorkspaceOptions {
@@ -125,6 +134,13 @@ export default defineConfig({
  * unless the resulting state holds a cookie that domain-matches the app. This trades
  * the old best-effort behaviour for a loud failure, because a half-authenticated
  * state silently turns every test into a doomed assertion against the login page.
+ *
+ * Runtime safety net: before any of that, it first checks whether a login form even
+ * exists. Credentials being set in the env does NOT mean the target has a login —
+ * a static/public site has none — so if no username/password field ever renders it
+ * treats the app as public and returns WITHOUT logging in or aborting (the suite
+ * then runs unauthenticated). The loud abort only fires when a form WAS present but
+ * authentication did not complete.
  */
 function buildGlobalSetup(startUrl: string): string {
   const url = JSON.stringify(startUrl);
@@ -204,6 +220,31 @@ export default async function globalSetup(_config: FullConfig) {
         .getByRole('button', { name: /login with btp|log ?in|sign in/i })
         .or(page.getByRole('link', { name: /login with btp|log ?in|sign in/i }));
       if (await entry.count()) { await entry.first().click(); await idle(); }
+    }
+
+    // (1b) PUBLIC-SITE DETECTION (runtime safety net). A run is given credentials
+    //      whenever TARGET_USERNAME/PASSWORD are set — that is NOT proof the app has a
+    //      login. A static/public site (e.g. a GitHub Pages portfolio) has no login
+    //      form at all, so logging in is impossible AND unnecessary. Poll briefly (an
+    //      SPA can render its form a beat after load) for a real username OR password
+    //      field; if none ever appears, treat the app as public, persist the anonymous
+    //      state, and RETURN without aborting. Aborting here is exactly what falsely
+    //      killed runs handed creds but pointed at a no-login app — the suite then
+    //      simply runs unauthenticated, which is correct for a public site.
+    const hasLoginForm = async () =>
+      (await page.locator(USER_SEL).count()) > 0 ||
+      (await page.locator(PASS_SEL).count()) > 0;
+    let formAppeared = false;
+    const probeDeadline = Date.now() + 8000;
+    while (Date.now() < probeDeadline) {
+      if (await hasLoginForm()) { formAppeared = true; break; }
+      await page.waitForTimeout(500);
+    }
+    if (!formAppeared) {
+      console.log('[global-setup] no login form found at', page.url(),
+        '— the app appears to be public (no login wall). Skipping login; the suite will run unauthenticated.');
+      await context.storageState({ path: STATE_PATH });
+      return; // finally closes the browser; the abort guard below is skipped on return
     }
 
     // (2) Identity-provider chooser: pick the configured provider by its EXACT label.
@@ -326,13 +367,24 @@ async function runSuiteAt(
   signal?: AbortSignal,
 ): Promise<PlaywrightJsonReport> {
   await new Promise<void>((resolve) => {
+    // Keep test artifacts (traces, screenshots) INSIDE this run's dir via an
+    // absolute --output. Playwright's default `test-results` lands in the shared
+    // project root and is wiped at the start of every run, so a prior run's
+    // traces would vanish; a per-run dir makes "Open Playwright Trace" durable
+    // across runs. --output only sets the artifact dir (unlike --reporter, it
+    // doesn't override the config's json reporter).
+    const outputDir = join(root, "test-results");
     // With a signal (migration "stop"), run detached so we can kill the whole
     // process group (playwright + its browsers), not just the npx shim.
-    const child = spawn("npx", ["playwright", "test"], {
-      cwd: root,
-      env: { ...process.env },
-      ...(signal ? { detached: true } : {}),
-    });
+    const child = spawn(
+      "npx",
+      ["playwright", "test", `--output=${outputDir}`],
+      {
+        cwd: root,
+        env: { ...process.env },
+        ...(signal ? { detached: true } : {}),
+      },
+    );
     child.stdout.on("data", () => {});
     child.stderr.on("data", () => {});
     let onAbort: (() => void) | undefined;
@@ -416,6 +468,13 @@ export async function createWorkspace(
     runSuite: (signal?: AbortSignal) => runSuiteAt(root, signal),
     writePlan: (markdown: string) =>
       writeFile(join(specsDir, PLAN_FILE), markdown, "utf8"),
+    // Drop the auth scaffolding (used when the app turns out to have no login).
+    // Rewrite the config without globalSetup/storageState and remove the generated
+    // global-setup.ts; the empty placeholder .auth state can stay (it is unloaded).
+    disableAuth: async () => {
+      await writeFile(configPath, buildConfig(false, !!options.serial), "utf8");
+      await rm(join(root, GLOBAL_SETUP_REL_PATH), { force: true });
+    },
   };
 }
 

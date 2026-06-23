@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/migration-check/[id]/cancel — stop a running migration check.
- * Aborts the run (kills the Playwright suite / Evolver agent) and marks it
+ * Aborts the run (kills the Playwright suite / Tester agent) and marks it
  * cancelled. The run's own handler also writes the terminal status, but we set
  * it here too so the UI flips immediately.
  */

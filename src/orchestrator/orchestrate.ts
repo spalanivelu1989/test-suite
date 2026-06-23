@@ -72,7 +72,7 @@ export class CancelledError extends Error {
 /**
  * Phase 3: gather prior successful heals for this run's failures, deduped by
  * failure signature (R7). Best-effort — the KnowledgeService never throws, so a
- * cold/disabled KB just yields no precedents and the Evolver runs as before.
+ * cold/disabled KB just yields no precedents and the Tester runs as before.
  */
 async function collectHealingPrecedents(
   knowledge: KnowledgeService,
@@ -127,7 +127,7 @@ export function knowledgeProgress(
 }
 
 /**
- * T17: run the four-agent pipeline (Discoverer → Designer → Evolver → Reporter) for
+ * T17: run the four-agent pipeline (Discoverer → Designer → Tester → Reporter) for
  * one URL, emitting per-stage progress, and produce the rich RunReport (R12).
  */
 export async function runPipeline(
@@ -173,7 +173,7 @@ export async function runPipeline(
   if (auth)
     emit(
       "planning",
-      "🔐 Login enabled — the agent will authenticate before exploring the app",
+      "🔐 Credentials provided — the agent will log in if the app has a login wall, or run unauthenticated if it doesn't",
     );
   if (config.focus)
     emit(
@@ -223,6 +223,21 @@ export async function runPipeline(
   if (plan.isError)
     throw new StageError("Discoverer failed to produce a test plan");
 
+  // Truthful auth gate: credentials being set doesn't mean the app has a login.
+  // When the Discoverer reports no login wall, drop the auth scaffolding so the
+  // suite runs unauthenticated (truthful config, no wasted global-setup probe) and
+  // later stages don't inject login-aware instructions. The runtime global-setup
+  // probe is the safety net for when the agent omits/misreports the marker.
+  let authForSuite = auth;
+  if (auth && plan.loginRequired === false) {
+    await ws.disableAuth();
+    authForSuite = null;
+    emit(
+      "planning",
+      "ℹ️ No login wall found — the app is public. Credentials ignored; running the suite unauthenticated.",
+    );
+  }
+
   // 2. Designer → Playwright specs
   emit("generating", "Designer: writing Playwright tests from the plan");
   const gen = await designTests(
@@ -233,7 +248,7 @@ export async function runPipeline(
       crawlMode: config.crawlMode,
       maxPages: config.maxPages,
       url: config.url,
-      auth: auth ?? undefined,
+      auth: authForSuite ?? undefined,
       focus: config.focus,
       testsPerPage: config.testsPerPage,
     },
@@ -288,14 +303,14 @@ export async function runPipeline(
         crawlMode: config.crawlMode,
         maxPages: config.maxPages,
         url: config.url,
-        auth: auth ?? undefined,
+        auth: authForSuite ?? undefined,
         focus: config.focus,
       },
     );
     agentRuns++;
     checkCancelled();
 
-    // Re-validate so the report and Evolver see the post-retry coverage.
+    // Re-validate so the report and Tester see the post-retry coverage.
     validation = await validateTests(ws);
     emit(
       "validating",
@@ -311,23 +326,23 @@ export async function runPipeline(
     checkCancelled();
   }
 
-  // 3. Initial run (pre-heal), then Evolver, then re-run for flake + heal reconciliation
+  // 3. Initial run (pre-heal), then Tester, then re-run for flake + heal reconciliation
   emit("running", "Running generated tests");
   const initial = await captureResults(ws);
   checkCancelled();
 
-  // Snapshot specs BEFORE healing so we can diff what the Evolver changed (ADR-0004).
+  // Snapshot specs BEFORE healing so we can diff what the Tester changed (ADR-0004).
   const preHealSpecs = await readGeneratedSpecs(ws);
 
-  // Feed validation findings to the Evolver so it fixes flagged anti-patterns too.
+  // Feed validation findings to the Tester so it fixes flagged anti-patterns too.
   // Healing precedents (prior fixes for similar failures) are injected best-effort.
-  emit("healing", "Evolver: repairing failures and quarantining the unfixable");
+  emit("healing", "Tester: repairing failures and quarantining the unfixable");
   const precedents = await collectHealingPrecedents(
     knowledge,
     config.url,
     initial,
   );
-  // Trusted distilled principles (global heal lessons + this app's) for the Evolver.
+  // Trusted distilled principles (global heal lessons + this app's) for the Tester.
   const healPlaybooks = await knowledge.getPlaybooks({
     kind: "global",
     key: "all",
@@ -343,12 +358,12 @@ export async function runPipeline(
     emit("healing", `🧠 ${healPlaybooks.length} learned principle(s) applied`);
   await evolveTests(
     ws,
-    onAgent("healing", "evolver"),
+    onAgent("healing", "tester"),
     stageDeps,
     validation,
     precedents,
     healPlaybooks,
-    auth ?? undefined,
+    authForSuite ?? undefined,
   );
   agentRuns++;
   checkCancelled();
@@ -362,7 +377,7 @@ export async function runPipeline(
   emit("reporting", "Reporter: aggregating results and recommendations");
   const specs = await readGeneratedSpecs(ws);
 
-  // Reconstruct what the Evolver fixed by diffing pre/post-heal specs (ADR-0004).
+  // Reconstruct what the Tester fixed by diffing pre/post-heal specs (ADR-0004).
   // `initial` carries the pre-heal failures + reasons (the signature source);
   // `results` carries the post-heal outcome (healed/fixme).
   const healingEvents = captureHealDeltas(
@@ -377,7 +392,7 @@ export async function runPipeline(
   );
 
   // Split this run's heals by repair pathway: template-directed (a precedent was
-  // on hand — HDR) vs blind (the Evolver fixed it cold — NHEJ). Surfaced so the
+  // on hand — HDR) vs blind (the Tester fixed it cold — NHEJ). Surfaced so the
   // knowledge layer's payoff is visible per run, not only in the DB.
   const healProvenance = computeHealProvenance(healingEvents, precedents);
   if (healProvenance.healed > 0)

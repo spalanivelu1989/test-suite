@@ -1,5 +1,5 @@
 // Heal-strategy classifier (Spec R2, ADR-0004). A deterministic, rule-based read
-// of a before/after diff hunk that labels HOW the Evolver fixed a failure. Pure and
+// of a before/after diff hunk that labels HOW the Tester fixed a failure. Pure and
 // total: anything it can't place becomes `other`; it never throws.
 //
 // Order matters — `fixme` is checked first (quarantine dominates), then the
@@ -31,7 +31,7 @@ function addedRegexText(before: string, after: string): boolean {
  *
  *   before: the removed/old line(s); after: the added/new line(s).
  *
- * `outcomeFixme` short-circuits to `fixme` — when the Evolver quarantined the test
+ * `outcomeFixme` short-circuits to `fixme` — when the Tester quarantined the test
  * the strategy is the quarantine itself, regardless of incidental edits.
  */
 export function classifyStrategy(

@@ -23,6 +23,7 @@ import {
   History,
   Trash2,
   Clock,
+  Terminal,
 } from "lucide-react";
 import { useThemeMode } from "@/app/providers";
 import { MigrationDiffView } from "@/app/components/MigrationDiffView";
@@ -297,7 +298,7 @@ export function MigrationCheck() {
 
   // Start a migration check. With no arguments it uses the launch form's current
   // selection + heal toggle. `overrides` lets the results dashboard re-run a chosen
-  // subset of failed specs (and pick straight vs. Evolver). Source/target can be
+  // subset of failed specs (and pick straight vs. Tester). Source/target can be
   // supplied explicitly so a re-run works from a history-loaded report too, where
   // the launch form's `sourceApp`/`targetUrl` state isn't populated.
   const run = async (overrides?: {
@@ -399,6 +400,7 @@ export function MigrationCheck() {
     setError(null);
     setStopping(false);
     setRunId(null);
+    setRunStatus(null);
   };
 
   // --- saved history ------------------------------------------------------
@@ -437,6 +439,9 @@ export function MigrationCheck() {
       };
       if (data.report) {
         setReport(data.report);
+        // Carry the persisted events so the results view can replay the
+        // detailed execution log for this saved check, not just live runs.
+        setRunStatus(data.status);
         setError(null);
         setRunId(null);
         setStopping(false);
@@ -565,6 +570,7 @@ export function MigrationCheck() {
         <Box flex={1} overflow="hidden">
           <MigrationDiffView
             report={report}
+            events={runStatus?.events ?? []}
             onRerun={(specFiles, healMode) =>
               setRerunModal({ specFiles, heal: healMode })
             }
@@ -577,6 +583,7 @@ export function MigrationCheck() {
             }
           />
         </Box>
+
         {rerunModal && report && (
           <RerunModal
             specCount={rerunModal.specFiles.length}
@@ -1385,7 +1392,7 @@ export function MigrationCheck() {
                           textTransform="uppercase"
                           letterSpacing="0.02em"
                         >
-                          Enable Auto-Heal (AI Evolver Engine)
+                          Enable Auto-Heal (AI Tester Engine)
                         </Text>
                         <Text fontSize="11px" color={colors.subtext} mt={0.5}>
                           Instructs the recovery compiler to adapt tests for
@@ -1615,19 +1622,16 @@ export function MigrationCheck() {
             </Section>
           </VStack>
 
-          {/* Right column: live monitoring checklist + console logs */}
-          <Box
+          {/* Right column: live monitoring — two centered cards
+              (running status + execution logs). */}
+          <Flex
             flex={1}
             h="full"
             overflowY="auto"
-            pl={{ xl: 1 }}
-            bg={colors.cardBg}
-            border="1px solid"
-            borderColor={colors.border}
-            p={5}
-            shadow="sm"
             minH={0}
-            borderRadius="xl"
+            direction="column"
+            align="center"
+            gap={5}
           >
             <MigrationProgress
               events={runStatus?.events ?? []}
@@ -1636,7 +1640,7 @@ export function MigrationCheck() {
               activeBlue={activeBlue}
               theme={theme}
             />
-            <Flex justify="flex-end" mt={5}>
+            <Flex justify="center" w="full" maxW="760px" flexShrink={0}>
               <Button
                 size="sm"
                 onClick={stopRun}
@@ -1655,7 +1659,7 @@ export function MigrationCheck() {
                 </HStack>
               </Button>
             </Flex>
-          </Box>
+          </Flex>
         </Flex>
       )}
     </Flex>
@@ -1790,7 +1794,7 @@ function RerunModal({
           letterSpacing="0.04em"
         >
           RE-RUN {specCount} TEST{specCount > 1 ? "S" : ""}
-          {edited ? " · EDITED CODE" : heal ? " · WITH EVOLVER" : ""}
+          {edited ? " · EDITED CODE" : heal ? " · WITH TESTER" : ""}
         </Text>
         <Text fontSize="11px" color={colors.subtext} mt={1}>
           {sourceUrl}
@@ -1802,7 +1806,7 @@ function RerunModal({
           Credentials aren’t saved with results — confirm or re-enter them to
           re-run. Leave blank for a target with no login.
           {heal
-            ? " The Evolver will attempt to repair the selected specs before re-running."
+            ? " The Tester will attempt to repair the selected specs before re-running."
             : ""}
         </Text>
         <VStack align="stretch" gap={3}>
@@ -2072,6 +2076,13 @@ function MigrationHistory({
                   borderRadius="xl"
                   shadow="sm"
                   p={4}
+                  transition="transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease"
+                  _hover={{
+                    transform: "translateY(-2px)",
+                    shadow: "md",
+                    borderColor: activeBlue,
+                    bg: colors.rowHover,
+                  }}
                 >
                   <Flex
                     align={{ base: "stretch", md: "center" }}
@@ -2287,11 +2298,6 @@ function MigrationProgress({
   activeBlue: string;
   theme: "light" | "dark";
 }) {
-  const logRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
-  }, [events.length]);
-
   const steps: { key: MigrationStep; label: string }[] = [
     { key: "resolve", label: "RESOLVING SOURCE SUITE SPECIFICATIONS" },
     { key: "prepare", label: "PREPARING BINDINGS & REWRITING TARGET URLS" },
@@ -2323,133 +2329,208 @@ function MigrationProgress({
   const pct = Math.round((currentIndex / (order.length - 1)) * 100);
   const barTone = errored ? "#FF4040" : activeBlue;
 
+  // Shared card chrome for the two centered cards.
+  const cardProps = {
+    w: "full",
+    maxW: "760px",
+    bg: colors.cardBg,
+    border: "1px solid",
+    borderColor: colors.border,
+    borderRadius: "xl",
+    shadow: "sm",
+  } as const;
+
   return (
-    <Flex direction="column" gap={4} h="100%">
-      {/* Progress bar */}
-      <Box flexShrink={0}>
-        <Flex justify="space-between" mb={1.5} align="center">
-          <Text
-            fontSize="12px"
-            fontWeight="bold"
-            color={colors.text}
-            textTransform="uppercase"
+    <VStack align="center" gap={5} w="full" flex={1} minH={0}>
+      {/* Card 1 — running status (progress bar + step checklist) */}
+      <VStack {...cardProps} align="stretch" gap={4} p={5} flexShrink={0}>
+        {/* Progress bar */}
+        <Box flexShrink={0}>
+          <Flex justify="space-between" mb={1.5} align="center">
+            <Text
+              fontSize="12px"
+              fontWeight="bold"
+              color={colors.text}
+              textTransform="uppercase"
+            >
+              {errored
+                ? "STATUS: RUN ENGINE FAILURE"
+                : done
+                  ? "STATUS: SUCCESS"
+                  : `STATUS: VAL-SEQUENCE ACTIVE (CURRENT PHASE: ${currentKey.toUpperCase()})`}
+            </Text>
+            <Text fontSize="11px" color={colors.subtext}>
+              {pct}% COMPLETED
+            </Text>
+          </Flex>
+          <Box
+            bg={colors.subBg}
+            borderRadius="full"
+            h="12px"
+            border="1px solid"
+            borderColor={colors.border}
+            overflow="hidden"
+            p="2px"
           >
-            {errored
-              ? "STATUS: RUN ENGINE FAILURE"
-              : done
-                ? "STATUS: SUCCESS"
-                : `STATUS: VAL-SEQUENCE ACTIVE (CURRENT PHASE: ${currentKey.toUpperCase()})`}
-          </Text>
-          <Text fontSize="11px" color={colors.subtext}>
-            {pct}% COMPLETED
-          </Text>
-        </Flex>
-        <Box
+            <Box
+              bg={barTone}
+              h="full"
+              borderRadius="full"
+              width={`${errored ? 100 : pct}%`}
+              transition="width 0.4s ease"
+            />
+          </Box>
+        </Box>
+
+        {/* Step checklist */}
+        <VStack
+          align="stretch"
+          gap={2}
+          p={3.5}
           bg={colors.subBg}
-          borderRadius="full"
-          h="12px"
           border="1px solid"
           borderColor={colors.border}
-          overflow="hidden"
-          p="2px"
+          flexShrink={0}
+          borderRadius="lg"
         >
-          <Box
-            bg={barTone}
-            h="full"
-            borderRadius="full"
-            width={`${errored ? 100 : pct}%`}
-            transition="width 0.4s ease"
-          />
-        </Box>
-      </Box>
-
-      {/* Step checklist */}
-      <VStack
-        align="stretch"
-        gap={2}
-        p={3.5}
-        bg={colors.subBg}
-        border="1px solid"
-        borderColor={colors.border}
-        flexShrink={0}
-        borderRadius="lg"
-      >
-        {steps.map((s, i) => {
-          const isDone = i < currentIndex || (done && i === currentIndex);
-          const isActive = i === currentIndex && !done && !errored;
-          const isErr = errored && i === currentIndex;
-          return (
-            <HStack key={s.key} gap={3}>
-              <Box
-                w="16px"
-                h="16px"
-                flexShrink={0}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-              >
-                {isErr ? (
-                  <TriangleAlert size={13} color="#FF4040" />
-                ) : isDone ? (
-                  <Check size={13} color={activeBlue} strokeWidth={3} />
-                ) : isActive ? (
-                  <Spinner size="xs" color={activeBlue} />
-                ) : (
-                  <Box w="4px" h="4px" bg={colors.border} borderRadius="full" />
-                )}
-              </Box>
-              <Text
-                fontSize="11px"
-                color={
-                  isDone || isActive || isErr ? colors.text : colors.subtext
-                }
-                fontWeight={isActive ? "bold" : "normal"}
-              >
-                {s.label}
-              </Text>
-            </HStack>
-          );
-        })}
+          {steps.map((s, i) => {
+            const isDone = i < currentIndex || (done && i === currentIndex);
+            const isActive = i === currentIndex && !done && !errored;
+            const isErr = errored && i === currentIndex;
+            return (
+              <HStack key={s.key} gap={3}>
+                <Box
+                  w="16px"
+                  h="16px"
+                  flexShrink={0}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  {isErr ? (
+                    <TriangleAlert size={13} color="#FF4040" />
+                  ) : isDone ? (
+                    <Check size={13} color={activeBlue} strokeWidth={3} />
+                  ) : isActive ? (
+                    <Spinner size="xs" color={activeBlue} />
+                  ) : (
+                    <Box
+                      w="4px"
+                      h="4px"
+                      bg={colors.border}
+                      borderRadius="full"
+                    />
+                  )}
+                </Box>
+                <Text
+                  fontSize="11px"
+                  color={
+                    isDone || isActive || isErr ? colors.text : colors.subtext
+                  }
+                  fontWeight={isActive ? "bold" : "normal"}
+                >
+                  {s.label}
+                </Text>
+              </HStack>
+            );
+          })}
+        </VStack>
       </VStack>
 
-      {/* Live log */}
+      {/* Card 2 — execution logs */}
       {events.length > 0 && (
-        <Box
-          ref={logRef}
-          bg="#0B0E12" // Solid terminal dark background
-          border="1px solid"
-          borderColor={theme === "dark" ? "#2E3A47" : "#333333"}
-          borderRadius="lg"
-          p={3.5}
+        <VStack
+          {...cardProps}
+          align="stretch"
+          gap={3}
+          p={5}
           flex={1}
-          overflowY="auto"
-          fontFamily="mono"
-          minH="120px"
+          minH="200px"
         >
-          {events.map((e, i) => (
-            <Flex
-              key={i}
-              gap={4}
-              fontSize="11px"
-              lineHeight="1.5"
-              borderBottom="1px solid rgba(255,255,255,0.02)"
-              py={0.5}
+          <HStack gap={1.5} flexShrink={0}>
+            <Terminal size={13} color={activeBlue} />
+            <Text
+              fontSize="12px"
+              fontWeight="bold"
+              color={colors.text}
+              textTransform="uppercase"
             >
-              <Text color={activeBlue} flexShrink={0}>
-                [{new Date(e.at).toLocaleTimeString()}]
-              </Text>
-              <Text
-                color={e.step === "error" ? "#FF4040" : "#F3F4F6"}
-                flex={1}
-                whiteSpace="pre-wrap"
-              >
-                {e.message}
-              </Text>
-            </Flex>
-          ))}
-        </Box>
+              Execution Log
+            </Text>
+          </HStack>
+          <MigrationLog
+            events={events}
+            activeBlue={activeBlue}
+            theme={theme}
+            flex={1}
+          />
+        </VStack>
       )}
-    </Flex>
+    </VStack>
+  );
+}
+
+/**
+ * The terminal-style execution log. Renders the migration's progress events
+ * (now including per-spec outcomes and the Tester's tool-by-tool steps) so the
+ * user can see exactly how the suite was run and executed. Shared by the live
+ * progress view and the completed results view. Auto-scrolls to the newest line.
+ */
+export function MigrationLog({
+  events,
+  activeBlue,
+  theme,
+  flex,
+  maxH,
+}: {
+  events: MigrationEvent[];
+  activeBlue: string;
+  theme: "light" | "dark";
+  flex?: number;
+  maxH?: string;
+}) {
+  const logRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [events.length]);
+
+  if (events.length === 0) return null;
+  return (
+    <Box
+      ref={logRef}
+      bg="#0B0E12" // Solid terminal dark background
+      border="1px solid"
+      borderColor={theme === "dark" ? "#2E3A47" : "#333333"}
+      borderRadius="lg"
+      p={3.5}
+      flex={flex}
+      maxH={maxH}
+      overflowY="auto"
+      fontFamily="mono"
+      minH="120px"
+    >
+      {events.map((e, i) => (
+        <Flex
+          key={i}
+          gap={4}
+          fontSize="11px"
+          lineHeight="1.5"
+          borderBottom="1px solid rgba(255,255,255,0.02)"
+          py={0.5}
+        >
+          <Text color={activeBlue} flexShrink={0}>
+            [{new Date(e.at).toLocaleTimeString()}]
+          </Text>
+          <Text
+            color={e.step === "error" ? "#FF4040" : "#F3F4F6"}
+            flex={1}
+            whiteSpace="pre-wrap"
+          >
+            {e.message}
+          </Text>
+        </Flex>
+      ))}
+    </Box>
   );
 }
 

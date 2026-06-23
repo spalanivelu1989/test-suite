@@ -144,7 +144,7 @@ test("runMigrationCheck skips the fingerprint when fingerprintCheck is false", a
   assert.equal(report.fingerprint.status, "skipped");
 });
 
-test("runMigrationCheck (heal on): a spec the Evolver modified is flagged 'healed', not 'ok'", async () => {
+test("runMigrationCheck (heal on): a spec the Tester modified is flagged 'healed', not 'ok'", async () => {
   let healCalled = false;
   const report = await runMigrationCheck(
     { ...baseReq, options: { reruns: 2, heal: true, fingerprintCheck: false } },
@@ -160,7 +160,7 @@ test("runMigrationCheck (heal on): a spec the Evolver modified is flagged 'heale
       // After healing, b.spec.ts was rewritten; a.spec.ts untouched.
       readSpecs: async () => [
         { file: "a.spec.ts", code: "ORIGINAL" },
-        { file: "b.spec.ts", code: "CHANGED BY EVOLVER" },
+        { file: "b.spec.ts", code: "CHANGED BY TESTER" },
       ],
       assess: async () => ({
         results: [

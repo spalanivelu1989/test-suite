@@ -34,7 +34,7 @@ scripting.
 <!-- Anything a new team member would need to know to not make wrong assumptions. -->
 
 - Shipped v0.1.0, then re-architected to v0.2.0: a four-agent pipeline
-  (Discoverer → Designer → Evolver → Reporter) driven by the Claude Agent SDK +
+  (Discoverer → Designer → Tester → Reporter) driven by the Claude Agent SDK +
   Playwright, fronted by a Next.js app that triggers runs and renders a rich
   report. (CONTEXT was last greenfield on 2026-05-27; updated 2026-05-29.)
 - Stack: Next.js + React 19 + TypeScript, Chakra UI; in-memory run store

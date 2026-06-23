@@ -33,7 +33,7 @@ export type CoverageAction = "reuse" | "new";
 
 // ─── Phase 3: Healing memory (ADR-0004) ──────────────────────────────────────
 
-/** How the Evolver repaired a failing locator/assertion — a closed set (R2). */
+/** How the Tester repaired a failing locator/assertion — a closed set (R2). */
 export type HealStrategy =
   | "role-locator" // brittle selector → getByRole/getByLabel/getByText
   | "regex-text" // exact text → regex/partial match for dynamic content
@@ -43,7 +43,7 @@ export type HealStrategy =
   | "other"; // a real change that fits none of the above
 
 /**
- * One repair the Evolver made in a run, reconstructed deterministically by
+ * One repair the Tester made in a run, reconstructed deterministically by
  * diffing the pre-heal vs post-heal spec file (ADR-0004). Append-only evidence.
  */
 export interface HealingEvent {
@@ -68,12 +68,12 @@ export interface HealingEvent {
 /**
  * Heal-provenance split for a run — the CRISPR "repair pathway" metric. A heal is
  * template-directed (HDR) when a healing precedent was available for its failure
- * signature at heal time, and blind (NHEJ) when the Evolver repaired it cold with
+ * signature at heal time, and blind (NHEJ) when the Tester repaired it cold with
  * no donor template. A rising `hdrRate` across runs means the knowledge layer's
- * memory is actually guiding repairs rather than the Evolver re-deriving each fix.
+ * memory is actually guiding repairs rather than the Tester re-deriving each fix.
  */
 export interface HealProvenance {
-  /** Distinct specs the Evolver actually repaired (outcome "healed"). */
+  /** Distinct specs the Tester actually repaired (outcome "healed"). */
   healed: number;
   /** Of `healed`, those whose failure had a precedent template (HDR). */
   templateDirected: number;
@@ -108,7 +108,7 @@ export interface KnowledgeReuseTrendPoint {
   total: number;
 }
 
-/** A prior successful heal surfaced to the Evolver/Designer for reuse (R6). */
+/** A prior successful heal surfaced to the Tester/Designer for reuse (R6). */
 export interface HealingPrecedent {
   runId: string;
   file: string;
@@ -246,8 +246,8 @@ export interface DesignerPack {
   patterns?: PatternHint[];
 }
 
-/** Evolver-facing half of a context pack — precedents for the run's failures (R7). */
-export interface EvolverPack {
+/** Tester-facing half of a context pack — precedents for the run's failures (R7). */
+export interface TesterPack {
   precedents: HealingPrecedent[];
 }
 
@@ -255,8 +255,8 @@ export interface EvolverPack {
 export interface ContextPack {
   /** Decisions + existing specs for the Designer. */
   designer?: DesignerPack;
-  /** Phase 3: healing precedents for the Evolver (R7). */
-  evolver?: EvolverPack;
+  /** Phase 3: healing precedents for the Tester (R7). */
+  tester?: TesterPack;
   /** Phase 3: trusted distilled principles for any stage (R12). */
   playbooks?: Playbook[];
 }

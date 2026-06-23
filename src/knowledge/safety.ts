@@ -6,7 +6,7 @@
 // Because EVERY KB seam funnels through here, this is also the one place we
 // trace them: each call becomes a Langfuse `kb:<op>` span nested under the
 // active run trace (so the Discoverer's prior-plan lookup, the Designer's
-// cosine-similarity coverage decision, and the Evolver's precedent/playbook
+// cosine-similarity coverage decision, and the Tester's precedent/playbook
 // retrieval all show up alongside the agent generations). The span is a
 // non-recording no-op when Langfuse is disabled (no LANGFUSE_* keys), mirroring
 // the KB's own graceful degradation — zero overhead, zero behaviour change.

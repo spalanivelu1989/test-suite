@@ -7,7 +7,7 @@
 
 **Nothing in the existing pipeline changes.** Migration Check is a new, isolated
 path that _calls_ existing building blocks as library functions. The current
-flow (`runPipeline` → Discoverer → Designer → Validator → Evolver → Reporter,
+flow (`runPipeline` → Discoverer → Designer → Validator → Tester → Reporter,
 launched from `/api/runs`) is untouched. If we deleted the entire Migration Check
 feature, the app would behave exactly as it does today.
 
@@ -156,7 +156,7 @@ export interface MigrationReport {
      `TARGET_IDP`, `TARGET_LOGIN_URL`) — reusing the exact env contract
      `global-setup.ts` already reads.
   5. `captureResults(ws)` (initial) → if `options.heal` (default **false**), skip
-     the Evolver entirely (report-first).
+     the Tester entirely (report-first).
   6. `assessSuiteFlakiness(ws, reruns)` to separate flaky from consistent fails.
   7. Build `diff[]` by joining target outcomes with source outcomes; classify via
      `src/migration/classify.ts`.

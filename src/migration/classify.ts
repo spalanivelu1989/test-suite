@@ -39,7 +39,7 @@ export function targetOutcomeOf(
  *  - failed, but also failed on source → pre-existing (not introduced by migration)
  *  - failed, passed on source          → behavioral (REAL regression)
  *
- * `healed` is only meaningful when the Evolver ran (options.heal). A test that
+ * `healed` is only meaningful when the Tester ran (options.heal). A test that
  * needed a code change to pass on the target did NOT transfer as-is, so we
  * surface it rather than letting the fix hide a possible regression.
  */

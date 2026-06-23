@@ -59,7 +59,7 @@ test("runPipeline runs the four stages in order and builds a rich report", async
   const stages: string[] = [];
   const events: string[] = [];
 
-  // Stub agents: discoverer writes a plan, designer writes a spec, evolver is a no-op.
+  // Stub agents: discoverer writes a plan, designer writes a spec, tester is a no-op.
   const runner = async (opts: {
     agent: { name: string };
   }): Promise<RunAgentResult> => {
@@ -121,7 +121,7 @@ test("runPipeline runs the four stages in order and builds a rich report", async
       },
     );
 
-    assert.deepEqual(stages, ["discoverer", "designer", "evolver"]);
+    assert.deepEqual(stages, ["discoverer", "designer", "tester"]);
     assert.equal(report.successRate.total, 1);
     assert.equal(report.successRate.passed, 1);
     assert.equal(report.coverage.percent, 100);

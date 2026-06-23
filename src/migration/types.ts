@@ -64,7 +64,7 @@ export interface MigrationCheckRequest {
     loginUrl?: string;
   };
   options?: {
-    /** Report-first by default: do NOT run the Evolver, so regressions aren't papered over. */
+    /** Report-first by default: do NOT run the Tester, so regressions aren't papered over. */
     heal?: boolean;
     /** Rerun count for flake separation. Default 2. */
     reruns?: number;

@@ -1,0 +1,95 @@
+{
+  "id": "mig-3141f2d3-0b58-47e3-8fb7-d5903e518ac5",
+  "sourceUrl": "https://spalanivelu1989.github.io/",
+  "targetUrl": "https://spalanivelu1989.github.io/",
+  "startedAt": "2026-06-23T08:52:08.048Z",
+  "status": "completed",
+  "finishedAt": "2026-06-23T08:52:12.711Z",
+  "events": [
+    {
+      "at": "2026-06-23T08:52:08.049Z",
+      "step": "resolve",
+      "message": "Looking up the source app's existing tests…"
+    },
+    {
+      "at": "2026-06-23T08:52:08.052Z",
+      "step": "resolve",
+      "message": "Selected 8 test(s) to carry over."
+    },
+    {
+      "at": "2026-06-23T08:52:08.052Z",
+      "step": "prepare",
+      "message": "Preparing workspace and pointing 8 test(s) at the target…"
+    },
+    {
+      "at": "2026-06-23T08:52:08.054Z",
+      "step": "run",
+      "message": "Running 8 test(s) on the target — 2 pass(es) for flake detection. This can take a few minutes…"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "• \"About Me\" Navigation Link: In-Page Hash Navigation: passed [ok]"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "• About Me Section: Professional Background Content: passed [ok]"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "• \"Contact\" Navigation Link: In-Page Hash Navigation: passed [ok]"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "• Contact Section: Email Link Correctness: passed [ok]"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "• Contact Section: Full Content Structure: passed [ok]"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "• Contact Section: LinkedIn Link Correctness: passed [ok]"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "• Navigation Bar: Both Links Present with Correct Hrefs: passed [ok]"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "• Page Load: Title and Primary Heading: passed [ok]"
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "run",
+      "message": "Tests finished: 8 passing, 0 regression(s), 0 infra, 0 flaky."
+    },
+    {
+      "at": "2026-06-23T08:52:12.018Z",
+      "step": "fingerprint",
+      "message": "Verifying it's the same build…"
+    },
+    {
+      "at": "2026-06-23T08:52:12.710Z",
+      "step": "fingerprint",
+      "message": "Fingerprint: error."
+    },
+    {
+      "at": "2026-06-23T08:52:12.710Z",
+      "step": "report",
+      "message": "Compiling the migration report…"
+    },
+    {
+      "at": "2026-06-23T08:52:12.711Z",
+      "step": "done",
+      "message": "Migration check complete."
+    }
+  ]
+}

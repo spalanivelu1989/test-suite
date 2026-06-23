@@ -1,0 +1,55 @@
+{
+  "id": "mig-bfadbd88-0eb4-472f-a72f-c7559b9d94c2",
+  "sourceUrl": "https://spalanivelu1989.github.io/",
+  "targetUrl": "https://spalanivelu1989.github.io/",
+  "startedAt": "2026-06-23T08:32:52.513Z",
+  "status": "completed",
+  "finishedAt": "2026-06-23T08:32:57.285Z",
+  "events": [
+    {
+      "at": "2026-06-23T08:32:52.514Z",
+      "step": "resolve",
+      "message": "Looking up the source app's existing tests…"
+    },
+    {
+      "at": "2026-06-23T08:32:52.514Z",
+      "step": "resolve",
+      "message": "Selected 8 test(s) to carry over."
+    },
+    {
+      "at": "2026-06-23T08:32:52.514Z",
+      "step": "prepare",
+      "message": "Preparing workspace and pointing 8 test(s) at the target…"
+    },
+    {
+      "at": "2026-06-23T08:32:52.517Z",
+      "step": "run",
+      "message": "Running 8 test(s) on the target — 2 pass(es) for flake detection. This can take a few minutes…"
+    },
+    {
+      "at": "2026-06-23T08:32:56.594Z",
+      "step": "run",
+      "message": "Tests finished: 8 passing, 0 regression(s), 0 infra, 0 flaky."
+    },
+    {
+      "at": "2026-06-23T08:32:56.594Z",
+      "step": "fingerprint",
+      "message": "Verifying it's the same build…"
+    },
+    {
+      "at": "2026-06-23T08:32:57.284Z",
+      "step": "fingerprint",
+      "message": "Fingerprint: error."
+    },
+    {
+      "at": "2026-06-23T08:32:57.284Z",
+      "step": "report",
+      "message": "Compiling the migration report…"
+    },
+    {
+      "at": "2026-06-23T08:32:57.285Z",
+      "step": "done",
+      "message": "Migration check complete."
+    }
+  ]
+}

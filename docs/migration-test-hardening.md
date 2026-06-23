@@ -1,6 +1,6 @@
-# Migration test hardening — Evolver brief
+# Migration test hardening — Tester brief
 
-Context for the Evolver (or the migration's built-in heal) hardening the carried-over
+Context for the Tester (or the migration's built-in heal) hardening the carried-over
 ROI-calculator specs. Target: `https://sapbtp-roi.tarento-ivolve.com/single`.
 
 ## Ground truth (do not relitigate)
