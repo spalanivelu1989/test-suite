@@ -29,7 +29,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useThemeMode } from "@/app/providers";
-import { getAWSColors, AWS_COLORS } from "@/app/theme/aws";
+import { getAWSColors, AWS_COLORS, getStatusStyle } from "@/app/theme/aws";
 import { ConsoleLayout } from "@/app/components/ConsoleLayout";
 import { PatternExplorer } from "@/app/explore/PatternExplorer";
 import { SqlQuery } from "@/app/sql-query/SqlQuery";
@@ -328,6 +328,26 @@ export default function HomePage() {
   const runningCount = runs.filter((r) => r.status === "running").length;
   const stoppedCount = runs.filter((r) => r.status === "cancelled").length;
   const terminatedCount = runs.filter((r) => r.status === "failed").length;
+  const latestRun = runs[0] ?? null;
+  const latestRunHost = useMemo(() => {
+    if (!latestRun?.config?.url) return "";
+    try {
+      return new URL(latestRun.config.url).host;
+    } catch {
+      return latestRun.config.url;
+    }
+  }, [latestRun]);
+
+  const cardHoverStyle = useMemo(() => ({
+    borderColor: isDark
+      ? "rgba(133, 193, 220, 0.5)"
+      : "rgba(13, 43, 107, 0.4)",
+    bg: isDark
+      ? "rgba(13, 43, 107, 0.25)"
+      : "rgba(13, 43, 107, 0.06)",
+    transform: "translateY(-1px)",
+    shadow: "md",
+  }), [isDark]);
 
   return (
     <ConsoleLayout
@@ -343,7 +363,7 @@ export default function HomePage() {
         <VStack align="stretch" gap={4}>
           {/* Resources Overview Grid */}
           <Grid
-            templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
+            templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
             gap={3.5}
           >
             {/* Active Runs Card */}
@@ -360,16 +380,7 @@ export default function HomePage() {
               onClick={() => setActiveTab("test-runs")}
               overflow="hidden"
               transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
-              _hover={{
-                borderColor: isDark
-                  ? "rgba(153, 209, 219, 0.5)"
-                  : "rgba(59, 130, 246, 0.4)",
-                bg: isDark
-                  ? "rgba(133, 193, 220, 0.12)"
-                  : "rgba(59, 130, 246, 0.07)",
-                transform: "translateY(-1px)",
-                shadow: "md",
-              }}
+              _hover={cardHoverStyle}
             >
               {/* Header strip (matches Migration Check sections) */}
               <Flex
@@ -468,16 +479,7 @@ export default function HomePage() {
               onClick={() => setActiveTab("test-runs")}
               overflow="hidden"
               transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
-              _hover={{
-                borderColor: isDark
-                  ? "rgba(166, 209, 137, 0.5)"
-                  : "rgba(22, 163, 74, 0.4)",
-                bg: isDark
-                  ? "rgba(166, 209, 137, 0.12)"
-                  : "rgba(22, 163, 74, 0.07)",
-                transform: "translateY(-1px)",
-                shadow: "md",
-              }}
+              _hover={cardHoverStyle}
             >
               {/* Header strip (matches Migration Check sections) */}
               <Flex
@@ -531,6 +533,185 @@ export default function HomePage() {
                     ? `${totalCount} suite execution${totalCount > 1 ? "s" : ""} recorded in history`
                     : "Ready to launch your first test suite run"}
                 </Text>
+              </Box>
+            </Box>
+
+            {/* Latest Run Report Card */}
+            <Box
+              role="group"
+              position="relative"
+              bg={hpe.cardBg}
+              border="1px solid"
+              borderColor={hpe.border}
+              borderRadius="xl"
+              shadow="sm"
+              cursor={latestRun ? "pointer" : "default"}
+              onClick={() => {
+                if (latestRun) {
+                  setSelectedRun(latestRun);
+                  setActiveTab("test-report");
+                }
+              }}
+              overflow="hidden"
+              transition="all 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+              _hover={latestRun ? cardHoverStyle : undefined}
+            >
+              {/* Header strip */}
+              <Flex
+                bg={hpe.subBg}
+                borderBottom="1px solid"
+                borderColor={hpe.border}
+                px={4}
+                py={2.5}
+                align="center"
+                justify="space-between"
+              >
+                <Text
+                  fontSize="11.5px"
+                  fontWeight="bold"
+                  color={colors.text}
+                  letterSpacing="0.05em"
+                  textTransform="uppercase"
+                >
+                  Latest run
+                </Text>
+                {latestRun && latestRun.status !== "completed" && (() => {
+                  const statusStyle = getStatusStyle(latestRun.status);
+                  return (
+                    <Badge
+                      variant="subtle"
+                      bg={statusStyle.bg}
+                      color={isDark ? statusStyle.darkColor : statusStyle.color}
+                      borderColor={statusStyle.border}
+                      borderWidth="1px"
+                      borderRadius="full"
+                      fontSize="9px"
+                      fontWeight="bold"
+                      px={2}
+                      py={0.5}
+                      display="inline-flex"
+                      alignItems="center"
+                      gap={1}
+                    >
+                      {statusStyle.dotColor && (
+                        <Box
+                          w="5px"
+                          h="5px"
+                          borderRadius="full"
+                          bg={isDark ? statusStyle.darkColor : statusStyle.color}
+                          style={
+                            statusStyle.animate
+                              ? { animation: "pulse-glow-run 1.2s infinite" }
+                              : undefined
+                          }
+                        />
+                      )}
+                      {statusStyle.label.toUpperCase()}
+                    </Badge>
+                  );
+                })()}
+              </Flex>
+
+              {/* Body */}
+              <Box p={4}>
+                {latestRun ? (
+                  <>
+                    {/* Top: Target URL with green status indicator dot */}
+                    <HStack gap={1.5} align="center">
+                      <Box w="6px" h="6px" borderRadius="full" bg={isDark ? "#a6d189" : "#22c55e"} />
+                      <Text
+                        fontSize="12.5px"
+                        fontFamily="mono"
+                        color={colors.text}
+                        fontWeight="semibold"
+                        whiteSpace="nowrap"
+                        textOverflow="ellipsis"
+                        overflow="hidden"
+                      >
+                        {latestRunHost || "Unknown Target"}
+                      </Text>
+                    </HStack>
+
+                    {/* Middle: Description */}
+                    <Text
+                      fontSize="11.5px"
+                      color={colors.subtext}
+                      mt={1.5}
+                      fontWeight="medium"
+                      whiteSpace="nowrap"
+                      textOverflow="ellipsis"
+                      overflow="hidden"
+                    >
+                      {latestRun.status === "running" || latestRun.status === "pending"
+                        ? `Stage: ${latestRun.stage}`
+                        : "Latest execution completed successfully"}
+                    </Text>
+
+                    {/* Bottom: Interactive text link (no border/background box) */}
+                    <HStack
+                      mt={4}
+                      display="inline-flex"
+                      align="center"
+                      color={isDark ? "#8caaee" : "#0d2b6b"}
+                      transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                      _groupHover={{
+                        color: isDark ? "#99d1db" : "#1a4db5",
+                        transform: "translateX(2px)",
+                      }}
+                      gap={1}
+                    >
+                      <Text fontSize="11px" fontWeight="bold" letterSpacing="0.05em" textTransform="uppercase">
+                        View Report
+                      </Text>
+                      <Box
+                        as="span"
+                        color={isDark ? "#8caaee" : "#0d2b6b"}
+                        transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                        _groupHover={{
+                          color: isDark ? "#99d1db" : "#1a4db5",
+                          transform: "translateX(3px)",
+                        }}
+                        display="inline-flex"
+                        alignItems="center"
+                      >
+                        <ChevronRight size={14} />
+                      </Box>
+                    </HStack>
+                  </>
+                ) : (
+                  <Flex
+                    h="90px"
+                    align="center"
+                    justify="center"
+                    flexDirection="column"
+                    gap={1}
+                  >
+                    <Text
+                      fontSize="28px"
+                      fontWeight="normal"
+                      lineHeight="1"
+                      color="transparent"
+                      letterSpacing="-0.5px"
+                      style={{
+                        backgroundImage: isDark
+                          ? "linear-gradient(to right, #ca9ee6, #babbf1)"
+                          : "linear-gradient(to right, #7c3aed, #4f46e5)",
+                        backgroundClip: "text",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                      }}
+                    >
+                      —
+                    </Text>
+                    <Text
+                      fontSize="11.5px"
+                      color={colors.subtext}
+                      fontWeight="medium"
+                    >
+                      No runs recorded in history
+                    </Text>
+                  </Flex>
+                )}
               </Box>
             </Box>
           </Grid>
