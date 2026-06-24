@@ -156,6 +156,18 @@ export async function runPipeline(
       }
     };
 
+  // Per-spec live line for the run feed: "✓ <title> (123ms)" as each test
+  // finishes against the target site (streamed from the suite's reporter).
+  const SPEC_ICON: Record<string, string> = {
+    passed: "✓",
+    failed: "✘",
+    timedOut: "⏱",
+    skipped: "⊘",
+    interrupted: "◼",
+  };
+  const specLine = (e: { title: string; status: string; durationMs: number }) =>
+    `${SPEC_ICON[e.status] ?? "•"} ${e.title} (${Math.round(e.durationMs)}ms)`;
+
   // Abort early at every checkpoint so a stopped run doesn't start more work.
   const checkCancelled = () => {
     if (deps.abortController?.signal.aborted) throw new CancelledError();
@@ -331,7 +343,9 @@ export async function runPipeline(
 
   // 3. Initial run (pre-heal), then Tester, then re-run for flake + heal reconciliation
   emit("running", "Running generated tests");
-  const initial = await captureResults(ws);
+  const initial = await captureResults(ws, deps.abortController?.signal, (e) =>
+    emit("running", `[suite] ${specLine(e)}`),
+  );
   checkCancelled();
 
   // Snapshot specs BEFORE healing so we can diff what the Tester changed (ADR-0004).
@@ -372,7 +386,12 @@ export async function runPipeline(
   checkCancelled();
 
   emit("flake-check", "Re-running to check reliability");
-  const flake = await assessSuiteFlakiness(ws, deps.reruns ?? 3);
+  const flake = await assessSuiteFlakiness(
+    ws,
+    deps.reruns ?? 3,
+    deps.abortController?.signal,
+    (e, rerun) => emit("flake-check", `[re-run ${rerun}] ${specLine(e)}`),
+  );
   checkCancelled();
   const { results, healSuccessRate } = reconcileHealing(initial, flake.results);
 

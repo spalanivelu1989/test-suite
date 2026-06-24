@@ -1,4 +1,4 @@
-import type { Workspace } from "../agents/workspace";
+import type { SpecEvent, Workspace } from "../agents/workspace";
 import { detectFlakes } from "../flake/flake";
 import type { TestResult } from "../types";
 
@@ -104,12 +104,14 @@ export function parsePlaywrightResults(
   });
 }
 
-/** Run the healed suite in the workspace and parse results (T9). */
+/** Run the healed suite in the workspace and parse results (T9). `onSpec` streams
+ * each test's outcome live (for the run feed); the parsed report is authoritative. */
 export async function captureResults(
   ws: Workspace,
   signal?: AbortSignal,
+  onSpec?: (e: SpecEvent) => void,
 ): Promise<TestResult[]> {
-  const report = await ws.runSuite(signal);
+  const report = await ws.runSuite(signal, onSpec);
   return parsePlaywrightResults(report);
 }
 
@@ -145,11 +147,18 @@ export async function assessSuiteFlakiness(
   ws: Workspace,
   reruns = 3,
   signal?: AbortSignal,
+  onSpec?: (e: SpecEvent, rerun: number) => void,
 ): Promise<{ results: TestResult[]; flakeRate: number }> {
   const runs: TestResult[][] = [];
   for (let i = 0; i < Math.max(1, reruns); i++) {
     if (signal?.aborted) break;
-    runs.push(await captureResults(ws, signal));
+    runs.push(
+      await captureResults(
+        ws,
+        signal,
+        onSpec ? (e) => onSpec(e, i + 1) : undefined,
+      ),
+    );
   }
   return detectFlakes(runs);
 }

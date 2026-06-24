@@ -19,6 +19,23 @@ test("createWorkspace builds an isolated run dir with seed + config", async () =
   }
 });
 
+test("createWorkspace wires the per-spec streaming reporter", async () => {
+  const id = `test-${randomUUID()}`;
+  const ws = await createWorkspace(id);
+  try {
+    // The reporter file exists and the config references it (so the suite streams
+    // per-spec results live, not only the end-of-run json).
+    assert.ok(existsSync(join(ws.root, "spec-stream.cjs")));
+    const config = await readFile(ws.configPath, "utf8");
+    assert.match(config, /reporter: \[\['json'.*\['\.\/spec-stream\.cjs'\]\]/);
+    const reporter = await readFile(join(ws.root, "spec-stream.cjs"), "utf8");
+    assert.match(reporter, /onTestEnd/);
+    assert.match(reporter, /@@SPEC@@/);
+  } finally {
+    await rm(ws.root, { recursive: true, force: true });
+  }
+});
+
 test("no auth → no globalSetup / global-setup.ts (unchanged behaviour)", async () => {
   const id = `test-${randomUUID()}`;
   const ws = await createWorkspace(id);
