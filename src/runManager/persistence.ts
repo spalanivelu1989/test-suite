@@ -6,7 +6,7 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import type { Run } from "../types";
 import { renderHtml } from "../reporter/render";
 
@@ -15,9 +15,17 @@ import { renderHtml } from "../reporter/render";
 // invariant; workspace.ts is left owning only a run's test files. Runs are
 // stored as `.runs/<id>/run.json`; legacy folders without metadata are inferred.
 
-/** Absolute path to the runs-root directory (the parent of every per-run dir). */
+/**
+ * Absolute path to the runs-root directory (the parent of every per-run dir).
+ *
+ * An absolute `baseDir` is returned as-is. Otherwise it's resolved against the
+ * runs root: normally `process.cwd()`, but `TEST_RUNS_ROOT` overrides it so the
+ * test suite redirects every workspace into a throwaway temp dir instead of the
+ * real `.runs` the dashboard scans (see src/test/setupRunsRoot.ts).
+ */
 export function getRunsRoot(baseDir = ".runs"): string {
-  return join(process.cwd(), baseDir);
+  if (isAbsolute(baseDir)) return baseDir;
+  return join(process.env.TEST_RUNS_ROOT ?? process.cwd(), baseDir);
 }
 
 /**

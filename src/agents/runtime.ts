@@ -50,6 +50,10 @@ export async function loadAgent(
 
 /** Progress events emitted as an agent runs — fed to the run store / SSE. */
 export type AgentEvent =
+  // The model's own between-tool prose. Kept distinct from `text` (which callers
+  // use for synthetic status lines) so the run feed can drop raw narration —
+  // it's unstructured, often confabulated, and not a faithful record of the run.
+  | { kind: "narration"; text: string }
   | { kind: "text"; text: string }
   | { kind: "tool"; tool: string }
   | { kind: "result"; isError: boolean; text: string };
@@ -209,7 +213,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
       if (msg.type === "assistant") {
         for (const block of msg.message.content) {
           if (block.type === "text" && block.text) {
-            opts.onEvent?.({ kind: "text", text: block.text });
+            opts.onEvent?.({ kind: "narration", text: block.text });
           } else if (block.type === "tool_use") {
             toolCalls.push(block.name);
             opts.onEvent?.({ kind: "tool", tool: block.name });

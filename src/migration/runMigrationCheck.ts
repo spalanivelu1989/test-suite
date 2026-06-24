@@ -284,8 +284,10 @@ export async function runMigrationCheck(
       (async (w: Workspace) => {
         // Forward the Tester's per-step execution into the migration log so the
         // user can see HOW each test was run and repaired — tool calls (the
-        // `npx playwright test` invocations, edits, re-runs) and the agent's
-        // own narration, mirroring the Test Runs console.
+        // `npx playwright test` invocations, edits, re-runs) and synthetic status
+        // lines, mirroring the Test Runs console. The model's raw narration
+        // (kind "narration") is intentionally dropped: it's unstructured and was
+        // surfacing confabulated, off-target commentary in the log.
         await evolveTests(
           w,
           (e) => {

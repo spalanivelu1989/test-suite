@@ -6,6 +6,7 @@ import {
 } from "../agents/workspace";
 import { createCrawlGate } from "../agents/crawlGate";
 import { createCliGuard, mergeHooks } from "../agents/cliGuard";
+import { createFsGuard } from "../agents/fsGuard";
 import {
   type CrawlMode,
   CRAWL_MODE_DEPTH,
@@ -850,13 +851,22 @@ export async function evolveTests(
       onEvent?.({ kind: "text", text: `🛑 Tool blocked: ${reason}` }),
   });
 
+  // Sandbox the Tester to its own run dir: it runs the suite and edits specs that
+  // all live in ws.root, so any read/grep/edit outside it is cross-run leakage
+  // (it was reaching sibling runs' tests and confabulating them into its work).
+  const fsGuard = createFsGuard({
+    workspaceRoot: ws.root,
+    onDeny: (reason) =>
+      onEvent?.({ kind: "text", text: `🛑 Out of workspace: ${reason}` }),
+  });
+
   const res = await run({
     agent,
     prompt,
     cwd: ws.root,
     onEvent,
     abortController: deps.abortController,
-    hooks: mergeHooks(guard.hooks, gate.hooks),
+    hooks: mergeHooks(mergeHooks(guard.hooks, gate.hooks), fsGuard.hooks),
   });
   return { toolCalls: res.toolCalls, isError: res.isError };
 }

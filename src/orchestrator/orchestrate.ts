@@ -146,7 +146,10 @@ export async function runPipeline(
       if (e.kind === "tool" && e.tool) {
         emit(stage, `[${label}] tool: ${e.tool}`);
       } else if (e.kind === "text" && e.text) {
-        // Truncate long text to keep the log readable (first 200 chars).
+        // Synthetic status lines the pipeline emits itself (🛑/🧠 …). The model's
+        // own between-tool prose arrives as kind "narration" and is intentionally
+        // dropped — it's unstructured and was surfacing confabulated, off-target
+        // commentary (e.g. unrelated apps) in the run feed.
         const snippet =
           e.text.length > 200 ? e.text.slice(0, 200) + "…" : e.text;
         emit(stage, `[${label}] ${snippet}`);

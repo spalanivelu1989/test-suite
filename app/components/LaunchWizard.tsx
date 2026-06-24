@@ -13,6 +13,7 @@ import {
   Spinner,
   Heading,
 } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import {
   Play,
   ChevronRight,
@@ -32,6 +33,11 @@ import {
 } from "@/src/types";
 
 const MotionBox = motion.create(Box);
+
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
 
 interface CustomSelectOption {
   value: string;
@@ -483,6 +489,10 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
         setSubmitting(false);
         return;
       }
+      // Artificially hold submitting state for a moment so the premium shimmer
+      // and dot animations have time to display and be perceived by the user.
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+
       onLaunchSuccess(data.runId);
       setSubmitting(false);
     } catch {
@@ -868,7 +878,17 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               type="submit"
               disabled={submitting}
               w="full"
-              bg={isDark ? "linear-gradient(135deg, #0078D4 0%, #005A9C 100%)" : "linear-gradient(135deg, #005A9C 0%, #004578 100%)"}
+              bg={
+                submitting
+                  ? isDark
+                    ? "linear-gradient(90deg, #0078D4 0%, #005A9C 50%, #0078D4 100%)"
+                    : "linear-gradient(90deg, #005A9C 0%, #004578 50%, #005A9C 100%)"
+                  : isDark
+                    ? "linear-gradient(135deg, #0078D4 0%, #005A9C 100%)"
+                    : "linear-gradient(135deg, #005A9C 0%, #004578 100%)"
+              }
+              backgroundSize="200% 100%"
+              animation={submitting ? `${shimmer} 1.5s linear infinite` : undefined}
               color="white"
               fontSize="12.5px"
               fontWeight="bold"
@@ -925,10 +945,35 @@ export function LaunchWizard({ onLaunchSuccess }: LaunchWizardProps) {
               gap={2.5}
             >
               {submitting ? (
-                <>
-                  <Spinner size="xs" color="currentColor" />
-                  <span>Launching...</span>
-                </>
+                <Flex align="center" gap={2}>
+                  <Spinner
+                    size="xs"
+                    color="currentColor"
+                  />
+                  <HStack gap={0.5} align="center">
+                    <Text as="span" fontWeight="bold" letterSpacing="0.08em">
+                      Launching Test
+                    </Text>
+                    <motion.span
+                      animate={{ opacity: [0.2, 1, 0.2] }}
+                      transition={{ repeat: Infinity, duration: 1.2, delay: 0 }}
+                    >
+                      .
+                    </motion.span>
+                    <motion.span
+                      animate={{ opacity: [0.2, 1, 0.2] }}
+                      transition={{ repeat: Infinity, duration: 1.2, delay: 0.2 }}
+                    >
+                      .
+                    </motion.span>
+                    <motion.span
+                      animate={{ opacity: [0.2, 1, 0.2] }}
+                      transition={{ repeat: Infinity, duration: 1.2, delay: 0.4 }}
+                    >
+                      .
+                    </motion.span>
+                  </HStack>
+                </Flex>
               ) : (
                 <>
                   <Play
