@@ -28,6 +28,7 @@ import {
   DatabaseZap,
   Terminal,
   GitCompare,
+  PlayCircle,
 } from "lucide-react";
 import { useThemeMode } from "@/app/providers";
 import { getAWSColors, SIDEBAR_GRADIENT } from "@/app/theme/aws";
@@ -95,6 +96,7 @@ export function ConsoleLayout({
 
   // Developer utility tools (bottom of sidebar)
   const bottomNavItems = [
+    { id: "demo", label: "Demo", icon: PlayCircle },
     { id: "sql-query", label: "SQL Query", icon: Terminal },
     { id: "explore", label: "Pattern Explorer", icon: DatabaseZap },
     { id: "matching-works", label: "Matching Visualizer", icon: Workflow },
@@ -387,6 +389,8 @@ export function ConsoleLayout({
             {activeTab === "migration-check" && "Migration Check"}
             {activeTab === "security-groups" && "Security Groups"}
             {activeTab === "key-pairs" && "Key Pairs (API Keys)"}
+            {activeTab === "demo" && "Demo"}
+            {activeTab === "sql-query" && "SQL Query"}
             {activeTab === "explore" && "Pattern Explorer"}
             {activeTab === "matching-works" && "Matching Visualizer"}
           </Text>

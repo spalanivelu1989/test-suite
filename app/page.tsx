@@ -39,6 +39,7 @@ import { LaunchWizard } from "@/app/components/LaunchWizard";
 import { TestRunsTable } from "@/app/components/TestRunsTable";
 import { TestReportView } from "@/app/components/TestReportView";
 import { TestRunDetailsPane } from "@/app/components/TestRunDetailsPane";
+import { DemoFlow } from "@/app/components/DemoFlow";
 import type { Run, ProgressEvent, RunReport } from "@/src/types";
 
 export default function HomePage() {
@@ -64,6 +65,7 @@ export default function HomePage() {
         "migration-check",
         "security-groups",
         "key-pairs",
+        "demo",
         "explore",
         "sql-query",
         "matching-works",
@@ -607,6 +609,11 @@ export default function HomePage() {
         width="100%"
       >
         <MigrationCheck />
+      </Box>
+
+      {/* ==================== DEMO TAB ==================== */}
+      <Box display={activeTab === "demo" ? "block" : "none"} width="100%">
+        <DemoFlow />
       </Box>
 
       {/* ==================== PATTERN EXPLORER TAB ==================== */}

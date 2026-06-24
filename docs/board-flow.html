@@ -691,8 +691,13 @@
     }
 
     @keyframes dbIngestGlow {
-      from { filter: drop-shadow(0 0 3px rgba(51, 103, 145, 0.4)); }
-      to { filter: drop-shadow(0 0 14px rgba(51, 103, 145, 0.8)); }
+      from {
+        filter: drop-shadow(0 0 3px rgba(51, 103, 145, 0.4));
+      }
+
+      to {
+        filter: drop-shadow(0 0 14px rgba(51, 103, 145, 0.8));
+      }
     }
 
     .transfer-modal {
@@ -711,7 +716,7 @@
       transform: scale(0.9) translateY(10px);
       transition: opacity 0.3s, transform 0.3s;
     }
-    
+
     .transfer-modal.show {
       opacity: 1;
       transform: none;
@@ -811,10 +816,9 @@
 <body class="light">
   <header>
     <div>
-      <h1>AI Test-Suite — Agent Workflow, in motion</h1>
+      <h1>Test-Suite - Agent Workflow</h1>
       <p>
-        Watch a run flow through the four agents. Data pulses travel the wires
-        exactly as in <code>board-uml.puml</code>.
+        Watch a run flow through the four agents
       </p>
     </div>
     <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">🌙 Dark Mode</button>
@@ -853,9 +857,8 @@
     </div>
     <b>Playwright</b> (the real browser) is driven in <b>two places</b> — when
     the Discoverer explores the site, and when the Tester runs the spec files
-    and heals them. The Designer never drives the browser. The
-    <b>Knowledge DB is optional</b>: without it the same four agents still
-    run, just "cold".
+    and heals them. The Designer never drives the browser.
+
   </footer>
 
   <script>
@@ -1410,7 +1413,7 @@
 
         const totalDuration = 15000 / speed;
         const startTime = performance.now();
-        
+
         let lastFileIdx = -1;
         let lastRateUpdate = 0;
         let transferActive = true;
@@ -1449,7 +1452,7 @@
             const f = files[fileIdx];
             if (filesEl) filesEl.textContent = `${fileIdx + 1} / 6`;
             addConsoleLog(`[${Math.round(pct)}%] Sending ${f.name} (${f.size})...`, "active");
-            
+
             const lines = logEl.querySelectorAll(".log-line");
             if (lines.length > 1) {
               lines[lines.length - 2].className = "log-line success";
@@ -1462,7 +1465,7 @@
           } else {
             if (filesEl) filesEl.textContent = "6 / 6";
             if (timeLeftEl) timeLeftEl.textContent = "0s";
-            
+
             const lines = logEl.querySelectorAll(".log-line");
             if (lines.length > 0) {
               const last = lines[lines.length - 1];
@@ -1471,10 +1474,10 @@
                 last.textContent = "✓ " + last.textContent.substring(6);
               }
             }
-            
+
             addConsoleLog("✓ DB indices rebuilt & optimized.", "success");
             addConsoleLog("Ingestion complete. Sync successful!", "finish");
-            
+
             setTimeout(() => {
               if (dbNode) dbNode.classList.remove("db-ingesting");
             }, 1000);
@@ -1515,19 +1518,19 @@
 
           const iconStartTime = performance.now();
           const duration = (900 + Math.random() * 400) / speed;
-          
+
           const offsetX = -25 - Math.random() * 45;
           const offsetY = (Math.random() - 0.5) * 30;
 
           const animateIcon = (now) => {
             const elapsed = now - iconStartTime;
             const pct = Math.min(1, elapsed / duration);
-            
+
             const eased = pct < 0.5 ? 4 * pct * pct * pct : 1 - Math.pow(-2 * pct + 2, 3) / 2;
 
             const cx = startX + (endX - startX) * eased + offsetX * Math.sin(pct * Math.PI);
             const cy = startY + (endY - startY) * eased + offsetY * Math.sin(pct * Math.PI);
-            
+
             const rotation = eased * 360;
 
             p.setAttribute("x", cx);
@@ -1549,7 +1552,7 @@
         spawnFileIcon();
 
         const origClearActive = clearActive;
-        clearActive = function() {
+        clearActive = function () {
           transferActive = false;
           origClearActive();
           clearActive = origClearActive;
@@ -1907,7 +1910,7 @@
 
         const savedSpeed = speed;
         // Temporarily set a very high speed to fast-forward intermediate steps instantly
-        speed = 250; 
+        speed = 250;
 
         while (idx < STEPS.length - 1) {
           const stepToRun = STEPS[idx + 1];

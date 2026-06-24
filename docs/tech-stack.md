@@ -2,7 +2,7 @@
 
 > What Test Suite is built with, and what each piece is used for.
 > Source of truth: `package.json`, plus the implementation files cited inline.
-> Last updated: 2026-06-08.
+> Last updated: 2026-06-24.
 
 ## At a glance
 
@@ -19,15 +19,14 @@
 
 ## Frontend
 
-| Technology                         | Version | Used for                                                                                                    |
-| ---------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- |
-| **Next.js**                        | 15.1    | Full-stack React framework — routing, server, build pipeline. Hosts both the UI and the backend API routes. |
-| **React**                          | 19.0    | UI component library — the dashboard, launch wizard, drawers, report views.                                 |
-| **Chakra UI** (`@chakra-ui/react`) | 3.2     | Component library — tables, drawers, badges, layout primitives.                                             |
-| **Emotion** (`@emotion/react`)     | 11.13   | CSS-in-JS styling engine that powers Chakra.                                                                |
-| **Framer Motion**                  | 11.13   | Animations and transitions.                                                                                 |
-| **Lucide React**                   | 0.468   | Icon set.                                                                                                   |
-| **Three.js** (`three`)             | 0.184   | 3D graphics / visual elements.                                                                              |
+| Technology                         | Version | Where it's used                                                                                          | Purpose                                                             | Why we need it                                                                              |
+| ---------------------------------- | ------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Next.js**                        | 15.1    | Whole `app/` — App Router pages plus `app/api/*` route handlers                                          | Full-stack React framework — routing, server, build pipeline        | One framework serves both the UI console and the backend API; no separate server to run     |
+| **React**                          | 19.0    | Every `app/**/*.tsx` component                                                                           | Core UI rendering and component model                               | Foundation all UI components are built on (dashboard, launch wizard, drawers, report views) |
+| **Chakra UI** (`@chakra-ui/react`) | 3.2     | `RunForm`, `page.tsx`, `LaunchWizard`, `TestReportView`, `PatternExplorer`, `SqlQuery`, charts           | Component library — tables, drawers, badges, layout, forms, theming | Consistent, accessible UI primitives without hand-rolling CSS; powers the whole console UI  |
+| **Emotion** (`@emotion/react`)     | 11.13   | Transitive via Chakra; configured in `app/providers.tsx`                                                 | CSS-in-JS styling engine that powers Chakra                         | Required runtime Chakra 3 uses to style components and apply the Catppuccin theme           |
+| **Framer Motion**                  | 11.13   | `RunForm`, `LaunchWizard`, `TestReportView`, `TestRunsTable`, `PatternExplorer`                          | Animations and transitions                                          | Smooth wizard steps, expanding rows, and report reveals for a polished testing-console feel |
+| **Lucide React**                   | 0.468   | `RunForm`, `page.tsx`, `LaunchWizard`, `ConsoleLayout`, `MigrationDiffView`, `MatchingVisualizer`, +more | Icon set                                                            | Lightweight, consistent SVG icons across nav, buttons, and status indicators                |
 
 ## Backend
 
