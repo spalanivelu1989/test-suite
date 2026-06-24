@@ -9,6 +9,8 @@ import {
   Flex,
   Button,
   Spinner,
+  Tooltip,
+  Portal,
 } from "@chakra-ui/react";
 import {
   ChevronDown,
@@ -1483,38 +1485,141 @@ export function TestReportView({
           )}
 
           <nav className="nav-tabs" aria-label="Report navigation">
-            <button
-              type="button"
-              className={`tab-btn ${activeSubTab === "dashboard" ? "active" : ""}`}
-              onClick={() => setActiveSubTab("dashboard")}
-              title={isSidebarCollapsed ? "Dashboard Overview" : undefined}
+            <Tooltip.Root
+              disabled={!isSidebarCollapsed}
+              openDelay={0}
+              closeDelay={0}
+              positioning={{ placement: "right", offset: { mainAxis: 12 } }}
             >
-              <ChartIcon /> {!isSidebarCollapsed && "Dashboard Overview"}
-            </button>
-            <button
-              type="button"
-              className={`tab-btn ${activeSubTab === "journeys" ? "active" : ""}`}
-              onClick={() => setActiveSubTab("journeys")}
-              title={isSidebarCollapsed ? "What Was Tested" : undefined}
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  className={`tab-btn ${activeSubTab === "dashboard" ? "active" : ""}`}
+                  onClick={() => setActiveSubTab("dashboard")}
+                >
+                  <ChartIcon /> {!isSidebarCollapsed && "Dashboard Overview"}
+                </button>
+              </Tooltip.Trigger>
+              <Portal>
+                <Tooltip.Positioner>
+                  <Tooltip.Content
+                    bg="linear-gradient(135deg, #0a1628 0%, #0d2b6b 55%, #1a4db5 100%)"
+                    color="white"
+                    px={3}
+                    py={1.5}
+                    borderRadius="md"
+                    fontSize="12px"
+                    boxShadow="0 4px 20px rgba(0, 0, 0, 0.35)"
+                    border="1px solid rgba(255, 255, 255, 0.18)"
+                    fontWeight="medium"
+                  >
+                    Dashboard Overview
+                  </Tooltip.Content>
+                </Tooltip.Positioner>
+              </Portal>
+            </Tooltip.Root>
+
+            <Tooltip.Root
+              disabled={!isSidebarCollapsed}
+              openDelay={0}
+              closeDelay={0}
+              positioning={{ placement: "right", offset: { mainAxis: 12 } }}
             >
-              <ListIcon /> {!isSidebarCollapsed && "What Was Tested"}
-            </button>
-            <button
-              type="button"
-              className={`tab-btn ${activeSubTab === "results" ? "active" : ""}`}
-              onClick={() => setActiveSubTab("results")}
-              title={isSidebarCollapsed ? "Detailed Results" : undefined}
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  className={`tab-btn ${activeSubTab === "journeys" ? "active" : ""}`}
+                  onClick={() => setActiveSubTab("journeys")}
+                >
+                  <ListIcon /> {!isSidebarCollapsed && "What Was Tested"}
+                </button>
+              </Tooltip.Trigger>
+              <Portal>
+                <Tooltip.Positioner>
+                  <Tooltip.Content
+                    bg="linear-gradient(135deg, #0a1628 0%, #0d2b6b 55%, #1a4db5 100%)"
+                    color="white"
+                    px={3}
+                    py={1.5}
+                    borderRadius="md"
+                    fontSize="12px"
+                    boxShadow="0 4px 20px rgba(0, 0, 0, 0.35)"
+                    border="1px solid rgba(255, 255, 255, 0.18)"
+                    fontWeight="medium"
+                  >
+                    What Was Tested
+                  </Tooltip.Content>
+                </Tooltip.Positioner>
+              </Portal>
+            </Tooltip.Root>
+
+            <Tooltip.Root
+              disabled={!isSidebarCollapsed}
+              openDelay={0}
+              closeDelay={0}
+              positioning={{ placement: "right", offset: { mainAxis: 12 } }}
             >
-              <FlaskIcon /> {!isSidebarCollapsed && "Detailed Results"}
-            </button>
-            <button
-              type="button"
-              className={`tab-btn ${activeSubTab === "screenshots" ? "active" : ""}`}
-              onClick={() => setActiveSubTab("screenshots")}
-              title={isSidebarCollapsed ? "Agent Screenshots" : undefined}
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  className={`tab-btn ${activeSubTab === "results" ? "active" : ""}`}
+                  onClick={() => setActiveSubTab("results")}
+                >
+                  <FlaskIcon /> {!isSidebarCollapsed && "Detailed Results"}
+                </button>
+              </Tooltip.Trigger>
+              <Portal>
+                <Tooltip.Positioner>
+                  <Tooltip.Content
+                    bg="linear-gradient(135deg, #0a1628 0%, #0d2b6b 55%, #1a4db5 100%)"
+                    color="white"
+                    px={3}
+                    py={1.5}
+                    borderRadius="md"
+                    fontSize="12px"
+                    boxShadow="0 4px 20px rgba(0, 0, 0, 0.35)"
+                    border="1px solid rgba(255, 255, 255, 0.18)"
+                    fontWeight="medium"
+                  >
+                    Detailed Results
+                  </Tooltip.Content>
+                </Tooltip.Positioner>
+              </Portal>
+            </Tooltip.Root>
+
+            <Tooltip.Root
+              disabled={!isSidebarCollapsed}
+              openDelay={0}
+              closeDelay={0}
+              positioning={{ placement: "right", offset: { mainAxis: 12 } }}
             >
-              <CameraIcon /> {!isSidebarCollapsed && "Agent Screenshots"}
-            </button>
+              <Tooltip.Trigger asChild>
+                <button
+                  type="button"
+                  className={`tab-btn ${activeSubTab === "screenshots" ? "active" : ""}`}
+                  onClick={() => setActiveSubTab("screenshots")}
+                >
+                  <CameraIcon /> {!isSidebarCollapsed && "Agent Screenshots"}
+                </button>
+              </Tooltip.Trigger>
+              <Portal>
+                <Tooltip.Positioner>
+                  <Tooltip.Content
+                    bg="linear-gradient(135deg, #0a1628 0%, #0d2b6b 55%, #1a4db5 100%)"
+                    color="white"
+                    px={3}
+                    py={1.5}
+                    borderRadius="md"
+                    fontSize="12px"
+                    boxShadow="0 4px 20px rgba(0, 0, 0, 0.35)"
+                    border="1px solid rgba(255, 255, 255, 0.18)"
+                    fontWeight="medium"
+                  >
+                    Agent Screenshots
+                  </Tooltip.Content>
+                </Tooltip.Positioner>
+              </Portal>
+            </Tooltip.Root>
           </nav>
 
           {!isSidebarCollapsed && (

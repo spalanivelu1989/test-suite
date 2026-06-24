@@ -15,6 +15,8 @@ import {
   Text,
   Button,
   IconButton,
+  Tooltip,
+  Portal,
 } from "@chakra-ui/react";
 import {
   LayoutDashboard,
@@ -110,9 +112,9 @@ export function ConsoleLayout({
   }) => {
     const isActive = activeTab === item.id;
     const Icon = item.icon;
-    return (
+    
+    const button = (
       <Button
-        key={item.id}
         onClick={() => setActiveTab(item.id)}
         variant="ghost"
         justifyContent={sidebarOpen ? "flex-start" : "center"}
@@ -150,6 +152,37 @@ export function ConsoleLayout({
           {sidebarOpen && <Text truncate>{item.label}</Text>}
         </HStack>
       </Button>
+    );
+
+    return (
+      <Tooltip.Root
+        key={item.id}
+        disabled={sidebarOpen}
+        openDelay={0}
+        closeDelay={0}
+        positioning={{ placement: "right", offset: { mainAxis: 12 } }}
+      >
+        <Tooltip.Trigger asChild>
+          {button}
+        </Tooltip.Trigger>
+        <Portal>
+          <Tooltip.Positioner>
+            <Tooltip.Content
+              bg="linear-gradient(135deg, #0a1628 0%, #0d2b6b 55%, #1a4db5 100%)"
+              color="white"
+              px={3}
+              py={1.5}
+              borderRadius="md"
+              fontSize="12px"
+              boxShadow="0 4px 20px rgba(0, 0, 0, 0.35)"
+              border="1px solid rgba(255, 255, 255, 0.18)"
+              fontWeight="medium"
+            >
+              {item.label}
+            </Tooltip.Content>
+          </Tooltip.Positioner>
+        </Portal>
+      </Tooltip.Root>
     );
   };
 
